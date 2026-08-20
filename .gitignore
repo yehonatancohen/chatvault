@@ -1,0 +1,33 @@
+node_modules/
+dist/
+.next/
+.turbo/
+out/
+build/
+
+# Expo
+.expo/
+ios/
+android/
+*.orig.*
+
+# Env
+.env
+.env.local
+.env.*.local
+.vercel
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+
+# NEVER commit real chat exports — they contain other people's personal data.
+# Test fixtures must be hand-written or anonymized, and live in packages/core/fixtures.
+*.chat.txt
+WhatsApp*.zip
+_chat.txt
+/scratch/
+
+# Build artifacts
+*.tsbuildinfo

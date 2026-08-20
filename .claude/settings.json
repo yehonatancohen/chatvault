@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc --noEmit *)",
+      "Bash(pnpm vitest run *)",
+      "Bash(pnpm tsc --noEmit *)",
+      "Bash(pnpm -r test *)",
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm -r typecheck *)",
+      "Bash(npm view *)",
+      "Bash(nvidia-smi *)",
+      "mcp__claude-in-chrome__read_network_requests",
+      "mcp__claude-in-chrome__read_console_messages",
+      "mcp__claude-in-chrome__get_page_text",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "mcp__claude-in-chrome__find",
+      "mcp__gsc__search_analytics",
+      "mcp__gsc__list_sitemaps",
+      "mcp__gsc__list_sites",
+      "mcp__gsc__detect_quick_wins",
+      "mcp__clarity__query-analytics-dashboard",
+      "mcp__clarity__list-session-recordings",
+      "mcp__plugin_vercel_vercel__list_deployments",
+      "mcp__plugin_vercel_vercel__get_deployment"
+    ]
+  }
+}

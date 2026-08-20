@@ -1,0 +1,16 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Expo config plugins require packages they do not declare as dependencies (@expo/plist is one)
+# and resolve them from their own location in the pnpm store rather than from the app that uses
+# them. Under pnpm's isolated node_modules those lookups fail with "Cannot find module".
+#
+# Hoisting the @expo scope into the root node_modules makes them resolve, without falling back
+# to node-linker=hoisted, which would flatten the whole workspace and give up the strict
+# dependency isolation that has already caught real bugs here.
+#
+# This lives in pnpm-workspace.yaml rather than .npmrc because pnpm 10 no longer reads
+# publicHoistPattern from .npmrc.
+publicHoistPattern:
+  - "@expo/*"

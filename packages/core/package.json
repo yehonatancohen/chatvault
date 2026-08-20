@@ -1,0 +1,23 @@
+{
+  "name": "@chatvault/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "fast-check": "^4.9.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

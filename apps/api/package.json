@@ -1,0 +1,19 @@
+{
+  "name": "@chatvault/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@chatvault/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@vercel/config": "^0.6.1",
+    "typescript": "^5.9.2"
+  }
+}

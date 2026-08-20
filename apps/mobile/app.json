@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "ChatVault",
+    "slug": "chatvault",
+    "version": "0.1.0",
+    "scheme": "chatvault",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "app.chatvault.mobile",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "app.chatvault.mobile"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-share-intent",
+        {
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsFileWithMaxCount": 1,
+            "NSExtensionActivationSupportsText": false,
+            "NSExtensionActivationSupportsWebURLWithMaxCount": 0
+          },
+          "iosShareExtensionName": "ChatVault Import",
+          "androidIntentFilters": [
+            "text/plain",
+            "application/zip"
+          ],
+          "disableExperimental": true,
+          "iosAppGroupIdentifier": "group.app.chatvault.mobile"
+        }
+      ]
+    ]
+  }
+}
