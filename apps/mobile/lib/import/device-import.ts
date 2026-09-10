@@ -29,7 +29,12 @@ import {
 } from "../archive/vault";
 import { ZipMediaSource } from "../media/zip-media-source";
 import { chatTitleFromFilename, chooseTarget, type ArchiveCandidate } from "./match";
-import { runImport, readArchiveMessageIds, type ImportOutcome } from "./run-import";
+import {
+  runImport,
+  readArchiveMessageIds,
+  type ImportOutcome,
+  type ImportStage,
+} from "./run-import";
 import { unwrapArchiveKey } from "../crypto/key-wrapping";
 
 /** Above this, a text export is not read into a JS string. Same guard Step 0's screen used. */
@@ -183,6 +188,7 @@ export interface CompleteImportResult {
 export async function completeImport(
   prepared: PreparedImport,
   passphrase: string | undefined,
+  onProgress?: (stage: ImportStage) => void,
 ): Promise<CompleteImportResult> {
   const crypto = getCryptoProvider();
   const storage = storageFor(prepared.archiveId);
@@ -209,6 +215,7 @@ export async function completeImport(
     // Cross-timezone merge is a documented limitation (`packages/core/CLAUDE.md`) and needs a
     // per-source offset the UI does not yet collect.
     tzOffsetMinutes: -new Date().getTimezoneOffset(),
+    ...(onProgress ? { onProgress } : {}),
   });
 
   return { outcome, archiveId: prepared.archiveId };

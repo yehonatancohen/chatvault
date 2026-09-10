@@ -52,16 +52,30 @@ export async function buildImport(
     return { ...message, attachment: { ...message.attachment, sha256 } };
   });
 
+  // Content address per filename, straight off the link result. Handing these to the writer
+  // is what lets it skip re-hashing — and skip *reading* anything the archive already holds.
+  const hashByFilename = new Map<string, string>();
+  for (const ref of link.refs) {
+    for (const filename of ref.filenames) hashByFilename.set(filename, ref.sha256);
+  }
+
   const filenames = new Set(
     messages
       .filter((m) => m.kind === "attachment" && m.attachment?.sha256 !== undefined)
       .map((m) => m.attachment!.filename),
   );
 
-  const media: MediaBlob[] = [];
-  for (const filename of filenames) {
-    media.push({ filename, bytes: await source.read(filename) });
-  }
+  // Thunks, not bytes. Reading every blob here to hand the writer an array was measured at
+  // ~200 MB of live buffers for a 50 MB export — four times the file, on the platform with the
+  // tightest memory budget in the product. The writer reads one at a time and drops it.
+  const media: MediaBlob[] = [...filenames].map((filename) => {
+    const sha256 = hashByFilename.get(filename);
+    return {
+      filename,
+      ...(sha256 !== undefined ? { sha256 } : {}),
+      read: () => source.read(filename),
+    };
+  });
 
   const participants: ArchiveParticipant[] = result.participants.map((name) => ({
     id: name,

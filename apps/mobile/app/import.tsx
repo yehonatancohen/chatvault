@@ -14,6 +14,7 @@ import {
   prepareImport,
   type PreparedImport,
 } from "../lib/import/device-import";
+import type { ImportStage } from "../lib/import/run-import";
 import { setImportSession } from "../lib/import/session";
 import { WeakPassphraseError, WrongPassphraseError } from "../lib/crypto/key-wrapping";
 import { formatBytes, formatCount } from "../lib/ui/format";
@@ -33,10 +34,22 @@ import { radius, theme } from "../lib/ui/theme";
  * chat is still where they left it.
  */
 
+/** Deliberately plain: a stuck import should tell the user which step it is stuck on. */
+const STAGE_LABELS: Record<ImportStage, string> = {
+  parsing: "Reading the messages...",
+  "checking-media": "Checking the media files...",
+  writing: "Encrypting and writing...",
+  verifying: "Reading the archive back to check it...",
+};
+
 type Phase =
   | { readonly kind: "reading" }
   | { readonly kind: "asking"; readonly prepared: PreparedImport }
-  | { readonly kind: "writing"; readonly prepared: PreparedImport }
+  | {
+      readonly kind: "writing";
+      readonly prepared: PreparedImport;
+      readonly stage: ImportStage;
+    }
   | { readonly kind: "error"; readonly message: string; readonly detail?: string };
 
 export default function ImportScreen() {
@@ -62,9 +75,11 @@ export default function ImportScreen() {
 
   const write = useCallback(
     async (prepared: PreparedImport, secret: string | undefined): Promise<void> => {
-      setPhase({ kind: "writing", prepared });
+      setPhase({ kind: "writing", prepared, stage: "parsing" });
       try {
-        const { outcome, archiveId } = await completeImport(prepared, secret);
+        const { outcome, archiveId } = await completeImport(prepared, secret, (stage) => {
+          if (!cancelled.current) setPhase({ kind: "writing", prepared, stage });
+        });
         if (cancelled.current) return;
 
         setImportSession({
@@ -82,7 +97,9 @@ export default function ImportScreen() {
             error instanceof WrongPassphraseError
               ? "That passphrase does not open this archive."
               : "The import did not finish.",
-          detail: error instanceof Error ? error.message : String(error),
+          // The stage is included because "it failed" is not a usable report and this is the
+          // one screen where a failure is expensive to reproduce.
+          detail: `${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}`,
         });
       }
     },
@@ -137,8 +154,14 @@ export default function ImportScreen() {
 
       {phase.kind === "writing" && (
         <Working
-          label={phase.prepared.creating ? "Building the archive..." : "Merging into your archive..."}
-          note={`${formatCount(phase.prepared.parsed.messages.length)} messages parsed. Encrypting on this device.`}
+          label={STAGE_LABELS[phase.stage]}
+          note={
+            `${formatCount(phase.prepared.parsed.messages.length)} messages, ` +
+            `${formatBytes(phase.prepared.byteLength)} of export. ` +
+            (phase.stage === "writing"
+              ? "Encrypting every file on this phone — a large export can take a while."
+              : "Everything happens here; nothing is uploaded.")
+          }
         />
       )}
 

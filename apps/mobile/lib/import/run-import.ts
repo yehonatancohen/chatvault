@@ -54,6 +54,20 @@ export class EmptyExportError extends Error {
   }
 }
 
+/**
+ * Where an import is, so a long one does not look like a hang and a failed one says where.
+ *
+ * Encrypting is JS-bound on Hermes and media is the bulk of an archive, so a large export can
+ * legitimately take tens of seconds. Without this, that is indistinguishable from a freeze —
+ * and when something does go wrong, "it failed" is a far worse bug report than "it failed
+ * while writing".
+ */
+export type ImportStage =
+  | "parsing"
+  | "checking-media"
+  | "writing"
+  | "verifying";
+
 export interface ImportRequest {
   readonly transcript: string;
   /**
@@ -79,6 +93,7 @@ export interface ImportRequest {
    */
   readonly tzOffsetMinutes: number;
   readonly now?: () => number;
+  readonly onProgress?: (stage: ImportStage) => void;
   /** Test hook only — crossing a chunk boundary without inventing 2,000 messages. */
   readonly messagesPerChunk?: number;
 }
@@ -102,9 +117,15 @@ export interface ImportOutcome {
 }
 
 export async function runImport(request: ImportRequest): Promise<ImportOutcome> {
+  const report = request.onProgress ?? (() => {});
+
+  report("parsing");
   const parsed = request.parsed ?? parseExport(request.transcript);
   if (parsed.messages.length === 0) throw new EmptyExportError(parsed.issues.length);
 
+  // `linkMedia` hashes every blob the export holds — the first place a large export spends
+  // real time, and the first place it can fail on a corrupt zip entry.
+  report("checking-media");
   const built = await buildImport(parsed, request.media, request.crypto, request.sourceId);
 
   const source: ImportSource = {
@@ -135,10 +156,15 @@ export async function runImport(request: ImportRequest): Promise<ImportOutcome> 
 
   const appending = await request.storage.has(MANIFEST_PATH);
   const before = appending ? await countExisting(request) : 0;
+
+  // Sealing. On a phone this is pure-JS AES-GCM over every byte of media, and it is where a
+  // big import spends most of its time.
+  report("writing");
   await (appending ? writer.append(content) : writer.write(content));
 
   // Read it back. See the note at the top of this file: this is the step that turns "we wrote
   // an archive" into "an archive is here and it opens".
+  report("verifying");
   const reader = await ArchiveReader.open({
     crypto: request.crypto,
     storage: request.storage,

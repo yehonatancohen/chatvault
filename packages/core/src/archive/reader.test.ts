@@ -141,7 +141,7 @@ describe("ArchiveReader", () => {
     it("reads a blob back by its content address", async () => {
       const storage = new MemoryStorageAdapter();
       const manifest = await writerFor(storage).write(
-        content({ media: [{ filename: "a.jpg", bytes: photo }] }),
+        content({ media: [{ filename: "a.jpg", read: async () => photo }] }),
       );
 
       const reader = await open(storage);
@@ -156,7 +156,7 @@ describe("ArchiveReader", () => {
 
     it("rejects a blob whose plaintext does not hash to its address", async () => {
       const storage = new MemoryStorageAdapter();
-      await writerFor(storage).write(content({ media: [{ filename: "a.jpg", bytes: photo }] }));
+      await writerFor(storage).write(content({ media: [{ filename: "a.jpg", read: async () => photo }] }));
       const reader = await open(storage);
 
       // Note what it takes to reach this check: simply moving a blob to another address fails

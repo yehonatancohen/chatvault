@@ -209,8 +209,8 @@ describe("ArchiveWriter", () => {
       const manifest = await writer.write(
         content({
           media: [
-            { filename: "IMG-0001.jpg", bytes: photo },
-            { filename: "IMG-20240315-WA0007.jpg", bytes: photo },
+            { filename: "IMG-0001.jpg", read: async () => photo },
+            { filename: "IMG-20240315-WA0007.jpg", read: async () => photo },
           ],
         }),
       );
@@ -227,7 +227,7 @@ describe("ArchiveWriter", () => {
     it("addresses a blob by its plaintext hash", async () => {
       const { storage, writer } = setup();
       const manifest = await writer.write(
-        content({ media: [{ filename: "a.jpg", bytes: photo }] }),
+        content({ media: [{ filename: "a.jpg", read: async () => photo }] }),
       );
 
       const expected = toHex(new Uint8Array(await webcrypto.subtle.digest("SHA-256", photo)));
@@ -237,7 +237,7 @@ describe("ArchiveWriter", () => {
 
     it("does not re-seal a blob it has already stored", async () => {
       const { storage, writer } = setup();
-      await writer.write(content({ media: [{ filename: "a.jpg", bytes: photo }] }));
+      await writer.write(content({ media: [{ filename: "a.jpg", read: async () => photo }] }));
 
       const hash = toHex(await crypto.sha256(photo));
       const first = await storage.get(mediaPath(hash));
@@ -246,7 +246,7 @@ describe("ArchiveWriter", () => {
         content({
           sources: [testSource("s2")],
           batches: [batch("s2", [message(5, "Ravid", "later")])],
-          media: [{ filename: "b.jpg", bytes: photo }],
+          media: [{ filename: "b.jpg", read: async () => photo }],
         }),
       );
 
@@ -257,11 +257,96 @@ describe("ArchiveWriter", () => {
       expect(await storage.list("media/")).toHaveLength(1);
     });
 
+    it("reads one blob at a time and does not hold them", async () => {
+      // The property `MediaBlob.read` exists for: peak memory is one blob, not all of them.
+      // Counting concurrent reads is the only way to state that as a test.
+      const { writer } = setup();
+      let live = 0;
+      let peak = 0;
+      const lazy = (filename: string, bytes: Uint8Array) => ({
+        filename,
+        read: async () => {
+          live += 1;
+          peak = Math.max(peak, live);
+          await Promise.resolve();
+          live -= 1;
+          return bytes;
+        },
+      });
+
+      await writer.write(
+        content({
+          media: [
+            lazy("a.jpg", photo),
+            lazy("b.jpg", Uint8Array.from(photo, (b) => b ^ 0xff)),
+            lazy("c.jpg", Uint8Array.from(photo, (b) => (b + 1) & 0xff)),
+          ],
+        }),
+      );
+
+      expect(peak).toBe(1);
+    });
+
+    it("does not read a blob the archive already holds", async () => {
+      // With the content address supplied, re-importing an export must not inflate a single
+      // byte of media to discover it is all already stored.
+      const { writer } = setup();
+      const hash = toHex(await crypto.sha256(photo));
+
+      await writer.write(content({ media: [{ filename: "a.jpg", read: async () => photo }] }));
+
+      let reads = 0;
+      await writer.append(
+        content({
+          sources: [testSource("s2")],
+          batches: [batch("s2", [message(5, "Ravid", "later")])],
+          media: [
+            {
+              filename: "a.jpg",
+              sha256: hash,
+              read: async () => {
+                reads += 1;
+                return photo;
+              },
+            },
+          ],
+        }),
+      );
+
+      expect(reads).toBe(0);
+    });
+
+    it("still records a new filename for a blob it did not read", async () => {
+      const { writer } = setup();
+      const hash = toHex(await crypto.sha256(photo));
+      await writer.write(content({ media: [{ filename: "a.jpg", read: async () => photo }] }));
+
+      const manifest = await writer.append(
+        content({
+          media: [{ filename: "b.jpg", sha256: hash, read: async () => photo }],
+        }),
+      );
+
+      expect(manifest.media).toHaveLength(1);
+      expect(manifest.media[0]?.filenames).toEqual(["a.jpg", "b.jpg"]);
+    });
+
+    it("hashes a blob itself when the caller supplies no address", async () => {
+      const { storage, writer } = setup();
+      const manifest = await writer.write(
+        content({ media: [{ filename: "a.jpg", read: async () => photo }] }),
+      );
+
+      const expected = toHex(await crypto.sha256(photo));
+      expect(manifest.media[0]?.sha256).toBe(expected);
+      expect(await storage.has(mediaPath(expected))).toBe(true);
+    });
+
     it("accumulates filenames across appends", async () => {
       const { writer } = setup();
-      await writer.write(content({ media: [{ filename: "a.jpg", bytes: photo }] }));
+      await writer.write(content({ media: [{ filename: "a.jpg", read: async () => photo }] }));
       const manifest = await writer.append(
-        content({ media: [{ filename: "b.jpg", bytes: photo }] }),
+        content({ media: [{ filename: "b.jpg", read: async () => photo }] }),
       );
 
       expect(manifest.media).toHaveLength(1);

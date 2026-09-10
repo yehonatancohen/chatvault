@@ -44,15 +44,30 @@ export async function buildImport(
     return { ...message, attachment: { ...message.attachment, sha256 } };
   });
 
+  // Content address per filename, straight off the link result — the writer then skips both
+  // re-hashing and, for media the archive already holds, reading at all.
+  const hashByFilename = new Map<string, string>();
+  for (const ref of link.refs) {
+    for (const filename of ref.filenames) hashByFilename.set(filename, ref.sha256);
+  }
+
   const filenames = new Set(
     messages
       .filter((m) => m.kind === "attachment" && m.attachment?.sha256 !== undefined)
       .map((m) => m.attachment!.filename),
   );
-  const media: MediaBlob[] = [];
-  for (const filename of filenames) {
-    media.push({ filename, bytes: await source.read(filename) });
-  }
+
+  // Thunks rather than bytes, matching `apps/mobile/lib/import/build-import.ts`. A browser tab
+  // has room to hold a whole export's media at once and a phone does not; keeping the two
+  // clients on one shape matters more than the slack here, since they append to one archive.
+  const media: MediaBlob[] = [...filenames].map((filename) => {
+    const sha256 = hashByFilename.get(filename);
+    return {
+      filename,
+      ...(sha256 !== undefined ? { sha256 } : {}),
+      read: () => source.read(filename),
+    };
+  });
 
   const participants: ArchiveParticipant[] = result.participants.map((name) => ({
     id: name,

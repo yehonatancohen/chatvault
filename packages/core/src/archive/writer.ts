@@ -53,10 +53,33 @@ export class MissingHeaderError extends Error {
   }
 }
 
+/**
+ * One media file, read on demand.
+ *
+ * `read()` rather than `bytes` because the alternative does not fit on a phone. A caller
+ * holding an array of `{ filename, bytes }` is holding the whole export's media at once: a
+ * 50 MB export measured at ~200 MB of live buffers that way, on a platform whose share
+ * extension has a 120 MB ceiling and whose main app is not far behind. With a thunk, the
+ * writer holds one blob at a time and drops it, so peak memory is the largest single file
+ * rather than the sum of all of them.
+ *
+ * `sha256` is the plaintext content address when the caller already knows it — `linkMedia`
+ * computes exactly this and throws it away otherwise. Supplying it lets the writer skip both
+ * the re-hash *and* the read for media the archive already holds, which is the entire cost of
+ * re-importing an export that has already been archived.
+ *
+ * **If `sha256` is supplied it must be correct.** It is the address the blob is stored at, so
+ * a wrong value files the bytes under someone else's name. It is not verified here: the only
+ * callers are this package's own `linkMedia` consumers, and re-hashing to check would give
+ * back the cost the field exists to avoid. `ArchiveReader.readMedia` re-hashes on the way out,
+ * so a mistake surfaces as an integrity error rather than as silent corruption.
+ */
 export interface MediaBlob {
   /** Name as the exporting member's WhatsApp wrote it — several may map to one blob. */
   readonly filename: string;
-  readonly bytes: Uint8Array;
+  /** Plaintext SHA-256, hex, when already known. See the note above before setting it. */
+  readonly sha256?: string;
+  read(): Promise<Uint8Array>;
 }
 
 export interface ArchiveParticipant {
@@ -239,19 +262,35 @@ export class ArchiveWriter {
     );
 
     for (const blob of blobs) {
-      const hash = toHex(await this.crypto.sha256(blob.bytes));
+      // A blob whose address we already know, and which this archive already holds, needs
+      // neither reading nor hashing — the ref is here, and only the filename alias might be
+      // new. This is the whole of a re-import: nothing is inflated, nothing is sealed, and
+      // peak memory never rises. Without it, re-importing a 50 MB export costs 50 MB of reads
+      // to discover that every byte was already stored.
+      if (blob.sha256 !== undefined) {
+        const alreadyHeld = byHash.get(blob.sha256);
+        if (alreadyHeld) {
+          alreadyHeld.filenames.add(blob.filename);
+          continue;
+        }
+      }
+
+      // Read one blob, use it, drop it. The loop deliberately keeps no reference past its own
+      // iteration — see `MediaBlob`.
+      const bytes = await blob.read();
+      const hash = blob.sha256 ?? toHex(await this.crypto.sha256(bytes));
       const known = byHash.get(hash);
       if (known) {
         known.filenames.add(blob.filename);
       } else {
-        byHash.set(hash, { byteLength: blob.bytes.length, filenames: new Set([blob.filename]) });
+        byHash.set(hash, { byteLength: bytes.length, filenames: new Set([blob.filename]) });
       }
 
       // The path is the content address, so a second write would be a no-op — except that
       // re-sealing burns a fresh IV and rewrites bytes that other archives may already have
       // verified. Ask storage first: identical media is stored exactly once, ever.
       if (await this.storage.has(mediaPath(hash))) continue;
-      await this.sealTo(mediaPath(hash), blob.bytes);
+      await this.sealTo(mediaPath(hash), bytes);
     }
 
     return [...byHash.entries()]
