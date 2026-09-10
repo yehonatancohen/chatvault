@@ -70,10 +70,20 @@ extension not killed.*
 In dependency order. A1–A3 are ports that core already declares; each is small and, apart from
 A3, testable.
 
+> **Start here: A1.** Not because it is the biggest item, but because a working device build
+> now exists for the first time and A1 is the only thing that has been *waiting on exactly
+> that*. `runStorageConformance` cannot run in Node, in CI, or in Expo Go — it needs the Expo
+> runtime, which until Step 0 passed we did not have. Everything else in Track A can be
+> written without a device; A1 can only be *proven* with one, so run it while the build is
+> fresh and known-good. It also de-risks A4 — the import pipeline writes through this adapter,
+> and finding out then that the port is wrong means debugging two things at once.
+
 - **A1. `ExpoFileSystemStorageAdapter`** — **written** (`apps/mobile/lib/storage/`), typechecks,
   but **not yet proven**: it must pass `runStorageConformance` (`packages/storage/CLAUDE.md`),
   and that suite cannot run outside the Expo runtime because `File`/`Directory` are a native
-  module — no device, no evidence. First thing to run once Step 0 has a build.
+  module — no device, no evidence. **The blocker is now gone.** Getting the suite to run means
+  giving it somewhere to execute inside the app — a dev-only screen or a route that runs it and
+  renders the results is enough; it does not need to be pretty, and it should not ship.
 - **A2. `MediaSource` over the export zip** — **written and unit-tested**
   (`apps/mobile/lib/media/zip-media-source.ts`, 6 passing tests), but with a known gap: it
   loads the whole zip into memory (`fflate.unzipSync`'s only mode) rather than reading entries
