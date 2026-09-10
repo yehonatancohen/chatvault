@@ -104,3 +104,10 @@ export {
 } from "./archive/reader.js";
 export type { ArchiveStoragePort } from "./archive/ports.js";
 export { decodeChunk, encodeChunk, MalformedChunkError } from "./archive/jsonl.js";
+
+/**
+ * Exported for the clients, which decode export transcripts and archive JSON themselves.
+ * `TextDecoder` is not in `lib ES2022` and is not guaranteed on Hermes — see `util/utf8.ts`.
+ * A client reaching for the global directly is the hole invariant 3 exists to close.
+ */
+export { decodeUtf8, encodeUtf8 } from "./util/utf8.js";

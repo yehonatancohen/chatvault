@@ -17,6 +17,8 @@
     "@chatvault/core": "workspace:*",
     "@chatvault/storage": "workspace:*",
     "@expo/metro-runtime": "~57.0.15",
+    "@noble/ciphers": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
     "expo": "^57.0.14",
     "expo-constants": "~57.0.12",
     "expo-crypto": "^57.0.1",

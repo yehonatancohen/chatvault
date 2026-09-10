@@ -1,7 +1,12 @@
 import { zipSync } from "fflate";
 import { MediaNotFoundError } from "@chatvault/core";
 import { describe, expect, it } from "vitest";
-import { MAX_SAFE_ZIP_BYTES, ZipMediaSource, ZipTooLargeError } from "./zip-media-source";
+import {
+  MAX_SAFE_ZIP_BYTES,
+  NoTranscriptError,
+  ZipMediaSource,
+  ZipTooLargeError,
+} from "./zip-media-source";
 
 function bytes(s: string): Uint8Array {
   return new TextEncoder().encode(s);
@@ -36,6 +41,38 @@ describe("ZipMediaSource", () => {
   it("rejects with MediaNotFoundError for a name not in the zip", async () => {
     const source = new ZipMediaSource(makeExportZip());
     await expect(source.read("nope.jpg")).rejects.toBeInstanceOf(MediaNotFoundError);
+  });
+
+  it("reads the transcript that list() deliberately hides", async () => {
+    const source = new ZipMediaSource(makeExportZip());
+    expect(await source.readTranscript()).toBe("[3/14/25, 8:10:12 PM] Dana: hi");
+  });
+
+  it("decodes a Hebrew transcript as UTF-8, bidi marks intact", async () => {
+    // The parser's whole difficulty is invisible characters (root CLAUDE.md); a transcript
+    // reader that mangled them would break parsing in a way no fixture here would catch.
+    const line = "[14/03/2025, 20:10:34] דנה: תראה מה מצאתי ‎<attached: a.jpg>";
+    const source = new ZipMediaSource(zipSync({ "_chat.txt": bytes(line) }));
+    expect(await source.readTranscript()).toBe(line);
+  });
+
+  it("finds the transcript under a folder, as some exports nest it", async () => {
+    const source = new ZipMediaSource(
+      zipSync({ "WhatsApp Chat - Dana/_chat.txt": bytes("hello"), "a.jpg": bytes("x") }),
+    );
+    expect(await source.readTranscript()).toBe("hello");
+  });
+
+  it("does not mistake a macOS resource fork for the transcript", async () => {
+    const source = new ZipMediaSource(
+      zipSync({ "__MACOSX/._chat.txt": bytes("junk"), "_chat.txt": bytes("real") }),
+    );
+    expect(await source.readTranscript()).toBe("real");
+  });
+
+  it("says so plainly when a zip is not an export at all", async () => {
+    const source = new ZipMediaSource(zipSync({ "photo.jpg": bytes("x") }));
+    await expect(source.readTranscript()).rejects.toBeInstanceOf(NoTranscriptError);
   });
 
   it("does not decompress entries it does not return — read() only inflates the match", async () => {

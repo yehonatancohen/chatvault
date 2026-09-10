@@ -67,6 +67,15 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" options={{ title: "ChatVault" }} />
         <Stack.Screen name="import" options={{ title: "Import" }} />
+        {/*
+          Verify is the trust moment and is reached with `replace` from Import, so there is
+          deliberately no back-link to a screen that has already done its work. `gestureEnabled`
+          off for the same reason: swiping back from here would land on a finished import.
+        */}
+        <Stack.Screen name="verify" options={{ title: "What was captured", gestureEnabled: false }} />
+        <Stack.Screen name="delete-guide" options={{ title: "Delete in WhatsApp" }} />
+        {/* Title comes from the archive's own manifest — see the screen's `Stack.Screen`. */}
+        <Stack.Screen name="archive/[id]" options={{ title: "Archive" }} />
         {/* Dev-only; `index.tsx` only links to it under `__DEV__`. See `dev-storage.tsx`. */}
         <Stack.Screen name="dev-storage" options={{ title: "Storage contract" }} />
       </Stack>

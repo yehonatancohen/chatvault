@@ -25,7 +25,7 @@
  */
 
 import { unzipSync } from "fflate";
-import { MediaNotFoundError, type MediaSource } from "@chatvault/core";
+import { decodeUtf8, MediaNotFoundError, type MediaSource } from "@chatvault/core";
 
 /** Above this, refuse rather than risk the process being killed. See the class doc above. */
 export const MAX_SAFE_ZIP_BYTES = 150 * 1024 * 1024;
@@ -62,12 +62,54 @@ export class ZipMediaSource implements MediaSource {
     return Promise.resolve(names);
   }
 
+  /**
+   * The chat transcript, which `list()` deliberately hides.
+   *
+   * `list()` returns media candidates only (the port's contract), so the one entry the parser
+   * actually needs is invisible through the `MediaSource` interface — this is the way to it.
+   * A real export names it `_chat.txt`, but that name is not guaranteed across locales and
+   * platforms, so the rule is "the first non-junk `.txt` entry", matching `isJunk`'s own test
+   * and `apps/web/lib/read-export.ts`.
+   */
+  readTranscript(): Promise<string> {
+    let name: string | undefined;
+    unzipSync(this.zipBytes, {
+      filter: (file) => {
+        if (name === undefined && isTranscript(file.name)) name = file.name;
+        return false;
+      },
+    });
+    if (name === undefined) return Promise.reject(new NoTranscriptError());
+
+    const found = unzipSync(this.zipBytes, { filter: (file) => file.name === name });
+    const bytes = found[name];
+    if (!bytes) return Promise.reject(new NoTranscriptError());
+    return Promise.resolve(decodeUtf8(bytes));
+  }
+
   read(filename: string): Promise<Uint8Array> {
     const found = unzipSync(this.zipBytes, { filter: (file) => file.name === filename });
     const bytes = found[filename];
     if (!bytes) return Promise.reject(new MediaNotFoundError(filename));
     return Promise.resolve(Uint8Array.from(bytes));
   }
+}
+
+export class NoTranscriptError extends Error {
+  constructor() {
+    super(
+      "This zip has no chat transcript in it. A WhatsApp export always contains one " +
+        "(_chat.txt) — this may be an ordinary zip rather than an export.",
+    );
+    this.name = "NoTranscriptError";
+  }
+}
+
+/** The transcript is the one `.txt` `isJunk` filters out of `list()`; this finds it again. */
+function isTranscript(path: string): boolean {
+  if (path.startsWith("__MACOSX/")) return false;
+  const base = path.split("/").pop() ?? path;
+  return base.toLowerCase().endsWith(".txt");
 }
 
 function isJunk(path: string): boolean {

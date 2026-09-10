@@ -10,9 +10,13 @@ import {
 import { Directory, Paths } from "expo-file-system";
 import { runStorageContract, type ContractResult } from "@chatvault/storage";
 import { ExpoFileSystemStorageAdapter } from "../lib/storage/expo-file-system-adapter";
+import { runPipelineChecks } from "../lib/dev/pipeline-check";
 
 /**
- * A1 — the storage contract, run on the device. Dev-only; this must never ship.
+ * The device checks. Dev-only; this must never ship.
+ *
+ * Two suites, for the same reason: both cover code whose real runtime is a phone, and neither
+ * can run in CI.
  *
  * `packages/storage/CLAUDE.md` makes the conformance suite non-optional for every adapter, and
  * `ExpoFileSystemStorageAdapter` is the one adapter that cannot run it under vitest:
@@ -27,6 +31,13 @@ import { ExpoFileSystemStorageAdapter } from "../lib/storage/expo-file-system-ad
  * It runs against the cache directory rather than the App Group container: the contract is
  * about filesystem semantics, which do not differ between the two, and a failed run should
  * never leave debris next to real archives.
+ *
+ * **The pipeline checks** (`lib/dev/pipeline-check.ts`) do the same job for A3 and A4. The
+ * Node suite proves the import pipeline against WebCrypto and an in-memory store; on a phone
+ * the crypto is `@noble` under Hermes, the hashing is a native module, and the storage is a
+ * filesystem. These run the real thing, and compare Hermes' AES-GCM and PBKDF2 output against
+ * fixed vectors produced by WebCrypto — which is what makes "an archive written here opens in
+ * a browser" a checked claim rather than a hope.
  */
 
 /** One directory per case. The contract hands each case a *fresh, empty* adapter. */
@@ -36,10 +47,15 @@ function slugify(caseName: string): string {
   return caseName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+interface Suite {
+  readonly title: string;
+  readonly results: readonly ContractResult[];
+}
+
 type Run =
   | { readonly status: "idle" }
   | { readonly status: "running" }
-  | { readonly status: "done"; readonly results: readonly ContractResult[] }
+  | { readonly status: "done"; readonly suites: readonly Suite[] }
   | { readonly status: "error"; readonly message: string };
 
 export default function DevStorageScreen() {
@@ -53,14 +69,21 @@ export default function DevStorageScreen() {
       // is written" pass or fail for reasons that have nothing to do with the adapter.
       if (root.exists) root.delete();
 
-      const results = await runStorageContract((caseName) => {
+      const storageResults = await runStorageContract((caseName) => {
         const caseRoot = new Directory(root, slugify(caseName));
         // Deliberately not created here — the adapter must cope with a root that does not yet
         // exist, which is exactly the state a brand-new archive starts in.
         return new ExpoFileSystemStorageAdapter(caseRoot);
       });
+      const pipelineResults = await runPipelineChecks();
 
-      setRun({ status: "done", results });
+      setRun({
+        status: "done",
+        suites: [
+          { title: "Storage contract", results: storageResults },
+          { title: "Crypto and import pipeline", results: pipelineResults },
+        ],
+      });
     } catch (error) {
       setRun({ status: "error", message: error instanceof Error ? error.message : String(error) });
     } finally {
@@ -72,7 +95,7 @@ export default function DevStorageScreen() {
     }
   }, []);
 
-  const results = run.status === "done" ? run.results : [];
+  const results = run.status === "done" ? run.suites.flatMap((suite) => suite.results) : [];
   const failed = results.filter((r) => r.status === "failed").length;
   const skipped = results.filter((r) => r.status === "skipped").length;
   const passed = results.filter((r) => r.status === "passed").length;
@@ -80,10 +103,10 @@ export default function DevStorageScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.body}>
-        Runs <Text style={styles.mono}>storageContract</Text> against{" "}
-        <Text style={styles.mono}>ExpoFileSystemStorageAdapter</Text> — the same cases{" "}
-        <Text style={styles.mono}>pnpm test</Text> runs against the in-memory adapter, which
-        cannot reach this one because the filesystem here is a native module.
+        Runs everything <Text style={styles.mono}>pnpm test</Text> cannot: the storage contract
+        against the real filesystem adapter, and the crypto and import pipeline against Hermes,
+        the native SHA-256 and a real directory — including whether this phone's AES-GCM and
+        PBKDF2 produce the exact bytes a browser does.
       </Text>
 
       <Pressable
@@ -97,7 +120,7 @@ export default function DevStorageScreen() {
         ]}
       >
         <Text style={styles.buttonLabel}>
-          {run.status === "done" ? "Run again" : "Run the contract"}
+          {run.status === "done" ? "Run again" : "Run the device checks"}
         </Text>
       </Pressable>
 
@@ -127,22 +150,28 @@ export default function DevStorageScreen() {
             </Text>
             <Text style={styles.body}>
               {failed === 0
-                ? "The device adapter satisfies the same contract as the in-memory one."
-                : "Do not write an archive through this adapter until these pass."}
+                ? "This device behaves the way the Node suites say it should — including " +
+                  "producing byte-identical crypto to the web viewer."
+                : "Do not trust an archive written by this build until these pass."}
             </Text>
           </View>
 
-          {results.map((result) => (
-            <View key={result.name} style={styles.result}>
-              <Text style={styles.resultLine}>
-                <Text style={statusStyle(result.status)}>{statusMark(result.status)}</Text>{" "}
-                {result.name}
-              </Text>
-              {result.detail !== undefined && (
-                <Text style={styles.detail} selectable>
-                  {result.detail}
-                </Text>
-              )}
+          {run.suites.map((suite) => (
+            <View key={suite.title}>
+              <Text style={styles.suiteTitle}>{suite.title}</Text>
+              {suite.results.map((result) => (
+                <View key={result.name} style={styles.result}>
+                  <Text style={styles.resultLine}>
+                    <Text style={statusStyle(result.status)}>{statusMark(result.status)}</Text>{" "}
+                    {result.name}
+                  </Text>
+                  {result.detail !== undefined && (
+                    <Text style={styles.detail} selectable>
+                      {result.detail}
+                    </Text>
+                  )}
+                </View>
+              ))}
             </View>
           ))}
         </>
@@ -181,6 +210,13 @@ const styles = StyleSheet.create({
   summaryBox: { paddingVertical: 16, gap: 4 },
   passHeading: { fontSize: 20, fontWeight: "600", color: "#256d4a" },
   failHeading: { fontSize: 20, fontWeight: "600", color: "#a3341f" },
+  suiteTitle: {
+    marginTop: 24,
+    marginBottom: 4,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#6b6862",
+  },
   result: {
     paddingVertical: 10,
     gap: 6,

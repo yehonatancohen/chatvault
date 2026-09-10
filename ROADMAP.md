@@ -8,7 +8,7 @@ Where things stand and what to do next, ordered by risk rather than by convenien
 |---|---|
 | `packages/core` | **Done for v1.** Parser, identity, merge, archive read/write, media pipeline, crypto. 125 tests. Parser and merge verified against a real export pair. |
 | `packages/storage` | Interface + contract suite (runnable under vitest *and* inside a device runtime) + in-memory adapter. No cloud adapter yet. |
-| `apps/mobile` | Runs on a physical iPhone. Two screens; the **Share Extension hands a file over successfully** (Step 0), but no import pipeline yet. A1/A2 ports (storage adapter, zip media source) written ahead of need — see Track A. |
+| `apps/mobile` | **Track A built end to end** — share → import → verify → guided delete → library → reader, with Hermes crypto and a device-proven storage adapter. 87 tests. Awaits one real-export run on a phone. |
 | `apps/web` | **B0a done.** `/open`: pick a `.cvault` bundle, unlock by passphrase, virtualized RTL-correct viewer with media lightbox, client-side append-and-merge. No backend yet — see Track B. |
 | `apps/api` | Health endpoint. Intentionally minimal. |
 
@@ -70,7 +70,9 @@ extension not killed.*
 In dependency order. A1–A3 are ports that core already declares; each is small and, apart from
 A3, testable.
 
-> **Start here: A1.** Not because it is the biggest item, but because a working device build
+> ~~**Start here: A1.**~~ *Done — and it did exactly what the note predicted, finding a bug
+> that no green CI run could have. Kept below for the reasoning.* Not because it is the
+> biggest item, but because a working device build
 > now exists for the first time and A1 is the only thing that has been *waiting on exactly
 > that*. `runStorageConformance` cannot run in Node, in CI, or in Expo Go — it needs the Expo
 > runtime, which until Step 0 passed we did not have. Everything else in Track A can be
@@ -78,44 +80,59 @@ A3, testable.
 > fresh and known-good. It also de-risks A4 — the import pipeline writes through this adapter,
 > and finding out then that the port is wrong means debugging two things at once.
 
-- **A1. `ExpoFileSystemStorageAdapter`** — **runnable now; awaiting one run on the device.**
-  The adapter was written and typechecked; what was missing was any way to execute the contract
-  against it, since `File`/`Directory` are a native module and `runStorageConformance` was
-  written directly against vitest.
+- **A1. `ExpoFileSystemStorageAdapter`** — **passed on device.** The contract moved out of the
+  vitest file into `packages/storage/src/contract.ts` so it could run inside the Expo runtime;
+  `apps/mobile/app/dev-storage.tsx` runs it there. The first real run found two bugs in
+  `putStream`, both from `expo-file-system`'s `writableStream()` opening `FileMode.WriteOnly`:
+  it does not create the file (so every streamed write to a new object failed), and it does not
+  truncate (so a shorter rewrite would have left the tail of the old ciphertext behind —
+  silent, and fatal to a media blob). Fixed with `create({ overwrite: true })`, and the second
+  bug now has a contract case of its own.
 
-  **Now built:** the cases moved out of the test file into `packages/storage/src/contract.ts`
-  (no test framework, no `node:*` — it runs under Hermes), with two runners over the same
-  array: `runStorageConformance` for vitest, and `runStorageContract` for anywhere else. The
-  dev-only screen `apps/mobile/app/dev-storage.tsx` drives the latter against the real adapter,
-  a fresh cache directory per case, and renders every result. `index.tsx` links to it under
-  `__DEV__`. Four cases were added while the contract was open, each aimed at a filesystem
-  failure the old in-memory-only suite could not have caught: a shrinking overwrite leaving a
-  tail behind, `list("")` needing a recursive walk, listing before the root directory exists,
-  and an empty object. Three more cover streaming, which nothing tested at all and which this
-  adapter claims.
+- **A2. `MediaSource` over the export zip** — unchanged, plus `readTranscript()`: `list()`
+  hides the transcript by contract, so the parser needed a way to it. Still loads the whole zip
+  into memory (`fflate.unzipSync`'s only mode), still capped at 150 MB, still owed a
+  central-directory reader over a `FileHandle`. **This is now the largest known gap in the
+  mobile app.**
 
-  **What is owed: launch the app, tap "Dev: run the storage contract", read the results.**
-  16 cases, all expected to pass (none should skip — this adapter declares `streaming: true`).
-  `pnpm test` (13 passed, 3 streaming cases skipped for `MemoryStorageAdapter`), `pnpm -r
-  typecheck` and a full `expo export` iOS bundle are green, and none of that is evidence about
-  this adapter. Only the screen is.
-- **A2. `MediaSource` over the export zip** — **written and unit-tested**
-  (`apps/mobile/lib/media/zip-media-source.ts`, 6 passing tests), but with a known gap: it
-  loads the whole zip into memory (`fflate.unzipSync`'s only mode) rather than reading entries
-  lazily, which is exactly the failure mode the Share Extension's ceiling exists to avoid. Capped
-  at 150 MB so it fails loudly instead of getting killed; the real fix is a central-directory
-  parse over a `FileHandle` with per-entry inflate, deliberately not attempted yet.
-- **A3. `CryptoProvider` for Hermes** — WebCrypto polyfill, or `react-native-quick-crypto`.
-  When Argon2id lands, branch on `KdfParams.algorithm` *inside the provider*; do not remove the
-  `UnsupportedKdfError` guard.
-- **A4. Import pipeline** — `parseExport` → `linkMedia` → `ArchiveWriter.write`. Mostly wiring;
-  core does the work.
-- **A5. Verify screen** — the trust moment. Message count, date range, media count, **and an
-  honest count of media that is NOT in the archive** (`mediaStats.notArchivedCount`). That
-  number is what the user loses if they delete the chat, and hiding it would be the single
-  most damaging thing this product could do.
-- **A6. Guided delete** — instructions and confirmation only. The app never deletes anything.
-- **A7. Library + reader** — `ArchiveReader`, RTL-correct message list.
+- **A3. `CryptoProvider` for Hermes** — **built** (`lib/crypto/noble-provider.ts`).
+  AES-256-GCM and PBKDF2 in pure JS (`@noble`), SHA-256 and the CSPRNG native via expo-crypto.
+  Pure JS was chosen *for testability*: it runs under Node, so it is checked against WebCrypto
+  itself, in both directions — the one mobile port whose correctness does not depend on a
+  device. `lib/crypto/vectors.ts` carries fixed answers generated by WebCrypto, asserted in CI
+  and again on the phone, which is what makes "an archive written here opens in a browser" a
+  checked claim. Argon2id still refused, guard intact. **Unmeasured: sealing throughput on a
+  device.** Media is the bulk of an archive and this is JS-bound.
+
+- **A4. Import pipeline** — **built.** `lib/import/run-import.ts` (every port injected, so it
+  runs under Node), `device-import.ts` (the filesystem/Keychain half, deliberately logic-free),
+  `match.ts` (which archive an export belongs to — decided on message identity, never on the
+  chat title), `build-import.ts` (stamps `attachment.sha256`, which `parseExport` never fills
+  in). The Verify numbers are read back *out of the archive* after writing rather than
+  remembered from the write.
+
+- **A5. Verify screen** — **built** (`app/verify.tsx`). `notArchivedCount` is rendered as
+  prominently as the good news, and the "everything was saved" case is rendered explicitly too,
+  so that a section which only appears with bad news never teaches users to skim it.
+
+- **A6. Guided delete** — **built** (`app/delete-guide.tsx`). Per-platform instructions, a
+  confirmation the user gives us, and nothing that touches WhatsApp.
+
+- **A7. Library + reader** — **built** (`app/index.tsx`, `app/archive/[id].tsx`). A locked
+  archive (key not in the Keychain — a restore, a reinstall, another device) is a first-class
+  state that the passphrase opens. Media renders from a `data:` URI rather than a decrypted
+  cache file, so no plaintext is written outside the archive.
+
+**What is proven, and what is not.** `pnpm -r test` is 225 tests (125 core, 13 storage,
+87 mobile), `pnpm -r typecheck` is clean, and a full `expo export` iOS bundle builds. The app
+was built with `xcodebuild`, installed on a simulator, launched, and rendered the library
+screen. **None of that is evidence about a real import**, which needs a device, WhatsApp, and
+the share sheet. Two things are owed, in this order:
+
+1. **Tap "Dev: run the device checks"** — storage contract plus the crypto/import pipeline
+   against Hermes and the real filesystem. Watch the PBKDF2 timing case: it fails over 4 s and
+   warns over 1.5 s, and that number decides whether the KDF stays in JS.
+2. **The Track A gate below**, with a real export.
 
 *Gate: export a real chat, import it, confirm the Verify numbers against the export itself,
 delete the chat in WhatsApp, and read the archive back. Then re-export the same chat later and

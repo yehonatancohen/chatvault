@@ -153,8 +153,8 @@ app's real risk lives.
 |---|---|---|
 | Typecheck | `pnpm typecheck` | The code compiles. Nothing more. |
 | Core logic | `pnpm --filter @chatvault/core test` | Parsing/merge/crypto are correct — but that is `core`, not this app |
-| This app's pure-JS logic | `pnpm test` | `ZipMediaSource`'s filtering and lazy-read behavior — real evidence, but only for the one piece here that isn't a native module |
-| Any device or simulator | the **Storage contract** dev screen (`app/dev-storage.tsx`) | That `ExpoFileSystemStorageAdapter` satisfies the storage contract. The only place that suite can run — no native filesystem, no evidence (see "Ports this app must implement") |
+| This app's pure-JS logic | `pnpm test` | 87 tests: the **whole import pipeline** (`lib/import`, every port injected), the crypto provider against WebCrypto, key wrapping across both providers, `ZipMediaSource`, formatting. Real evidence — and none of it is about Hermes, the Keychain or the filesystem |
+| Any device or simulator | the **device checks** screen (`app/dev-storage.tsx`) | Two suites `pnpm test` cannot reach: the storage contract against the real filesystem adapter, and the crypto + import pipeline against Hermes, native SHA-256 and a real directory — including that this phone's AES-GCM and PBKDF2 match the bytes a browser produces |
 | Android device | `pnpm build:dev:android` | The import pipeline end to end — cheap, no Apple account |
 | **iPhone** | `pnpm build:dev:ios` + WhatsApp | **The only thing that proves the product works** |
 
@@ -187,7 +187,36 @@ parsing logic, that logic is in the wrong package.
 
 ## Screen flow
 
-`Import → Progress → Verify → Destination → Guided delete → Library`
+`Share → Import → Verify → Guided delete → Library → Archive reader` (built; Destination
+belongs to Track C and does not exist yet — v1 writes to the device only).
+
+| Route | What it is |
+|---|---|
+| `app/index.tsx` | Library. Lists archives by opening each one; refreshes on focus. Empty state is the important half — it is where a user who has not exported yet is told how. |
+| `app/import.tsx` | Two-phase. `prepareImport` reads/parses/matches and writes nothing, *then* the screen knows whether to ask for a new passphrase, an existing one, or neither. |
+| `app/verify.tsx` | The trust moment. See below. |
+| `app/delete-guide.tsx` | Instructions and a confirmation the user gives *us*. Deletes nothing. |
+| `app/archive/[id].tsx` | The reader. Unlocks by passphrase when the key is not in the Keychain. |
+| `app/archive/MessageRow.tsx` | One message. `writingDirection: "auto"` per message — the RN counterpart of the web viewer's `unicodeBidi: "plaintext"`. |
+| `app/dev-storage.tsx` | Dev-only device checks. Both suites; never ships. |
+
+**Where the import logic lives, and why it is not in the screens.** `lib/import/run-import.ts`
+takes every port as a parameter, so the entire pipeline runs under Node in
+`run-import.test.ts` against `MemoryStorageAdapter` and WebCrypto. `lib/import/device-import.ts`
+is the device half — filesystem, Keychain, native CSPRNG — and deliberately holds no logic of
+its own: matching is `chooseTarget`, writing is `runImport`, wrapping is `wrapArchiveKey`, and
+all three are tested. Keep it that way. Logic that migrates into a screen becomes untestable.
+
+**Two decisions worth knowing before changing the import flow:**
+
+- **Which archive an export belongs to is decided by message identity, not by chat title**
+  (`lib/import/match.ts`). Titles come from the export filename and differ per member and per
+  locale; ids are content-derived and stable, which is what merge already rests on. The
+  threshold exists because a *single* shared id is a plausible coincidence and welding two
+  chats into one archive is permanent.
+- **The Verify screen's numbers are read back out of the archive after writing**, not
+  remembered from the write. It costs a full read and it is what makes the screen's claim
+  ("this is safely archived") a statement about the file rather than about our intentions.
 
 **The Verify screen is the trust moment** and deserves more care than anything else in the UI.
 Before we suggest deleting anything, we show what was captured: message count, date range,
@@ -244,10 +273,26 @@ Run it after any change to the adapter, and before trusting it with a real archi
 
 ## Platform notes
 
-- **Crypto.** Hermes has no `crypto.subtle`. Supply `createWebCryptoProvider` with a polyfill,
-  or implement `CryptoProvider` over `react-native-quick-crypto`. Prefer Argon2id over the
-  port's PBKDF2 default for passphrase wrapping — mobile has a native binding for it and the
-  port exists so that swap is local.
+- **Crypto.** Hermes has no `crypto.subtle`, so `createWebCryptoProvider` is unusable here.
+  `lib/crypto/noble-provider.ts` is the replacement: **AES-256-GCM and PBKDF2 in pure JS**
+  (`@noble/ciphers`, `@noble/hashes`), with SHA-256 and the CSPRNG injected from expo-crypto
+  (`expo-crypto-provider.ts`).
+
+  Pure JS was chosen over `react-native-quick-crypto` **for testability, not for convenience**.
+  It runs under Node, so `noble-provider.test.ts` checks it against WebCrypto itself — sealing
+  with one and opening with the other, in both directions. The failure that prevents is
+  unrecoverable: if mobile and web disagree by one parameter, an archive written on the phone
+  cannot be opened in the browser, and the user finds out long after deleting the chat.
+
+  The device half of that claim is `lib/crypto/vectors.ts`: fixed AES-GCM, PBKDF2 and SHA-256
+  answers generated by WebCrypto, asserted in CI *and* by the dev screen on the phone. Matching
+  them on a device is what proves Hermes produces the bytes a browser reads. **Do not
+  regenerate those constants to make a test pass** — a mismatch is the thing they exist to catch.
+
+  The cost is throughput: sealing is JS-bound, and media is the bulk of an archive. Unmeasured
+  on a device. If it proves too slow, the swap to a native binding is one file, and this
+  provider stays as the reference the tests run against. Argon2id is still declarable and still
+  refused (`UnsupportedKdfError`) — a pure-JS memory-hard KDF is not honest at real parameters.
 - **Storage.** The device adapter lives here rather than in `@chatvault/storage`, because it
   needs `expo-file-system`. It must still pass `runStorageConformance`.
 - **Keys.** The archive key goes in `expo-secure-store` (Keychain / Keystore) for convenience,
