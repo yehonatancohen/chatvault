@@ -122,6 +122,23 @@ Two habits that follow:
   "unmet peer" warnings as errors rather than noise. Every one of them was true.
 - **Re-check the pins on every SDK bump.** They are correct for SDK 57 and nothing else.
 
+### Expo module signatures are not what the TypeScript says
+
+Two of these have bitten already, both found only on a device, both invisible to `tsc`:
+
+- **`Crypto.digest(algorithm, data)` must be handed a TypedArray, never an `ArrayBuffer`.** Its
+  declared parameter type is `BufferSource`, which includes `ArrayBuffer`; the native side
+  rejects one with `NotTypedArrayException: Given argument is not an instance of TypedArray`,
+  wrapped in `ArgumentCastException: The 3rd argument cannot be cast to type TypedArray`.
+  Passing `bytes.buffer` instead of `bytes` broke SHA-256 — and therefore every archive write,
+  the whole import, and five device checks at once.
+- **`File.writableStream()` opens `FileMode.WriteOnly`,** which neither creates the file nor
+  truncates it. See `lib/storage/expo-file-system-adapter.ts`.
+
+The lesson both times: **an expo-modules signature describes the JS wrapper, not the native
+contract.** When a call crosses into Swift, the device checks are the only thing that will tell
+you the truth — which is the argument for keeping them exhaustive.
+
 ### Debugging a launch crash: use the simulator, even though it cannot test this app
 
 The simulator cannot prove anything about the Share Extension, and the table below is still

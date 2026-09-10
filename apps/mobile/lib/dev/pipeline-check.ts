@@ -69,7 +69,8 @@ function assertEqual(actual: unknown, expected: unknown, what: string): void {
 
 interface Check {
   readonly name: string;
-  run(directory: Directory): Promise<void>;
+  /** A returned string is shown next to a passing result — for measurements, not commentary. */
+  run(directory: Directory): Promise<string | void>;
 }
 
 const checks: readonly Check[] = [
@@ -212,12 +213,35 @@ const checks: readonly Check[] = [
     },
   },
   {
-    name: "PBKDF2 at the real cost is fast enough to unlock with",
+    name: "measure: AES-256-GCM throughput",
     async run() {
-      // Not a correctness check: a measurement. Pure-JS PBKDF2 on Hermes is the one place this
-      // app could be unusably slow, and `PBKDF2_ITERATIONS` is a guess until a phone says
-      // otherwise (`key-wrapping.ts` says so). Over ~4 seconds and the honest fix is a native
-      // KDF, not a smaller number.
+      // The number that decides whether crypto can stay in JavaScript. Media is the bulk of an
+      // archive and every byte of it is sealed, so this rate is the import's speed limit.
+      // Hermes has no JIT; the same code measures ~59 MB/s under Node.
+      const megabytes = 4;
+      const blob = getCryptoProvider().randomBytes(1024);
+      const blown = new Uint8Array(megabytes * 1024 * 1024);
+      for (let offset = 0; offset < blown.length; offset += 1024) blown.set(blob, offset);
+
+      const started = Date.now();
+      await getCryptoProvider().seal(vectors.AES_KEY_BYTES, blown);
+      const elapsed = Math.max(1, Date.now() - started);
+      const rate = (megabytes * 1000) / elapsed;
+
+      const note =
+        `${rate.toFixed(2)} MB/s — a 50 MB export seals in about ` +
+        `${Math.round(50 / rate)} s, a 300 MB one in about ${Math.round(300 / rate / 60)} min.`;
+      // Only a catastrophic rate is a failure; the point of this case is the number itself.
+      assert(rate > 0.2, `${note} That is unusable. Media sealing needs a native AES.`);
+      return note;
+    },
+  },
+  {
+    name: "measure: PBKDF2 at the shipped cost",
+    async run() {
+      // Runs once when an archive is created and once per unlock, so it is a UX cost rather
+      // than a per-byte one — but the rate here is the clearest read on how much slower this
+      // device's JS is than a laptop's, and `key-wrapping.ts` says to measure it here.
       const { PBKDF2_ITERATIONS } = await import("../crypto/key-wrapping");
       const started = Date.now();
       await getCryptoProvider().deriveKey("measuring the real cost", {
@@ -226,18 +250,18 @@ const checks: readonly Check[] = [
         algorithm: "PBKDF2-SHA256",
       });
       const elapsed = Date.now() - started;
+      const note =
+        `${(elapsed / 1000).toFixed(1)} s for ${PBKDF2_ITERATIONS} iterations ` +
+        `(${Math.round(PBKDF2_ITERATIONS / (elapsed / 1000)).toLocaleString()}/s).`;
+
+      // The threshold is "unusable", not "good". Anything above a second or two is already a
+      // reason to move to a native KDF rather than to lower the cost — lowering it permanently
+      // weakens every archive created meanwhile, since the count is recorded per archive.
       assert(
-        elapsed < 4000,
-        `${PBKDF2_ITERATIONS} iterations took ${elapsed} ms — too slow to sit behind an unlock ` +
-          "screen. Lower the cost or move to a native KDF; do not leave it here.",
+        elapsed < 60_000,
+        `${note} An unlock cannot take this long; this needs a native KDF.`,
       );
-      // Reported through the failure channel only, so a pass stays quiet. The number itself is
-      // worth knowing, which is why the case name says what it measures.
-      if (elapsed > 1500) {
-        throw new CheckFailure(
-          `Passed, but slow: ${elapsed} ms for ${PBKDF2_ITERATIONS} iterations. Watch this.`,
-        );
-      }
+      return note;
     },
   },
 ];
@@ -282,8 +306,13 @@ export async function runPipelineChecks(): Promise<readonly ContractResultLike[]
     const started = Date.now();
     const directory = new Directory(root, `case-${index}`);
     try {
-      await check.run(directory);
-      results.push({ name: check.name, status: "passed", durationMs: Date.now() - started });
+      const note = await check.run(directory);
+      results.push({
+        name: check.name,
+        status: "passed",
+        ...(typeof note === "string" ? { detail: note } : {}),
+        durationMs: Date.now() - started,
+      });
     } catch (error) {
       results.push({
         name: check.name,

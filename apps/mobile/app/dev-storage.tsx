@@ -166,7 +166,10 @@ export default function DevStorageScreen() {
                     {result.name}
                   </Text>
                   {result.detail !== undefined && (
-                    <Text style={styles.detail} selectable>
+                    <Text
+                      style={result.status === "passed" ? styles.note : styles.detail}
+                      selectable
+                    >
                       {result.detail}
                     </Text>
                   )}
@@ -228,4 +231,6 @@ const styles = StyleSheet.create({
   fail: { fontFamily: "Menlo", fontSize: 12, color: "#a3341f" },
   skip: { fontFamily: "Menlo", fontSize: 12, color: "#6b6862" },
   detail: { fontSize: 13, lineHeight: 19, color: "#a3341f", fontFamily: "Menlo" },
+  /** A measurement reported by a passing check reads as information, not as an error. */
+  note: { fontSize: 13, lineHeight: 19, color: "#6b6862", fontFamily: "Menlo" },
 });

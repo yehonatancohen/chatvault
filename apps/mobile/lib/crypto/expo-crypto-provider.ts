@@ -22,14 +22,20 @@ export function getCryptoProvider(): CryptoProvider {
   cached ??= createNobleCryptoProvider({
     randomBytes: (length) => Crypto.getRandomBytes(length),
     sha256: async (data) => {
-      // `digest` wants a BufferSource and returns an ArrayBuffer; a `Uint8Array` that is a
-      // partial view over a larger buffer would otherwise hash the whole backing store, so
-      // this passes an exactly-sized copy. Same hazard `toArrayBuffer` handles in core.
-      const exact = new Uint8Array(data.length);
-      exact.set(data);
-      return new Uint8Array(
-        await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, exact.buffer as ArrayBuffer),
-      );
+      // **Pass the Uint8Array, never `.buffer`.** `digest`'s TypeScript signature says
+      // `BufferSource`, which includes `ArrayBuffer` — the native side does not. It throws
+      // `NotTypedArrayException: Given argument is not an instance of TypedArray`, and since
+      // every archive object is hashed, that one word took down hashing, the whole import, and
+      // five of the device checks at once. The types do not describe the native contract here.
+      //
+      // A `Uint8Array` that is a partial view over a larger buffer is copied first, so the
+      // digest covers the view rather than whatever else shares its backing store. `subarray`
+      // results are exactly that, and `ZipMediaSource` hands them out.
+      const exact =
+        data.byteOffset === 0 && data.byteLength === data.buffer.byteLength
+          ? data
+          : data.slice();
+      return new Uint8Array(await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, exact));
     },
   });
   return cached;
