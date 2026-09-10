@@ -8,13 +8,16 @@ WhatsApp Share Sheet. Read the root `CLAUDE.md` first.
 ```bash
 pnpm start              # expo start --dev-client (Metro; needs a dev client installed)
 pnpm typecheck
-pnpm build:dev:ios      # EAS cloud build — the only iOS route from Windows, see below
+pnpm ios --device       # local Xcode build onto a plugged-in iPhone (macOS only)
+pnpm build:dev:ios      # EAS cloud build — the route when there is no Mac, see below
 pnpm build:dev:android  # EAS cloud build, or `pnpm android` with a local Android SDK
 pnpm prebuild           # regenerate native projects after a config-plugin change
 ```
 
-`pnpm ios` exists in `package.json` but **cannot run on this machine** — `expo run:ios`
-shells out to Xcode, which is macOS-only.
+**`pnpm prebuild` runs `expo prebuild --clean`, which regenerates `ios/` from scratch and
+wipes the signing you set by hand in Xcode.** After a dependency change that only moves native
+pod versions, run `cd ios && pod install` instead — it picks up the new pods and leaves the
+Xcode project, and therefore the signing, alone.
 
 **Expo Go will not work.** The share targets need native code, so this is a custom dev client
 build. And the iOS Share Extension must be tested on a **physical device** — the simulator's
@@ -41,33 +44,105 @@ On Android the equivalent is the `ACTION_SEND` intent filter in `app.json`, regi
 `text/plain` (export without media) and `application/zip` (with media). Android is far more
 forgiving about memory, but keep the same split so both platforms share one code path.
 
-## Building for a device from Windows
+### The extension reopens the app with a signal URL, not a file
 
-**You cannot build an iOS app on Windows.** Xcode is macOS-only, so `pnpm ios` will not work
-on this machine. The route is EAS Build, which compiles on Expo's cloud macOS builders and
-hands back an installable build.
+Verified on device. When the iOS extension finishes, it reopens the host app with a deep link
+of the shape `chatvault://dataUrl=chatvaultShareKey`. That URL is a *signal* — it carries no
+file and matches no route. Left alone, expo-router falls straight through to its **"Unmatched
+Route"** screen, which looks exactly like the share failing even though the handoff worked and
+the file is already sitting in the App Group container.
 
-Two prerequisites, both hard:
+`app/+native-intent.ts` is what prevents that: expo-router runs `redirectSystemPath` before
+matching, and it rewrites that URL to `/import`. `ShareIntentRouter` in `_layout.tsx` then
+replaces the bare screen with one carrying the file's path and metadata, which only
+`useShareIntentContext` can supply. Both halves are required — the redirect alone gets you to
+Import with no file, and the router alone never runs because you are on the 404.
 
-1. **Apple Developer Program membership** (99 USD/year). Installing a build with a Share
-   Extension onto a physical iPhone needs a provisioning profile, and the free personal team
-   only works through Xcode on a Mac — which is not available here.
-2. **An Expo account** and `npm i -g eas-cli`.
+**`unstable_settings.initialRouteName = "index"` in `_layout.tsx` is also load-bearing.** A
+share cold-starts the app directly onto `/import`, so without an anchor route there is nothing
+beneath it and the user is stranded on a screen with no way back. `import.tsx` additionally
+falls back to `router.replace("/")` when `canGoBack()` is false, so the screen can never be a
+dead end.
+
+## Building for a device
+
+**On a Mac (the proven route).** `expo run:ios` shells out to Xcode. Free "personal team"
+signing is enough for a dev client carrying a Share Extension — no paid Apple account needed.
+Done once and it worked; the full first-time walkthrough is in the repo root's `MAC-SETUP.md`.
+The short version:
 
 ```bash
 cd apps/mobile
-eas login
-eas build:configure          # first time only
-pnpm build:dev:ios           # cloud build, ~10-20 min; EAS walks you through signing
+pnpm prebuild --platform ios   # first time only; generates ios/ and runs pod install
+open ios/ChatVault.xcworkspace # sign BOTH targets by hand: ChatVault and ChatVaultImport
+pnpm ios --device              # or hit Run in Xcode
+pnpm start                     # Metro, once the app is installed
 ```
 
-EAS prints an install URL and a QR code. Open it on the iPhone, install, trust the profile
-under Settings > General > VPN & Device Management, then run `pnpm start` here and scan to
-connect the dev client to Metro.
+Both targets need a team and the App Group `group.app.chatvault.mobile`. The extension is a
+separate target and Xcode will not sign it for you. After install, trust the developer profile
+on the phone under Settings > General > VPN & Device Management.
+
+**Without a Mac**, the route is EAS Build (Expo's cloud macOS builders), which needs an Expo
+account, `npm i -g eas-cli`, and an **Apple Developer Program membership (99 USD/year)** —
+the free personal team only works through Xcode on a Mac.
+
+```bash
+eas login && eas build:configure && pnpm build:dev:ios
+```
 
 Android needs none of this — `pnpm build:dev:android` produces an APK you can install directly,
 and it is the cheaper way to shake out import-pipeline bugs. It just cannot prove the iOS
 Share Extension, which is the part actually at risk.
+
+## Dependency pinning is load-bearing here — do not "tidy" it
+
+`apps/mobile/package.json` lists two dependencies **nothing in this app imports**:
+`@expo/metro-runtime` and `react-native-worklets`. They are there purely to pin versions, and
+removing them because they look unused will break the app at launch. The comment block in that
+file says why; the mechanism is worth understanding once:
+
+Several Expo/RN packages are reached only through **unpinned peer dependencies**, and this
+workspace runs with `autoInstallPeers`. pnpm is therefore free to choose versions, it chooses
+wrong, and **nothing warns you** — `pnpm install` succeeds, `pnpm typecheck` passes, Metro
+bundles cleanly. The app then dies on launch with:
+
+```
+[runtime not ready]: TypeError: Object is not a function
+```
+
+and no stack, no module name, no file. `@expo/metro-runtime` had resolved to **4.0.1** against
+SDK 57's required `^57.0.11`; its `messageSocket.native.ts` opens a dev websocket at module
+scope during startup, so the mismatch detonated inside `InitializeCore`, before LogBox existed
+to symbolicate anything.
+
+Two habits that follow:
+
+- **Run `pnpm exec expo install --check` after any dependency change**, and treat pnpm's
+  "unmet peer" warnings as errors rather than noise. Every one of them was true.
+- **Re-check the pins on every SDK bump.** They are correct for SDK 57 and nothing else.
+
+### Debugging a launch crash: use the simulator, even though it cannot test this app
+
+The simulator cannot prove anything about the Share Extension, and the table below is still
+the rule. But for a crash that happens *before the app renders*, it is the only tractable
+tool, because a physical device gives you one line of text and a human reading a screen aloud:
+
+```bash
+xcrun simctl boot <udid> && open -a Simulator
+pnpm exec expo run:ios --device <simulator-udid>
+xcrun simctl launch <udid> app.chatvault.mobile
+xcrun simctl io <udid> screenshot /tmp/redbox.png   # the red box, stack frames and all
+```
+
+Screenshotting the red box is what produced the real stack frame
+(`createWebSocketConnection`), which mapped straight to the offending module in the bundle.
+Fetching the exact bundle the app requests (`/apps/mobile/node_modules/expo-router/entry.bundle`,
+the path Metro logs) and reading around the reported line number is the rest of the technique —
+Metro dev bundles carry a `verboseName` per module, so a line number names a package.
+
+Do not run the bundle under Node hoping for a stack: it throws somewhere plausible but wrong
+(a missing native module, not the real fault) and sends you chasing the wrong package.
 
 ## How to test this app
 
@@ -88,7 +163,7 @@ real export shared into the app.
 
 ### The end-to-end check that counts
 
-0. Install a dev client on the iPhone (see "Building for a device from Windows").
+0. Install a dev client on the iPhone (see "Building for a device").
 1. On the phone, WhatsApp → a chat → chat name → **Export chat** → *With media*.
 2. Share to ChatVault. The extension should hand off immediately; if it stalls or dies on a
    large export, it is doing work it must not do (see the memory limit above).

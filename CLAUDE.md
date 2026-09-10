@@ -76,6 +76,14 @@ Per-layer detail lives in each subproject's `CLAUDE.md`; the parts worth knowing
 - **Mobile changes cannot be verified from CI or a simulator.** The Share Extension needs a
   physical device with WhatsApp installed. Say so plainly rather than reporting a typecheck as
   if it were a test.
+- **Touching mobile dependencies? A green install proves nothing.** Several Expo/RN packages
+  are reached only through unpinned peer deps and this workspace has `autoInstallPeers`, so
+  pnpm picks versions freely and picks wrong — silently. `pnpm install`, `typecheck` and a
+  Metro bundle all succeed, and the app then dies at launch with an unstacked
+  `TypeError: Object is not a function`. Run `pnpm exec expo install --check`, treat "unmet
+  peer" warnings as errors, and read `apps/mobile/CLAUDE.md` → "Dependency pinning is
+  load-bearing here" before removing anything from `apps/mobile/package.json` that looks
+  unused. Two entries there are pins, imported by nothing.
 - **Never verify by adding a real chat export to the repo.** Point the ground-truth test at a
   directory outside it.
 

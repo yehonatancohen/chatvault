@@ -8,7 +8,7 @@ Where things stand and what to do next, ordered by risk rather than by convenien
 |---|---|
 | `packages/core` | **Done for v1.** Parser, identity, merge, archive read/write, media pipeline, crypto. 125 tests. Parser and merge verified against a real export pair. |
 | `packages/storage` | Interface + conformance suite + in-memory adapter. No real adapter yet. |
-| `apps/mobile` | Shell. Two screens, no import, **no Share Extension**. A1/A2 ports (storage adapter, zip media source) written ahead of need — see Track A. |
+| `apps/mobile` | Runs on a physical iPhone. Two screens; the **Share Extension hands a file over successfully** (Step 0), but no import pipeline yet. A1/A2 ports (storage adapter, zip media source) written ahead of need — see Track A. |
 | `apps/web` | **B0a done.** `/open`: pick a `.cvault` bundle, unlock by passphrase, virtualized RTL-correct viewer with media lightbox, client-side append-and-merge. No backend yet — see Track B. |
 | `apps/api` | Health endpoint. Intentionally minimal. |
 
@@ -16,47 +16,56 @@ The logic is well ahead of the product. Everything below is about closing that g
 
 ---
 
-## The one thing that could still invalidate the design
+## ~~The one thing that could still invalidate the design~~ — retired
 
-**Nothing has ever gone from WhatsApp into this app.** The Share Extension is the entire entry
-point, it is unproven, and it has a hard ~120 MB memory ceiling. Every other risk in the
-project is now retired; this one is not.
+The Share Extension was the entire entry point, unproven, with a hard ~120 MB memory ceiling.
+**A real WhatsApp export has now gone from WhatsApp into this app.** The design stands.
 
-So the next step is a **spike, not a feature**:
+### Step 0 — Prove the handoff  *(PASSED)*
 
-### Step 0 — Prove the handoff  *(in progress)*
+**Proven on a physical iPhone (iOS 26.6, Route A / free personal-team signing):**
 
-**Built and typechecking, waiting on a device:**
+- The dev client builds locally with Xcode and installs on device. **No paid Apple Developer
+  account was needed** — the earlier assumption that a Share Extension requires one was wrong;
+  it only holds when there is no Mac to build from.
+- The extension runs, writes into the App Group container, and reopens the host app.
+- **A real chat exported *with media*, tens of MB, was shared into the app. The extension was
+  not killed, and `app/import.tsx` reported the file had arrived.** That is the gate: the
+  ~120 MB ceiling is not hit by an export of this size, because the extension copies and
+  exits rather than doing work.
 
-- `expo-share-intent` wired for the iOS Share Extension and Android `ACTION_SEND`, registered
-  for `text/plain` and `application/zip`.
-- The root layout routes a handoff to `app/import.tsx`, carrying a file **path**, never contents.
-- `app/import.tsx` reports what arrived and — for a text export — parses it and shows message
-  count, media count, participants, date range and dialect, to be checked against WhatsApp.
-  A `.zip` is measured but deliberately **not read**: pulling a few-hundred-MB export into a JS
-  string is the same crash as the extension's ceiling, only one step later.
-- `eas.json` plus `build:dev:ios` / `build:dev:android`.
+The headline risk of this project is therefore retired. What remains below is engineering, not
+uncertainty about whether the product is reachable at all.
 
-**The blocker: iOS cannot be built on Windows.** Xcode is macOS-only, so `pnpm ios` will never
-run on this machine. The route is EAS Build (cloud macOS builders), which needs:
+**Fixed along the way** (all committed, all with comments explaining why):
 
-1. **Apple Developer Program, 99 USD/year** — a build carrying a Share Extension needs a
-   provisioning profile to reach a physical iPhone; the free personal team only works through
-   Xcode on a Mac.
-2. An Expo account and `eas-cli`.
+- `apps/mobile/metro.config.js` — did not exist. Metro could not resolve `core`'s NodeNext
+  `.js` specifiers onto `.ts` files, so the bundle never built. Counterpart of the
+  `extensionAlias` that `apps/web/next.config.ts` already had.
+- `@expo/metro-runtime` was resolving to **4.0.1** against SDK 57's `^57.0.11`, killing the app
+  at launch with an unstacked `TypeError: Object is not a function`. Pinned, along with
+  `react-native-worklets`. See `apps/mobile/CLAUDE.md` → "Dependency pinning is load-bearing".
+- `app/+native-intent.ts` — did not exist, so every share landed on expo-router's **"Unmatched
+  Route"** screen even though the file had arrived. Plus an anchor route so Import is never a
+  dead end.
 
-Android has neither requirement and is the cheap way to shake out the import pipeline — it just
-cannot prove the iOS extension, which is the part actually at risk.
+**Loose ends, none of them blocking Track A:**
 
-**Test it with a real chat exported *with media*, not a small text-only one.** A 5 KB export
-will pass while a 200 MB one dies, and only the second case is representative.
+1. **The ceiling is proven at tens of MB, not at the worst case.** WhatsApp caps a with-media
+   export around 10,000 messages, which can run to several hundred MB. The extension's design
+   (copy and exit) should be size-independent, but that is reasoning, not measurement — worth
+   one test with the largest export available before trusting it in front of users.
+2. Confirm on device that a `.zip` shows **size and a note only, no parse numbers** — the code
+   path does this, but it was not read off the screen.
+3. The `+native-intent.ts` fix was verified by typecheck and a simulator launch, **not yet by a
+   real share on device** — the successful handoff above predates it and needed a manual Back.
 
-*Gate: an export with media lands in the container and the host app reports its size. If the
-extension is killed on large exports, stop and solve that before building anything on top.*
+*Gate met: an export with media landed in the container and the host app reported it, with the
+extension not killed.*
 
 ---
 
-## Track A — Mobile, after Step 0 passes
+## Track A — Mobile *(unblocked; Step 0 passed)*
 
 In dependency order. A1–A3 are ports that core already declares; each is small and, apart from
 A3, testable.
@@ -159,8 +168,8 @@ All documented in `packages/core/CLAUDE.md`:
 
 ## Decisions that need you
 
-1. **Does Step 0 happen now?** Everything in Track A sits behind it, and it needs a physical
-   iPhone with WhatsApp. If devices are a while away, Track B is the better use of time.
+1. ~~Does Step 0 happen now?~~ **Passed, on a Mac with a physical iPhone**, with a real
+   with-media export. Track A is unblocked.
 2. ~~Web viewer: bundle-open (B0a) or wait for Drive (B0b)?~~ **Decided: B0a, and it's built.**
 3. **Product name.** `ChatVault` is a placeholder sitting in bundle ids, the manifest and the
    UI. Cheap to change now, annoying later.
