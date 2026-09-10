@@ -7,7 +7,7 @@ Where things stand and what to do next, ordered by risk rather than by convenien
 | Layer | Status |
 |---|---|
 | `packages/core` | **Done for v1.** Parser, identity, merge, archive read/write, media pipeline, crypto. 125 tests. Parser and merge verified against a real export pair. |
-| `packages/storage` | Interface + conformance suite + in-memory adapter. No real adapter yet. |
+| `packages/storage` | Interface + contract suite (runnable under vitest *and* inside a device runtime) + in-memory adapter. No cloud adapter yet. |
 | `apps/mobile` | Runs on a physical iPhone. Two screens; the **Share Extension hands a file over successfully** (Step 0), but no import pipeline yet. A1/A2 ports (storage adapter, zip media source) written ahead of need — see Track A. |
 | `apps/web` | **B0a done.** `/open`: pick a `.cvault` bundle, unlock by passphrase, virtualized RTL-correct viewer with media lightbox, client-side append-and-merge. No backend yet — see Track B. |
 | `apps/api` | Health endpoint. Intentionally minimal. |
@@ -78,12 +78,27 @@ A3, testable.
 > fresh and known-good. It also de-risks A4 — the import pipeline writes through this adapter,
 > and finding out then that the port is wrong means debugging two things at once.
 
-- **A1. `ExpoFileSystemStorageAdapter`** — **written** (`apps/mobile/lib/storage/`), typechecks,
-  but **not yet proven**: it must pass `runStorageConformance` (`packages/storage/CLAUDE.md`),
-  and that suite cannot run outside the Expo runtime because `File`/`Directory` are a native
-  module — no device, no evidence. **The blocker is now gone.** Getting the suite to run means
-  giving it somewhere to execute inside the app — a dev-only screen or a route that runs it and
-  renders the results is enough; it does not need to be pretty, and it should not ship.
+- **A1. `ExpoFileSystemStorageAdapter`** — **runnable now; awaiting one run on the device.**
+  The adapter was written and typechecked; what was missing was any way to execute the contract
+  against it, since `File`/`Directory` are a native module and `runStorageConformance` was
+  written directly against vitest.
+
+  **Now built:** the cases moved out of the test file into `packages/storage/src/contract.ts`
+  (no test framework, no `node:*` — it runs under Hermes), with two runners over the same
+  array: `runStorageConformance` for vitest, and `runStorageContract` for anywhere else. The
+  dev-only screen `apps/mobile/app/dev-storage.tsx` drives the latter against the real adapter,
+  a fresh cache directory per case, and renders every result. `index.tsx` links to it under
+  `__DEV__`. Four cases were added while the contract was open, each aimed at a filesystem
+  failure the old in-memory-only suite could not have caught: a shrinking overwrite leaving a
+  tail behind, `list("")` needing a recursive walk, listing before the root directory exists,
+  and an empty object. Three more cover streaming, which nothing tested at all and which this
+  adapter claims.
+
+  **What is owed: launch the app, tap "Dev: run the storage contract", read the results.**
+  16 cases, all expected to pass (none should skip — this adapter declares `streaming: true`).
+  `pnpm test` (13 passed, 3 streaming cases skipped for `MemoryStorageAdapter`), `pnpm -r
+  typecheck` and a full `expo export` iOS bundle are green, and none of that is evidence about
+  this adapter. Only the screen is.
 - **A2. `MediaSource` over the export zip** — **written and unit-tested**
   (`apps/mobile/lib/media/zip-media-source.ts`, 6 passing tests), but with a known gap: it
   loads the whole zip into memory (`fflate.unzipSync`'s only mode) rather than reading entries

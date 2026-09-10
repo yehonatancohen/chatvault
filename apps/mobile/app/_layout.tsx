@@ -67,6 +67,8 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" options={{ title: "ChatVault" }} />
         <Stack.Screen name="import" options={{ title: "Import" }} />
+        {/* Dev-only; `index.tsx` only links to it under `__DEV__`. See `dev-storage.tsx`. */}
+        <Stack.Screen name="dev-storage" options={{ title: "Storage contract" }} />
       </Stack>
     </ShareIntentProvider>
   );

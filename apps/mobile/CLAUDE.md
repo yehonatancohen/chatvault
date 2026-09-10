@@ -154,7 +154,8 @@ app's real risk lives.
 | Typecheck | `pnpm typecheck` | The code compiles. Nothing more. |
 | Core logic | `pnpm --filter @chatvault/core test` | Parsing/merge/crypto are correct — but that is `core`, not this app |
 | This app's pure-JS logic | `pnpm test` | `ZipMediaSource`'s filtering and lazy-read behavior — real evidence, but only for the one piece here that isn't a native module |
-| Android device | `pnpm build:dev:android` | The import pipeline end to end — cheap, no Apple account. Also the first real chance to run `runStorageConformance` against `ExpoFileSystemStorageAdapter`, which cannot run any other way (see "Ports this app must implement") |
+| Any device or simulator | the **Storage contract** dev screen (`app/dev-storage.tsx`) | That `ExpoFileSystemStorageAdapter` satisfies the storage contract. The only place that suite can run — no native filesystem, no evidence (see "Ports this app must implement") |
+| Android device | `pnpm build:dev:android` | The import pipeline end to end — cheap, no Apple account |
 | **iPhone** | `pnpm build:dev:ios` + WhatsApp | **The only thing that proves the product works** |
 
 **Never report a typecheck or a simulator run as evidence that an import works.** The share
@@ -178,9 +179,11 @@ real export shared into the app.
 ### Testing what you can without a device
 
 Put logic in `core` or `@chatvault/storage` where it can be tested in Node, and keep the RN
-layer thin enough to be obviously correct. The device adapter must pass
-`runStorageConformance` — see `packages/storage/CLAUDE.md`. If you find yourself wanting to
-unit-test a screen's parsing logic, that logic is in the wrong package.
+layer thin enough to be obviously correct. Where a native module makes that impossible, the
+answer is a dev screen that runs the same suite inside the runtime rather than a weaker test —
+`app/dev-storage.tsx` is the worked example, and `packages/storage/CLAUDE.md` explains the
+two-runner split that makes it possible. If you find yourself wanting to unit-test a screen's
+parsing logic, that logic is in the wrong package.
 
 ## Screen flow
 
@@ -225,13 +228,19 @@ instead of getting the process killed silently, but that ceiling is a guess, not
 
 **`StorageAdapter`** (`@chatvault/storage`) — implemented at
 `lib/storage/expo-file-system-adapter.ts` (`ExpoFileSystemStorageAdapter`), built on SDK 57's
-`File`/`Directory` API (the same one `app/import.tsx` uses). It must pass
-`runStorageConformance` — and **cannot, yet, in CI**: `expo-file-system`'s `File`/`Directory`
-are a native module, which does not exist under plain Node, so `runStorageConformance` can only
-be pointed at this adapter from inside the Expo runtime (a device or simulator build), not from
-`pnpm test` here. Typechecking it (which does pass) is not evidence it works — same rule as the
-Share Extension. Running the conformance suite on-device is still owed before this adapter is
-trusted with a real archive.
+`File`/`Directory` API (the same one `app/import.tsx` uses). It must pass the storage contract,
+and **cannot do so in CI**: `expo-file-system`'s `File`/`Directory` are a native module that
+does not exist under plain Node, so `pnpm test` here proves nothing about this adapter and
+`pnpm typecheck` proves only that it compiles — same rule as the Share Extension.
+
+**`app/dev-storage.tsx` is where it gets run instead.** It calls `runStorageContract` — the
+same cases `pnpm test` runs against `MemoryStorageAdapter`, one fresh cache directory per case
+— and renders every result. Dev-only: `index.tsx` links to it under `__DEV__`, so it never
+reaches a user. Open it from the library screen, tap **Run the contract**, and read the
+results off the phone.
+
+Run it after any change to the adapter, and before trusting it with a real archive. A green
+`pnpm test` says nothing here; this screen is the only evidence that exists.
 
 ## Platform notes
 

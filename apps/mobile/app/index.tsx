@@ -1,4 +1,5 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Link } from "expo-router";
 
 /**
  * Library screen — placeholder.
@@ -32,6 +33,17 @@ export default function LibraryScreen() {
             saved and verified, we will show you how to delete the chat yourself.
           </Text>
         </View>
+
+        {/*
+          Dev builds only. The storage adapter's conformance suite cannot run in CI — the
+          filesystem it uses is a native module — so the only way to run it is from inside the
+          app. `__DEV__` is false in a release bundle, so this never reaches a user.
+        */}
+        {__DEV__ && (
+          <Link href="/dev-storage" style={styles.devLink}>
+            Dev: run the storage contract
+          </Link>
+        )}
       </ScrollView>
     </>
   );
@@ -51,4 +63,5 @@ const styles = StyleSheet.create({
   },
   noteHeading: { fontSize: 14, fontWeight: "600", color: "#1c1b19" },
   noteBody: { fontSize: 14, lineHeight: 21, color: "#5c594f" },
+  devLink: { marginTop: 8, fontSize: 13, color: "#6b6862", textDecorationLine: "underline" },
 });
