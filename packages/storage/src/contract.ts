@@ -298,6 +298,28 @@ export const storageContract: readonly ContractCase[] = [
     },
   },
   {
+    name: "streams: a shorter streamed rewrite leaves no tail behind",
+    async run(adapter) {
+      if (!adapter.capabilities().streaming) throw new ContractSkip("capabilities().streaming is false");
+      const putStream = adapter.putStream;
+      assert(putStream !== undefined, "streaming methods missing");
+
+      // The streaming counterpart of "overwrites with shorter content". Found on a device:
+      // `expo-file-system`'s `writableStream()` opens write-only *without* truncating, so
+      // without care the object keeps its old length and the tail of the old ciphertext. That
+      // failure is silent — the write succeeds and the archive is quietly corrupt.
+      const write = async (value: Uint8Array): Promise<void> => {
+        await putStream.call(adapter, "media/rewritten.enc", (async function* () {
+          yield value;
+        })());
+      };
+
+      await write(bytes("a much longer first value"));
+      await write(bytes("short"));
+      assertBytes(await adapter.get("media/rewritten.enc"), bytes("short"), "after shrinking putStream");
+    },
+  },
+  {
     name: "streams: getStream on a missing path fails with ObjectNotFoundError",
     async run(adapter) {
       if (!adapter.capabilities().streaming) throw new ContractSkip("capabilities().streaming is false");

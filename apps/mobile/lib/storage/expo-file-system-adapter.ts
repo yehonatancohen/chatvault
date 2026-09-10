@@ -75,6 +75,19 @@ export class ExpoFileSystemStorageAdapter implements StorageAdapter {
   async putStream(path: string, data: AsyncIterable<Uint8Array>): Promise<void> {
     const file = this.fileFor(path);
     file.parentDirectory.create({ intermediates: true, idempotent: true });
+    // `writableStream()` opens the file `FileMode.WriteOnly`, which does two things this
+    // adapter must compensate for — both found by running the contract on a device:
+    //
+    //   1. It does not create the file. Underneath is `FileHandle(forWritingTo:)`, which
+    //      throws on a missing path, so every streamed write to a new object failed.
+    //   2. It does not truncate — only `FileMode.Truncate` does, and `writableStream()` does
+    //      not use it. A second, shorter write would leave the tail of the first behind, and
+    //      the object would still read back at its old length. That one is silent: nothing
+    //      fails, the archive just holds a media blob that no longer decrypts.
+    //
+    // `create({ overwrite: true })` removes any existing file and makes an empty one, which
+    // gives both properties at once: the handle opens, and it opens onto zero bytes.
+    file.create({ intermediates: true, overwrite: true });
     const writer = file.writableStream().getWriter();
     try {
       for await (const chunk of data) await writer.write(chunk);
