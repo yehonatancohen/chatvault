@@ -118,10 +118,13 @@ A3, testable.
 - **A6. Guided delete** — **built** (`app/delete-guide.tsx`). Per-platform instructions, a
   confirmation the user gives us, and nothing that touches WhatsApp.
 
-- **A7. Library + reader** — **built** (`app/index.tsx`, `app/archive/[id].tsx`). A locked
-  archive (key not in the Keychain — a restore, a reinstall, another device) is a first-class
-  state that the passphrase opens. Media renders from a `data:` URI rather than a decrypted
-  cache file, so no plaintext is written outside the archive.
+- **A7. Library + reader** — **built**, and since reworked into a chat rather than a list:
+  inverted so the newest message is at the bottom, day separators, runs from one sender grouped
+  under a single name, tap-to-open media with pinch zoom, and a chat-info screen (people, media
+  gap, which exports the archive was built from). A locked archive — key not in the Keychain,
+  after a restore or on another device — is a first-class state the passphrase opens. Media
+  renders from a `data:` URI rather than a decrypted cache file, so no plaintext is ever
+  written outside the archive.
 
 **What is proven, and what is not.** `pnpm -r test` is 225 tests (125 core, 13 storage,
 87 mobile), `pnpm -r typecheck` is clean, and a full `expo export` iOS bundle builds. The app

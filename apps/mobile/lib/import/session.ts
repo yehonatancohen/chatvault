@@ -20,6 +20,8 @@ export interface ImportSession {
   readonly chatTitle: string;
   /** Set only when this import created the archive — the Verify screen tells the user once. */
   readonly passphraseSet: boolean;
+  /** Whether the export carried media, which changes what a media gap means. */
+  readonly hadMedia: boolean;
 }
 
 let current: ImportSession | undefined;

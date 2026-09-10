@@ -76,6 +76,12 @@ export interface PreparedImport {
   readonly archiveId: string;
   readonly chatTitle: string;
   readonly creating: boolean;
+  /**
+   * Whether the shared file was a with-media export. The Verify screen needs it to tell the
+   * difference between "WhatsApp no longer had these files" and "you exported without media" —
+   * identical in the counts, opposite in what the user should do about it.
+   */
+  readonly hadMedia: boolean;
   readonly requirement: ImportRequirement;
   /** Messages of this export the target archive already holds. 0 when creating. */
   readonly overlap: number;
@@ -127,6 +133,7 @@ export async function prepareImport(params: {
       archiveId,
       chatTitle: chatTitleFromFilename(params.fileName),
       creating: false,
+      hadMedia: isZip,
       requirement: hasKey ? "ready" : "unlock",
       overlap: target.overlap,
       byteLength,
@@ -140,6 +147,7 @@ export async function prepareImport(params: {
     archiveId: newArchiveId(),
     chatTitle: chatTitleFromFilename(params.fileName),
     creating: true,
+    hadMedia: isZip,
     requirement: "new-passphrase",
     overlap: 0,
     byteLength,

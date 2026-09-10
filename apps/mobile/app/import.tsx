@@ -88,6 +88,7 @@ export default function ImportScreen() {
           archiveId,
           chatTitle: prepared.chatTitle,
           passphraseSet: prepared.creating,
+          hadMedia: prepared.hadMedia,
         });
         router.replace("/verify");
       } catch (error) {

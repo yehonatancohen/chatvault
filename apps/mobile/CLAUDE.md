@@ -213,8 +213,9 @@ belongs to Track C and does not exist yet — v1 writes to the device only).
 | `app/import.tsx` | Two-phase. `prepareImport` reads/parses/matches and writes nothing, *then* the screen knows whether to ask for a new passphrase, an existing one, or neither. |
 | `app/verify.tsx` | The trust moment. See below. |
 | `app/delete-guide.tsx` | Instructions and a confirmation the user gives *us*. Deletes nothing. |
-| `app/archive/[id].tsx` | The reader. Unlocks by passphrase when the key is not in the Keychain. |
-| `app/archive/MessageRow.tsx` | One message. `writingDirection: "auto"` per message — the RN counterpart of the web viewer's `unicodeBidi: "plaintext"`. |
+| `app/archive/[id]/index.tsx` | The chat. **Inverted list** — newest at the bottom, which is where a conversation ends. Unlocks by passphrase when the key is not in the Keychain. |
+| `app/archive/[id]/info.tsx` | Chat info: people, media (including the gap), which exports the archive was built from. Where a member picks which participant is themselves. |
+| `components/archive/` | `MessageBubble`, `Lightbox`. **Components live outside `app/`** — expo-router treats every file under `app/` as a route, so a component there becomes a navigable screen. |
 | `app/dev-storage.tsx` | Dev-only device checks. Both suites; never ships. |
 
 **Where the import logic lives, and why it is not in the screens.** `lib/import/run-import.ts`
@@ -234,6 +235,20 @@ all three are tested. Keep it that way. Logic that migrates into a screen become
 - **The Verify screen's numbers are read back out of the archive after writing**, not
   remembered from the write. It costs a full read and it is what makes the screen's claim
   ("this is safely archived") a statement about the file rather than about our intentions.
+- **The media-gap wording is computed, not written inline** (`lib/ui/media-explanation.ts`,
+  tested). "Not all media is saved" is the most alarming sentence this app says, at the moment
+  a user is deciding whether to delete their only other copy, and the two causes behind it need
+  opposite advice: media WhatsApp had already lost is gone, while media absent because the
+  export was made *without* media is sitting in WhatsApp untouched. The counts alone cannot
+  tell those apart, which is why `PreparedImport.hadMedia` is threaded through to Verify.
+- **The reader is a chat, not a list** (`lib/ui/chat.ts`, tested): day separators, runs from one
+  sender grouped under a single name, newest at the bottom. Grouping breaks after five minutes
+  even for the same speaker — stacking a morning and an evening message under one name implies
+  they were said together, which is a lie about a record someone is checking against memory.
+- **An export never says which participant is "you"**, so the reader cannot know whose messages
+  to put on the right. `lib/archive/preferences.ts` stores that choice per archive, outside the
+  archive directory: it is a display preference, not archive content, and the format must stay
+  free of device-local state.
 
 **The Verify screen is the trust moment** and deserves more care than anything else in the UI.
 Before we suggest deleting anything, we show what was captured: message count, date range,

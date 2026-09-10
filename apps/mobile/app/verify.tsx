@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { takeImportSession, type ImportSession } from "../lib/import/session";
-import { formatBytes, formatCount, formatRange, plural } from "../lib/ui/format";
+import { formatBytes, formatCount, formatRange } from "../lib/ui/format";
+import { explainMedia } from "../lib/ui/media-explanation";
+import { summarizeParticipants } from "../lib/ui/participants";
 import { radius, theme } from "../lib/ui/theme";
 
 /**
@@ -30,6 +32,7 @@ import { radius, theme } from "../lib/ui/theme";
 export default function VerifyScreen() {
   const router = useRouter();
   const [session, setSession] = useState<ImportSession | undefined>(undefined);
+  const [showEveryone, setShowEveryone] = useState(false);
 
   useEffect(() => {
     // Read once, on mount. A cold start onto this route has no session — see the fallback.
@@ -51,7 +54,8 @@ export default function VerifyScreen() {
 
   const { outcome } = session;
   const { stats } = outcome;
-  const lost = stats.notArchivedCount;
+  const media = explainMedia(stats, session.hadMedia);
+  const people = summarizeParticipants(outcome.participants);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -71,7 +75,25 @@ export default function VerifyScreen() {
       <Section title="What the archive holds">
         <Row label="Messages" value={formatCount(outcome.messageCount)} strong />
         <Row label="Date range" value={formatRange(outcome.firstTs, outcome.lastTs)} />
-        <Row label="People" value={outcome.participants.join(", ") || "-"} />
+        {/*
+          A family group has sixty participants and this is the screen someone reads to decide
+          whether to delete a chat — it must not become a scroll past a wall of names.
+        */}
+        <Row
+          label={outcome.participants.length > 2 ? `People (${formatCount(outcome.participants.length)})` : "People"}
+          value={showEveryone ? outcome.participants.join(", ") : people.label}
+        />
+        {people.collapsible && (
+          <Pressable
+            onPress={() => setShowEveryone((value) => !value)}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.disclosure, pressed && styles.buttonPressed]}
+          >
+            <Text style={styles.disclosureLabel}>
+              {showEveryone ? "Show fewer" : `Show all ${formatCount(outcome.participants.length)}`}
+            </Text>
+          </Pressable>
+        )}
         <Row label="Media files" value={formatCount(stats.uniqueBlobCount)} />
         <Row label="Media size" value={formatBytes(stats.totalBytes)} />
         {stats.dedupSavedBytes > 0 && (
@@ -80,40 +102,41 @@ export default function VerifyScreen() {
       </Section>
 
       {/*
-        The honest half. Rendered whether or not there is anything to report: an explicit "all
-        of it" is itself information, and a section that only appears when there is bad news
-        teaches users to skim past it when it does.
+        The honest half, and the most carefully worded thing in the app. Rendered whether or
+        not there is anything to report: an explicit "all of it" is itself information, and a
+        section that only appears when there is bad news teaches users to skim past it when it
+        does. The wording is computed in `explainMedia`, where it can be tested.
       */}
-      {lost > 0 ? (
-        <View style={styles.lossBox}>
-          <Text style={styles.lossHeading}>{plural(lost, "media file")} will not be saved</Text>
-          <Text style={styles.lossBody}>
-            {stats.omittedCount > 0 && (
-              <>
-                WhatsApp left {plural(stats.omittedCount, "file")} out of this export — it no
-                longer has them on this phone.{" "}
-              </>
-            )}
-            {stats.missingCount > 0 && (
-              <>
-                {plural(stats.missingCount, "file")} named in the chat could not be found in the
-                export.{" "}
-              </>
-            )}
-            These are gone if you delete this chat. Everything else on this screen is safe.
-          </Text>
-          <Text style={styles.lossHint}>
-            Exporting again with media sometimes recovers them, and so can another member of the
-            chat archiving their own copy.
-          </Text>
+      {media.severity === "none" ? (
+        <View style={styles.goodBox}>
+          <Text style={styles.goodHeading}>{media.headline}</Text>
+          <Text style={styles.lossBody}>{media.saved}</Text>
         </View>
       ) : (
-        <View style={styles.goodBox}>
-          <Text style={styles.goodHeading}>Every file in this export was saved</Text>
-          <Text style={styles.lossBody}>
-            All {plural(stats.totalMediaMessages, "media message")} in the chat resolved to a
-            file, and each one is in the archive.
-          </Text>
+        <View style={styles.lossBox}>
+          <Text style={styles.lossHeading}>{media.headline}</Text>
+          <Text style={styles.lossBody}>{media.saved}</Text>
+
+          {media.causes.map((cause) => (
+            <View key={cause.what} style={styles.cause}>
+              <Text style={styles.causeWhat}>{cause.what}</Text>
+              <Text style={styles.causeWhy}>{cause.why}</Text>
+            </View>
+          ))}
+
+          {media.stillSaved !== undefined && (
+            <View style={styles.stillSaved}>
+              <Text style={styles.stillSavedText}>{media.stillSaved}</Text>
+            </View>
+          )}
+
+          <Text style={styles.nextStepsTitle}>What can still be done</Text>
+          {media.nextSteps.map((step, index) => (
+            <View key={step} style={styles.step}>
+              <Text style={styles.stepNumber}>{index + 1}</Text>
+              <Text style={styles.stepText}>{step}</Text>
+            </View>
+          ))}
         </View>
       )}
 
@@ -229,9 +252,40 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: theme.bad,
   },
-  lossHeading: { fontSize: 17, fontWeight: "600", color: theme.bad },
+  lossHeading: { fontSize: 18, fontWeight: "600", color: theme.bad },
   lossBody: { fontSize: 14, lineHeight: 21, color: theme.body },
-  lossHint: { fontSize: 13, lineHeight: 20, color: theme.muted },
+  cause: { marginTop: 10, gap: 3 },
+  causeWhat: { fontSize: 14, fontWeight: "600", color: theme.ink },
+  causeWhy: { fontSize: 14, lineHeight: 21, color: theme.body },
+  stillSaved: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: radius.chip,
+    backgroundColor: "#eef4f0",
+  },
+  stillSavedText: { fontSize: 14, lineHeight: 21, color: "#1f5138" },
+  nextStepsTitle: {
+    marginTop: 16,
+    fontSize: 13,
+    fontWeight: "700",
+    color: theme.muted,
+  },
+  step: { flexDirection: "row", gap: 10, alignItems: "flex-start", marginTop: 8 },
+  stepNumber: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: theme.ink,
+    color: theme.paper,
+    textAlign: "center",
+    lineHeight: 20,
+    fontSize: 11,
+    fontWeight: "700",
+    overflow: "hidden",
+  },
+  stepText: { flex: 1, fontSize: 14, lineHeight: 21, color: theme.body },
+  disclosure: { paddingVertical: 8 },
+  disclosureLabel: { fontSize: 13, fontWeight: "600", color: theme.ink },
   goodBox: {
     marginTop: 20,
     padding: 16,
