@@ -77,6 +77,7 @@ export default function RootLayout() {
         {/* Titles come from the archive's own manifest — see each screen's `Stack.Screen`. */}
         <Stack.Screen name="archive/[id]/index" options={{ title: "Archive" }} />
         <Stack.Screen name="archive/[id]/info" options={{ title: "Chat info" }} />
+        <Stack.Screen name="archive/[id]/media" options={{ title: "Media" }} />
         {/* Dev-only; `index.tsx` only links to it under `__DEV__`. See `dev-storage.tsx`. */}
         <Stack.Screen name="dev-storage" options={{ title: "Storage contract" }} />
       </Stack>

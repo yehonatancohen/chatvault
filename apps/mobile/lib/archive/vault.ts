@@ -33,6 +33,21 @@ export function archivesRoot(): Directory {
   return new Directory(Paths.document, ARCHIVES_DIRECTORY);
 }
 
+/**
+ * Where archives live, in a sentence a person can act on.
+ *
+ * "Where is my chat saved?" is a fair question with a genuinely reassuring answer, and until
+ * now the app never gave it. The specifics that matter to a user are: it is a file on this
+ * phone, inside this app, encrypted; it is in their iPhone backup so a lost phone does not
+ * lose it; and no copy exists anywhere else.
+ */
+export function archiveLocationSummary(): string {
+  return (
+    "In this app's own folder on this iPhone, inside your Documents directory — one encrypted " +
+    "folder per chat. No other app can read it, and there is no copy anywhere else."
+  );
+}
+
 export function newArchiveId(): string {
   return Crypto.randomUUID();
 }

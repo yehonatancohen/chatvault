@@ -10,7 +10,9 @@ import {
 } from "react-native";
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { readLibrary, type LibraryEntry } from "../lib/archive/library";
-import { formatCount, formatDateTime, formatRange } from "../lib/ui/format";
+import { archiveLocationSummary } from "../lib/archive/vault";
+import { ChatAvatar } from "../components/archive/ChatAvatar";
+import { formatCount, formatDate, formatDateTime } from "../lib/ui/format";
 import { radius, theme } from "../lib/ui/theme";
 
 /**
@@ -87,6 +89,20 @@ export default function LibraryScreen() {
             To add to an archive — or to start another — export a chat in WhatsApp and share it
             here. An export of a chat you have already archived is merged in, not duplicated.
           </Text>
+
+          {/*
+            "Where are my chats saved?" is a fair question for an app asking someone to delete
+            their originals, and it had no answer anywhere in the UI. The short form lives here;
+            chat info carries the full explanation, including backups.
+          */}
+          <View style={styles.storageNote}>
+            <Text style={styles.storageNoteTitle}>Where these are saved</Text>
+            <Text style={styles.storageNoteBody}>{archiveLocationSummary()}</Text>
+            <Text style={styles.storageNoteBody}>
+              Open a chat and tap Info for the full picture, including what happens to your
+              archive when you back up or replace your phone.
+            </Text>
+          </View>
         </>
       )}
 
@@ -140,19 +156,35 @@ function ArchiveCard({ entry, onPress }: { entry: LibraryEntry; onPress: () => v
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.chatRow, pressed && styles.pressed]}
     >
-      <Text style={styles.cardTitle}>{manifest.chatTitle}</Text>
-      <Text style={styles.cardMeta}>
-        {formatCount(manifest.messageCount)} messages ·{" "}
-        {formatCount(manifest.media.length)} media files
-      </Text>
-      <Text style={styles.cardMeta}>{formatRange(manifest.firstTs, manifest.lastTs)}</Text>
-      <Text style={styles.cardFoot}>
-        {manifest.sources.length === 1
-          ? `Last updated ${formatDateTime(manifest.updatedAt)}`
-          : `${formatCount(manifest.sources.length)} imports · updated ${formatDateTime(manifest.updatedAt)}`}
-      </Text>
+      <ChatAvatar
+        archiveId={entry.archiveId}
+        title={manifest.chatTitle}
+        reader={entry.reader}
+        thumbnail={entry.thumbnail}
+      />
+
+      <View style={styles.chatText}>
+        <View style={styles.chatTopLine}>
+          <Text style={styles.chatTitle} numberOfLines={1}>
+            {manifest.chatTitle}
+          </Text>
+          <Text style={styles.chatWhen}>{formatDate(manifest.lastTs)}</Text>
+        </View>
+
+        {entry.lastMessage && (
+          <Text style={styles.chatPreview} numberOfLines={1}>
+            {entry.lastMessage.sender !== null ? `${entry.lastMessage.sender}: ` : ""}
+            {entry.lastMessage.text}
+          </Text>
+        )}
+
+        <Text style={styles.chatMeta} numberOfLines={1}>
+          {formatCount(manifest.messageCount)} messages · {formatCount(manifest.media.length)} files
+          {manifest.sources.length > 1 ? ` · ${formatCount(manifest.sources.length)} imports` : ""}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -204,6 +236,30 @@ const styles = StyleSheet.create({
   cardBody: { fontSize: 14, lineHeight: 21, color: theme.body },
   cardFoot: { marginTop: 4, fontSize: 12, color: theme.muted },
   addMore: { fontSize: 13, lineHeight: 20, color: theme.muted, marginTop: 8 },
+  chatRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: radius.card,
+    backgroundColor: theme.panel,
+  },
+  chatText: { flex: 1, gap: 2 },
+  chatTopLine: { flexDirection: "row", alignItems: "baseline", gap: 8 },
+  chatTitle: { flex: 1, fontSize: 16.5, fontWeight: "600", color: theme.ink, writingDirection: "auto" },
+  chatWhen: { fontSize: 12, color: theme.muted },
+  chatPreview: { fontSize: 14, color: theme.body, writingDirection: "auto" },
+  chatMeta: { fontSize: 12, color: theme.muted },
+  storageNote: {
+    marginTop: 14,
+    padding: 14,
+    gap: 6,
+    borderRadius: radius.card,
+    backgroundColor: theme.panel,
+  },
+  storageNoteTitle: { fontSize: 13.5, fontWeight: "700", color: theme.ink },
+  storageNoteBody: { fontSize: 13, lineHeight: 19, color: theme.muted },
   note: {
     marginTop: 8,
     padding: 16,

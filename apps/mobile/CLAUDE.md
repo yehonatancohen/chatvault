@@ -214,8 +214,9 @@ belongs to Track C and does not exist yet — v1 writes to the device only).
 | `app/verify.tsx` | The trust moment. See below. |
 | `app/delete-guide.tsx` | Instructions and a confirmation the user gives *us*. Deletes nothing. |
 | `app/archive/[id]/index.tsx` | The chat. **Inverted list** — newest at the bottom, which is where a conversation ends. Unlocks by passphrase when the key is not in the Keychain. |
-| `app/archive/[id]/info.tsx` | Chat info: people, media (including the gap), which exports the archive was built from. Where a member picks which participant is themselves. |
-| `components/archive/` | `MessageBubble`, `Lightbox`. **Components live outside `app/`** — expo-router treats every file under `app/` as a route, so a component there becomes a navigable screen. |
+| `app/archive/[id]/info.tsx` | Chat info: media preview, participants (collapsed past 8, expanded in place), which exports the archive was built from, and **where the archive is stored**. Where a member picks which participant is themselves. |
+| `app/archive/[id]/media.tsx` | The gallery. Virtualized rows, because each tile decrypts its own blob on mount. |
+| `components/archive/` | `MessageBubble`, `Lightbox`, `MediaGrid`, `ChatAvatar`, `useArchive`. **Components live outside `app/`** — expo-router treats every file under `app/` as a route, so a component there becomes a navigable screen. |
 | `app/dev-storage.tsx` | Dev-only device checks. Both suites; never ships. |
 
 **Where the import logic lives, and why it is not in the screens.** `lib/import/run-import.ts`
@@ -245,6 +246,12 @@ all three are tested. Keep it that way. Logic that migrates into a screen become
   sender grouped under a single name, newest at the bottom. Grouping breaks after five minutes
   even for the same speaker — stacking a morning and an evening message under one name implies
   they were said together, which is a lie about a record someone is checking against memory.
+- **A WhatsApp export contains no avatars and no thumbnails**, so a chat's own smallest image
+  stands in for it in the library (`pickChatThumbnail` — smallest, not newest, because this
+  decrypts while a list renders), with coloured initials shown immediately underneath. The
+  format has no preview line and no blob→message back-link either, which is why `readLibrary`
+  reads messages to build a row; if that gets slow, the fix is a summary sealed into the
+  archive at write time, not a cache outside it.
 - **An export never says which participant is "you"**, so the reader cannot know whose messages
   to put on the right. `lib/archive/preferences.ts` stores that choice per archive, outside the
   archive directory: it is a display preference, not archive content, and the format must stay

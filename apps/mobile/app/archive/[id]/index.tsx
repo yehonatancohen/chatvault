@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -9,11 +9,9 @@ import {
   View,
 } from "react-native";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { ArchiveReader, type Manifest, type MergedMessage } from "@chatvault/core";
-import { getCryptoProvider } from "../../../lib/crypto/expo-crypto-provider";
-import { WrongPassphraseError } from "../../../lib/crypto/key-wrapping";
-import { loadArchiveKey, storageFor, unlockWithPassphrase } from "../../../lib/archive/vault";
+import type { ArchiveReader } from "@chatvault/core";
 import { readPreferences } from "../../../lib/archive/preferences";
+import { useArchive } from "../../../components/archive/useArchive";
 import { buildChatRows, daySeparatorLabel, forInvertedList, type ChatRow } from "../../../lib/ui/chat";
 import { formatCount } from "../../../lib/ui/format";
 import { summarizeParticipants } from "../../../lib/ui/participants";
@@ -38,65 +36,15 @@ import { Lightbox, type LightboxSubject } from "../../../components/archive/Ligh
  * reason the passphrase path must never be allowed to rot (`apps/mobile/CLAUDE.md`).
  */
 
-type State =
-  | { readonly kind: "loading" }
-  | { readonly kind: "locked"; readonly error?: string }
-  | { readonly kind: "unlocking" }
-  | {
-      readonly kind: "ready";
-      readonly manifest: Manifest;
-      readonly messages: readonly MergedMessage[];
-      readonly reader: ArchiveReader;
-    }
-  | { readonly kind: "error"; readonly message: string };
-
 export default function ArchiveChatScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
   const archiveId = params.id ?? "";
 
-  const [state, setState] = useState<State>({ kind: "loading" });
+  const { state, unlock } = useArchive(archiveId);
   const [passphrase, setPassphrase] = useState("");
   const [selfId, setSelfId] = useState<string | undefined>(undefined);
   const [lightbox, setLightbox] = useState<LightboxSubject | undefined>(undefined);
-
-  const openWith = useCallback(
-    async (key: Uint8Array): Promise<void> => {
-      const reader = await ArchiveReader.open({
-        crypto: getCryptoProvider(),
-        storage: storageFor(archiveId),
-        key,
-        archiveId,
-      });
-      const messages = await reader.readAll();
-      setState({ kind: "ready", manifest: reader.manifest, messages, reader });
-    },
-    [archiveId],
-  );
-
-  useEffect(() => {
-    let stale = false;
-    void (async () => {
-      try {
-        const key = await loadArchiveKey(archiveId);
-        if (stale) return;
-        if (key === null) {
-          setState({ kind: "locked" });
-          return;
-        }
-        await openWith(key);
-      } catch (error) {
-        if (stale) return;
-        setState({
-          kind: "error",
-          message: error instanceof Error ? error.message : String(error),
-        });
-      }
-    })();
-    return () => {
-      stale = true;
-    };
-  }, [archiveId, openWith]);
 
   // Re-read on focus so choosing "this is me" in the info screen is reflected on return.
   useFocusEffect(
@@ -111,23 +59,6 @@ export default function ArchiveChatScreen() {
       };
     }, [archiveId]),
   );
-
-  const unlock = useCallback(async (): Promise<void> => {
-    setState({ kind: "unlocking" });
-    try {
-      await openWith(await unlockWithPassphrase(archiveId, passphrase));
-    } catch (error) {
-      setState({
-        kind: "locked",
-        error:
-          error instanceof WrongPassphraseError
-            ? error.message
-            : error instanceof Error
-              ? error.message
-              : String(error),
-      });
-    }
-  }, [archiveId, openWith, passphrase]);
 
   const rows = useMemo(
     () => (state.kind === "ready" ? forInvertedList(buildChatRows(state.messages)) : []),
@@ -165,11 +96,11 @@ export default function ArchiveChatScreen() {
           placeholder="Passphrase"
           placeholderTextColor={theme.muted}
           accessibilityLabel="Passphrase"
-          onSubmitEditing={() => void unlock()}
+          onSubmitEditing={() => void unlock(passphrase)}
         />
         {state.error !== undefined && <Text style={styles.fieldError}>{state.error}</Text>}
         <Pressable
-          onPress={() => void unlock()}
+          onPress={() => void unlock(passphrase)}
           disabled={passphrase.length === 0}
           accessibilityRole="button"
           style={({ pressed }) => [

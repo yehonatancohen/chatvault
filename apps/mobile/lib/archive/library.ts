@@ -15,6 +15,7 @@
 
 import { ArchiveReader, type Manifest } from "@chatvault/core";
 import { getCryptoProvider } from "../crypto/expo-crypto-provider";
+import { buildMediaIndex, pickChatThumbnail, type MediaItem } from "../ui/media-index";
 import { listArchiveIds, loadArchiveKey, storageFor } from "./vault";
 
 export interface LibraryEntry {
@@ -23,6 +24,15 @@ export interface LibraryEntry {
   readonly manifest?: Manifest;
   /** Set when `status` is `"unreadable"`: what went wrong, shown as-is. */
   readonly problem?: string;
+  /**
+   * Kept so the row can decrypt its own thumbnail without opening the archive a second time.
+   * In memory only, for as long as the list is on screen.
+   */
+  readonly reader?: ArchiveReader;
+  /** The image chosen to stand for this chat, if it has one. Not yet decrypted. */
+  readonly thumbnail?: MediaItem;
+  /** The most recent message, for the one-line preview a chat list shows. */
+  readonly lastMessage?: { readonly sender: string | null; readonly text: string; readonly ts: number };
 }
 
 export async function readLibrary(): Promise<readonly LibraryEntry[]> {
@@ -42,7 +52,32 @@ export async function readLibrary(): Promise<readonly LibraryEntry[]> {
         key,
         archiveId,
       });
-      entries.push({ archiveId, status: "ready", manifest: reader.manifest });
+
+      // Reading every message to draw one row is more than a list should do, but the manifest
+      // carries neither a preview line nor any link from a blob to the message that used it —
+      // both are documented gaps in `packages/core`. The read is chunk-at-a-time and the
+      // library holds a handful of archives; if that stops being true, the fix is a small
+      // summary sealed into the archive at write time, not a cache out here.
+      const messages = await reader.readAll();
+      const thumbnail = pickChatThumbnail(buildMediaIndex(messages, reader.manifest.media));
+      const last = messages[messages.length - 1];
+
+      entries.push({
+        archiveId,
+        status: "ready",
+        manifest: reader.manifest,
+        reader,
+        ...(thumbnail ? { thumbnail } : {}),
+        ...(last
+          ? {
+              lastMessage: {
+                sender: last.sender,
+                text: previewTextFor(last),
+                ts: last.ts,
+              },
+            }
+          : {}),
+      });
     } catch (error) {
       // A failure here is worth showing, not swallowing: it is the difference between "your
       // archive is fine" and "your archive does not open", and the user is about to decide
@@ -57,4 +92,13 @@ export async function readLibrary(): Promise<readonly LibraryEntry[]> {
 
   // Most recently updated first: the archive someone just imported into is the one they want.
   return entries.sort((a, b) => (b.manifest?.updatedAt ?? 0) - (a.manifest?.updatedAt ?? 0));
+}
+
+/** The one-line preview, naming what a media message is rather than showing an empty line. */
+function previewTextFor(message: { kind: string; body: string }): string {
+  if (message.body.length > 0) return message.body;
+  if (message.kind === "attachment") return "Photo or file";
+  if (message.kind === "omitted-media") return "Media not in the archive";
+  if (message.kind === "deleted") return "Deleted message";
+  return "";
 }
