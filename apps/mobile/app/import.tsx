@@ -36,6 +36,7 @@ import { radius, theme } from "../lib/ui/theme";
 
 /** Deliberately plain: a stuck import should tell the user which step it is stuck on. */
 const STAGE_LABELS: Record<ImportStage, string> = {
+  "deriving-key": "Deriving the key from your passphrase...",
   parsing: "Reading the messages...",
   "checking-media": "Checking the media files...",
   writing: "Encrypting and writing...",
@@ -160,7 +161,9 @@ export default function ImportScreen() {
             `${formatBytes(phase.prepared.byteLength)} of export. ` +
             (phase.stage === "writing"
               ? "Encrypting every file on this phone — a large export can take a while."
-              : "Everything happens here; nothing is uploaded.")
+              : phase.stage === "deriving-key"
+                ? "Deliberately slow, so a stolen archive cannot be guessed at. Takes a moment."
+                : "Everything happens here; nothing is uploaded.")
           }
         />
       )}

@@ -63,6 +63,14 @@ export class EmptyExportError extends Error {
  * while writing".
  */
 export type ImportStage =
+  /**
+   * Deriving or unwrapping the archive key. Reported by `completeImport` rather than by
+   * `runImport`, because it happens before the pipeline starts — and it is not a formality:
+   * PBKDF2 at the shipped cost was measured at 27.7 s on a real device. noble's `pbkdf2Async`
+   * yields to the event loop as it goes, so the screen does update; without a stage of its
+   * own, that whole time reads as a hung app.
+   */
+  | "deriving-key"
   | "parsing"
   | "checking-media"
   | "writing"

@@ -193,6 +193,7 @@ export async function completeImport(
   const crypto = getCryptoProvider();
   const storage = storageFor(prepared.archiveId);
 
+  onProgress?.("deriving-key");
   const { key, keyWrapping } = prepared.creating
     ? await createKeyMaterial(prepared.archiveId, passphrase, crypto)
     : await existingKeyMaterial(prepared.archiveId, passphrase, crypto);
