@@ -16,6 +16,7 @@
   "dependencies": {
     "@chatvault/core": "workspace:*",
     "@chatvault/storage": "workspace:*",
+    "@expo/metro-runtime": "~57.0.15",
     "expo": "^57.0.14",
     "expo-constants": "~57.0.12",
     "expo-crypto": "^57.0.1",
@@ -29,8 +30,25 @@
     "fflate": "^0.8.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-native": "^0.86.2"
+    "react-native": "^0.86.2",
+    "react-native-worklets": "0.10.4"
   },
+  "comment": [
+    "@expo/metro-runtime and react-native-worklets are listed as dependencies only to pin them.",
+    "Nothing here imports either directly — both are reached solely through unpinned peer deps",
+    "(expo-router, @expo/ui, react-native-reanimated), so pnpm was free to pick its own versions",
+    "and picked badly, with no error until the app died at launch:",
+    "",
+    "  @expo/metro-runtime resolved to 4.0.1 while Expo SDK 57 requires ^57.0.11. Its",
+    "  messageSocket.native.ts opens a dev websocket at module scope during startup, so the",
+    "  mismatch surfaced as `[runtime not ready]: TypeError: Object is not a function` with no",
+    "  stack and no named module — the app was simply dead on every launch.",
+    "",
+    "  react-native-worklets resolved to 0.11.4 although expo-modules-core@57.0.11 declares",
+    "  support only up to ^0.10.0. 0.10.4 is the newest version all three consumers accept.",
+    "",
+    "Re-check both on any Expo SDK bump, and prefer `expo install --check` over bare versions."
+  ],
   "devDependencies": {
     "@expo/plist": "^0.8.1",
     "@types/react": "~19.2.0",

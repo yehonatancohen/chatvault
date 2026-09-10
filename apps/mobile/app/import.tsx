@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Stack, useLocalSearchParams } from "expo-router";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { File } from "expo-file-system";
 import { parseExport } from "@chatvault/core";
 
@@ -49,6 +56,17 @@ export default function ImportScreen() {
     size?: string;
   }>();
   const [probe, setProbe] = useState<Probe>({ status: "working" });
+  const router = useRouter();
+
+  /**
+   * A share-sheet cold start can land here as the very first screen. `unstable_settings` in
+   * `_layout.tsx` gives the stack an anchor so Back usually exists — this is the fallback for
+   * when it still does not, so this screen is never a dead end.
+   */
+  const goToLibrary = (): void => {
+    if (router.canGoBack()) router.back();
+    else router.replace("/");
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -134,7 +152,6 @@ export default function ImportScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Import" }} />
       <ScrollView contentContainerStyle={styles.container}>
         <Row label="File" value={params.fileName ?? "-"} />
         <Row label="Type" value={params.mimeType ?? "-"} />
@@ -185,6 +202,16 @@ export default function ImportScreen() {
             {probe.note !== undefined && <Text style={styles.hint}>{probe.note}</Text>}
           </>
         )}
+
+        {probe.status !== "working" && (
+          <Pressable
+            onPress={goToLibrary}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+          >
+            <Text style={styles.buttonLabel}>Back to library</Text>
+          </Pressable>
+        )}
       </ScrollView>
     </>
   );
@@ -228,4 +255,13 @@ const styles = StyleSheet.create({
   errorBox: { paddingVertical: 20, gap: 8 },
   errorHeading: { fontSize: 18, fontWeight: "600", color: "#a3341f" },
   errorBody: { fontSize: 14, lineHeight: 21, color: "#4a4842" },
+  button: {
+    marginTop: 28,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "#1c1b19",
+  },
+  buttonPressed: { opacity: 0.7 },
+  buttonLabel: { fontSize: 16, fontWeight: "600", color: "#faf9f6" },
 });

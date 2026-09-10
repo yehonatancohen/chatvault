@@ -1,5 +1,4 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { Stack } from "expo-router";
 
 /**
  * Library screen — placeholder.
@@ -12,7 +11,6 @@ import { Stack } from "expo-router";
 export default function LibraryScreen() {
   return (
     <>
-      <Stack.Screen options={{ title: "ChatVault" }} />
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.heading}>No archives yet</Text>
 

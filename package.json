@@ -16,5 +16,24 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "pnpm": {
+    "comment": [
+      "This workspace has autoInstallPeers on, and several Expo/RN packages are reached only",
+      "through unpinned peer deps. pnpm then resolves them on its own, and a wrong pick is",
+      "invisible until the app dies at launch — see apps/mobile/package.json, where",
+      "@expo/metro-runtime had to be pinned because it had resolved to 4.0.1 (an old major)",
+      "while Expo SDK 57 requires ^57.0.11. That one is the fix for a real launch crash;",
+      "the override below is defence-in-depth against the same class of problem.",
+      "",
+      "@react-native/js-polyfills: react-native 0.86.2 pins metro-runtime ^0.84.3, but",
+      "@react-native/community-cli-plugin reaches @react-native/metro-config through an",
+      "unpinned peer, which resolved to 0.87.0 and pulled a second Metro (0.87) plus its 0.87",
+      "polyfills into a 0.86 workspace. The polyfills are injected at the top of every bundle,",
+      "so pinning them keeps the prelude on one version. Re-check on every SDK bump."
+    ],
+    "overrides": {
+      "@react-native/js-polyfills": "0.86.2"
+    }
   }
 }
