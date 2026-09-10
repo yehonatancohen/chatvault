@@ -2,6 +2,7 @@ import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { ShareIntentProvider, useShareIntentContext } from "expo-share-intent";
+import { theme } from "../lib/ui/theme";
 
 /**
  * `index` is the anchor of the stack, not merely its first screen.
@@ -60,12 +61,12 @@ export default function RootLayout() {
         screenOptions={{
           headerShadowVisible: false,
           headerBackTitle: "Library",
-          headerTintColor: "#1c1b19",
-          headerStyle: { backgroundColor: "#faf9f6" },
-          contentStyle: { backgroundColor: "#faf9f6" },
+          headerTintColor: theme.ink,
+          headerStyle: { backgroundColor: theme.paper },
+          contentStyle: { backgroundColor: theme.paper },
         }}
       >
-        <Stack.Screen name="index" options={{ title: "ChatVault" }} />
+        <Stack.Screen name="index" options={{ title: "Boydem" }} />
         <Stack.Screen name="import" options={{ title: "Import" }} />
         {/*
           Verify is the trust moment and is reached with `replace` from Import, so there is

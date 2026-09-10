@@ -229,14 +229,17 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     gap: 3,
   },
-  bubbleOther: { backgroundColor: "#ffffff", borderWidth: StyleSheet.hairlineWidth, borderColor: theme.hairline },
-  bubbleSelf: { backgroundColor: "#dcf3e4" },
+  // The Boydem design leans flatter than a bubble, but self-messages still sit on their own
+  // side (the reader stores "which participant is you" for exactly that), so the shape stays
+  // and only the fill follows the warm palette: a wood tint for you, plain raised for others.
+  bubbleOther: { backgroundColor: theme.raised, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.hairline },
+  bubbleSelf: { backgroundColor: "#efe1d1" },
   tailOther: { borderBottomLeftRadius: 4 },
   tailSelf: { borderBottomRightRadius: 4 },
   sender: { fontSize: 13, fontWeight: "700", writingDirection: "auto" },
   body: { fontSize: 15.5, lineHeight: 21, color: theme.ink, writingDirection: "auto" },
   time: { fontSize: 11, color: theme.muted, alignSelf: "flex-end" },
-  timeSelf: { color: "#5d8a6e" },
+  timeSelf: { color: "#8a6a48" },
   deleted: { fontSize: 15, fontStyle: "italic", color: theme.muted },
   systemRow: { paddingVertical: 6, paddingHorizontal: 40, alignItems: "center" },
   systemText: {

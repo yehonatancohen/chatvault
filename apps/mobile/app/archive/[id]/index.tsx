@@ -13,7 +13,7 @@ import type { ArchiveReader } from "@chatvault/core";
 import { readPreferences } from "../../../lib/archive/preferences";
 import { useArchive } from "../../../components/archive/useArchive";
 import { buildChatRows, daySeparatorLabel, forInvertedList, type ChatRow } from "../../../lib/ui/chat";
-import { formatCount } from "../../../lib/ui/format";
+import { formatCount, formatRange } from "../../../lib/ui/format";
 import { summarizeParticipants } from "../../../lib/ui/participants";
 import { radius, theme } from "../../../lib/ui/theme";
 import { MessageBubble } from "../../../components/archive/MessageBubble";
@@ -159,12 +159,23 @@ export default function ArchiveChatScreen() {
         }}
       />
 
-      {/* A one-line stand-in for the avatar row a messaging app puts under the title. */}
+      {/*
+        The stand-in for the avatar row a messaging app puts under the title. The Boydem
+        design puts the archive's own numbers here — how much of the chat this is — because
+        the reader is evidence, and the count is part of the claim.
+      */}
       <Pressable
         onPress={() => router.push({ pathname: "/archive/[id]/info", params: { id: archiveId } })}
         accessibilityRole="button"
         style={({ pressed }) => [styles.subheader, pressed && styles.pressed]}
       >
+        <Text style={styles.subheaderStats} numberOfLines={1}>
+          <Text style={styles.subheaderStrong}>{formatCount(state.messages.length)}</Text> messages
+          {"  ·  "}
+          <Text style={styles.subheaderStrong}>{formatCount(state.manifest.media.length)}</Text> files
+          {"  ·  "}
+          {formatRange(state.manifest.firstTs, state.manifest.lastTs)}
+        </Text>
         <Text style={styles.subheaderText} numberOfLines={1}>
           {people.label}
         </Text>
@@ -234,7 +245,7 @@ function Row({
 }
 
 const styles = StyleSheet.create({
-  chat: { flex: 1, backgroundColor: "#f2efe9" },
+  chat: { flex: 1, backgroundColor: theme.paper },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   form: { padding: 24, gap: 12 },
   list: { paddingVertical: 10 },
@@ -257,20 +268,23 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: radius.card,
     alignItems: "center",
-    backgroundColor: theme.ink,
+    backgroundColor: theme.accent,
   },
   buttonDisabled: { opacity: 0.35 },
   pressed: { opacity: 0.7 },
   buttonLabel: { fontSize: 16, fontWeight: "600", color: theme.paper },
   infoButton: { paddingHorizontal: 8, paddingVertical: 4 },
-  infoButtonLabel: { fontSize: 16, color: theme.ink, fontWeight: "500" },
+  infoButtonLabel: { fontSize: 16, color: theme.accent, fontWeight: "600" },
   subheader: {
     paddingHorizontal: 16,
-    paddingVertical: 7,
-    backgroundColor: theme.paper,
+    paddingVertical: 8,
+    gap: 2,
+    backgroundColor: theme.raised,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.hairline,
   },
+  subheaderStats: { fontSize: 12.5, color: theme.muted },
+  subheaderStrong: { color: theme.ink, fontWeight: "700" },
   subheaderText: { fontSize: 12.5, color: theme.muted },
   dayRow: { alignItems: "center", paddingVertical: 10 },
   dayLabel: {

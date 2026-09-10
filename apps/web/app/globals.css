@@ -1,19 +1,28 @@
+/*
+ * Boydem — warm neutrals with a wood-brown accent, pulled off the cabinet mark.
+ * The viewer (app/open) reads these tokens and follows the system theme; the landing
+ * (app/page.tsx) is a committed dark look and carries its own palette below.
+ *
+ * "Heebo" leads the stack because the design is set in it, but it is never fetched — a
+ * privacy-obsessive product does not open a third-party font request on load. Where Heebo
+ * is not installed the platform's own Hebrew face renders it correctly.
+ */
 :root {
   color-scheme: light dark;
-  --bg: #fbfaf8;
-  --fg: #1c1b19;
-  --muted: #6b6862;
-  --line: #e4e0d8;
-  --accent: #256d4a;
+  --bg: #f6f4f1;
+  --fg: #141310;
+  --muted: #6c6a65;
+  --line: #e5e1da;
+  --accent: #7a4a21;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #161513;
-    --fg: #f0eee9;
-    --muted: #9b968d;
-    --line: #2e2c28;
-    --accent: #6cc79a;
+    --bg: #161311;
+    --fg: #f3f1ee;
+    --muted: #8e877b;
+    --line: #2a2521;
+    --accent: #c08552;
   }
 }
 
@@ -23,7 +32,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 16px/1.6 "Heebo", system-ui, -apple-system, "Segoe UI", "Noto Sans Hebrew", sans-serif;
 }
 
 main { max-width: 42rem; margin: 0 auto; padding: 4rem 1.5rem; }
@@ -31,6 +40,83 @@ h1 { font-size: 2rem; line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 1re
 p { color: var(--muted); }
 strong { color: var(--fg); }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
+
+/* --- Landing (app/page.tsx) --- */
+
+.landing {
+  --l-bg: #0b0b0c;
+  --l-fg: #f3f1ee;
+  --l-muted: #8b8985;
+  --l-panel: #17181a;
+  --l-line: #242628;
+  --l-accent: #c08552;
+
+  max-width: 34rem;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: clamp(2rem, 8vh, 4.5rem) 1.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  background: var(--l-bg);
+  color: var(--l-fg);
+}
+
+.landing-brand { display: flex; align-items: center; gap: 0.7rem; }
+.landing-brand img { width: 40px; height: 40px; border-radius: 11px; display: block; }
+.landing-brand span { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+
+.landing h1 {
+  font-size: clamp(1.8rem, 6vw, 2.5rem);
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  margin: 0;
+  color: var(--l-fg);
+}
+
+.landing-lead { font-size: 1.15rem; line-height: 1.5; color: #d9d6d1; margin: 0; }
+
+.landing-card {
+  background: var(--l-panel);
+  border: 1px solid var(--l-line);
+  border-radius: 18px;
+  padding: 1.15rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.landing-card h2 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--l-accent);
+  margin: 0;
+}
+
+.landing-card p { font-size: 1rem; line-height: 1.55; color: #d8d7d4; margin: 0; }
+.landing-card code { color: var(--l-fg); background: rgba(255, 255, 255, 0.06); padding: 0.05em 0.35em; border-radius: 5px; }
+
+.landing-cta {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 58px;
+  border-radius: 16px;
+  background: var(--l-accent);
+  color: var(--l-bg);
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.landing-cta:hover { color: var(--l-bg); opacity: 0.92; }
+
+.landing-note { font-size: 0.9rem; line-height: 1.5; color: var(--l-muted); text-align: center; margin: 0; }
+.landing-en { font-size: 0.82rem; line-height: 1.5; color: var(--l-muted); margin: 0; }
+.landing-en a { color: var(--l-accent); }
 
 /* --- Viewer (app/open) --- */
 

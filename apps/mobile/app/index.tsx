@@ -12,8 +12,27 @@ import { Link, useFocusEffect, useRouter } from "expo-router";
 import { readLibrary, type LibraryEntry } from "../lib/archive/library";
 import { archiveLocationSummary } from "../lib/archive/vault";
 import { ChatAvatar } from "../components/archive/ChatAvatar";
-import { formatCount, formatDate, formatDateTime } from "../lib/ui/format";
+import { formatBytes, formatCount, formatDate, formatDateTime } from "../lib/ui/format";
 import { radius, theme } from "../lib/ui/theme";
+
+/**
+ * Media bytes this archive holds — the sum over its stored blobs, deduped.
+ *
+ * This is the same quantity `mediaStats().totalBytes` reports on the Verify screen and the
+ * same thing the design's big number stands for ("38 ג׳יגה … רובם מדיה"). It is *not* the
+ * archive's on-disk size (chunks, envelopes and the manifest are not counted) and nothing in
+ * the format exposes that, so the copy around this number talks about media held, not storage.
+ * A text-only archive returns 0 and the screen shows a plain count instead.
+ */
+function archiveMediaBytes(entry: LibraryEntry): number {
+  return entry.manifest?.media.reduce((sum, ref) => sum + ref.byteLength, 0) ?? 0;
+}
+
+/** `"4.82 GB"` -> `["4.82", "GB"]`; anything without a unit (e.g. `"-"`) -> `[value, ""]`. */
+function splitMagnitude(formatted: string): readonly [string, string] {
+  const space = formatted.lastIndexOf(" ");
+  return space === -1 ? [formatted, ""] : [formatted.slice(0, space), formatted.slice(space + 1)];
+}
 
 /**
  * A7 — the library.
@@ -58,6 +77,14 @@ export default function LibraryScreen() {
     }
   }, [load]);
 
+  // Fattest first — the design's list is ordered by how much each chat is holding, which is
+  // also the order in which someone deciding what to delete next wants to see them. Locked
+  // and unreadable entries carry no size and fall to the end.
+  const ordered = [...(entries ?? [])].sort((a, b) => archiveMediaBytes(b) - archiveMediaBytes(a));
+  const totalMediaBytes = ordered.reduce((sum, entry) => sum + archiveMediaBytes(entry), 0);
+  const archiveCount = ordered.length;
+  const [mediaMagnitude, mediaUnit] = splitMagnitude(formatBytes(totalMediaBytes));
+
   return (
     <ScrollView
       contentContainerStyle={styles.container}
@@ -73,13 +100,35 @@ export default function LibraryScreen() {
         <EmptyState />
       ) : (
         <>
-          <Text style={styles.heading}>
-            {formatCount(entries.length)} {entries.length === 1 ? "archive" : "archives"}
-          </Text>
-          {entries.map((entry) => (
+          {/*
+            The Boydem home leads with the number that is the point: how much media your own
+            archives are holding for you, summed from their manifests. It is never a reading
+            of WhatsApp — this app cannot and must not take one (root CLAUDE.md, invariants 1
+            and 7) — and it is media only, not on-disk size, which the copy is careful to say.
+          */}
+          {totalMediaBytes > 0 ? (
+            <View style={styles.hero}>
+              <View style={styles.heroNumberRow}>
+                <Text style={styles.heroNumber}>{mediaMagnitude}</Text>
+                <Text style={styles.heroUnit}>{mediaUnit}</Text>
+              </View>
+              <Text style={styles.heroLine}>
+                of media, kept across{" "}
+                {archiveCount === 1 ? "one archive" : `${formatCount(archiveCount)} archives`} you
+                own — encrypted on this phone, stored where you chose.
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.heading}>
+              {formatCount(archiveCount)} {archiveCount === 1 ? "archive" : "archives"}
+            </Text>
+          )}
+
+          {ordered.map((entry) => (
             <ArchiveCard
               key={entry.archiveId}
               entry={entry}
+              mediaBytes={archiveMediaBytes(entry)}
               onPress={() =>
                 router.push({ pathname: "/archive/[id]", params: { id: entry.archiveId } })
               }
@@ -120,7 +169,15 @@ export default function LibraryScreen() {
   );
 }
 
-function ArchiveCard({ entry, onPress }: { entry: LibraryEntry; onPress: () => void }) {
+function ArchiveCard({
+  entry,
+  mediaBytes,
+  onPress,
+}: {
+  entry: LibraryEntry;
+  mediaBytes: number;
+  onPress: () => void;
+}) {
   if (entry.status === "locked") {
     return (
       <Pressable
@@ -181,6 +238,12 @@ function ArchiveCard({ entry, onPress }: { entry: LibraryEntry; onPress: () => v
         )}
 
         <Text style={styles.chatMeta} numberOfLines={1}>
+          {mediaBytes > 0 ? (
+            <>
+              <Text style={styles.chatSize}>{formatBytes(mediaBytes)}</Text>
+              {" · "}
+            </>
+          ) : null}
           {formatCount(manifest.messageCount)} messages · {formatCount(manifest.media.length)} files
           {manifest.sources.length > 1 ? ` · ${formatCount(manifest.sources.length)} imports` : ""}
         </Text>
@@ -220,6 +283,18 @@ const styles = StyleSheet.create({
   container: { padding: 24, gap: 16 },
   loading: { paddingVertical: 48, alignItems: "center" },
   heading: { fontSize: 24, fontWeight: "600", color: theme.ink, letterSpacing: -0.4 },
+  hero: { gap: 10, paddingTop: 8, paddingBottom: 4 },
+  heroNumberRow: { flexDirection: "row", alignItems: "baseline", gap: 8 },
+  heroNumber: {
+    fontSize: 64,
+    fontWeight: "900",
+    color: theme.accent,
+    letterSpacing: -2,
+    lineHeight: 66,
+  },
+  heroUnit: { fontSize: 22, fontWeight: "900", color: theme.accent },
+  heroLine: { fontSize: 16, lineHeight: 23, color: theme.body },
+  chatSize: { fontWeight: "700", color: theme.accent },
   body: { fontSize: 16, lineHeight: 24, color: theme.body },
   emphasis: { fontWeight: "600", color: theme.ink },
   card: {

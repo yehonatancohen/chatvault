@@ -1,0 +1,14 @@
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Boydem">
+  <!--
+    Stand-in mark. The design's icon-boydem.jpg is a 2048x2048 photo that could not be
+    pulled through the 256 KiB design-file fetch intact; drop the real file in here to
+    replace this. This is the same idea reduced to a drawing: the boidem cabinet, warm
+    wood with two brass handles.
+  -->
+  <rect width="120" height="120" rx="27" fill="#7a4a21"/>
+  <rect x="24" y="24" width="72" height="72" rx="9" fill="#c08552"/>
+  <rect x="27.5" y="27.5" width="65" height="65" rx="6.5" fill="none" stroke="#5f3a1a" stroke-width="2.5"/>
+  <line x1="60" y1="27.5" x2="60" y2="92.5" stroke="#5f3a1a" stroke-width="2.5"/>
+  <circle cx="52" cy="60" r="4.5" fill="#f0d9a8"/>
+  <circle cx="68" cy="60" r="4.5" fill="#f0d9a8"/>
+</svg>

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ChatVault",
+  title: "בוידעם — Boydem",
   description: "A WhatsApp chat archive you own and can actually read.",
   // Archive pages carry a decryption key in the URL fragment. Referrers never include the
   // fragment, but sending no referrer at all removes any doubt about leaking archive ids.
