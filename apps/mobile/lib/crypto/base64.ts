@@ -69,3 +69,16 @@ export function fromBase64(input: string): Uint8Array {
 
   return out.subarray(0, outIndex);
 }
+
+/** Base64url without padding — the form a key takes in a share link's `#k=` fragment. */
+export function toBase64Url(bytes: Uint8Array): string {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 3) {
+    const n = (bytes[i]! << 16) | ((bytes[i + 1] ?? 0) << 8) | (bytes[i + 2] ?? 0);
+    out += alphabet[(n >> 18) & 63]! + alphabet[(n >> 12) & 63]!;
+    if (i + 1 < bytes.length) out += alphabet[(n >> 6) & 63]!;
+    if (i + 2 < bytes.length) out += alphabet[n & 63]!;
+  }
+  return out;
+}

@@ -26,6 +26,7 @@ interface StoredFile {
   modifiedTime: number;
   appProperties: Record<string, string>;
   content: Uint8Array;
+  permissions: { id: string; type: string; role: string }[];
 }
 
 interface Session {
@@ -47,6 +48,8 @@ export class FakeDrive {
 
   /** The token requests must carry. Change it to simulate expiry. */
   validToken = "token-1";
+  /** The public API key key-only requests must carry (the website's, for shared chats). */
+  validApiKey = "public-key-1";
   /** Largest page `files.list` returns, regardless of `pageSize` — small, to exercise paging. */
   maxPageSize = 3;
 
@@ -107,18 +110,54 @@ export class FakeDrive {
 
     // A resumable session URL is itself the credential, as with real Drive — which is what lets
     // a native background upload finish without the app's (possibly expired) token.
+    // Key-only access: reads, and only of what is shared with anyone — as with real Drive,
+    // anything else simply does not exist for the caller.
+    const keyParam = parseUrl(url).params.key;
+    if (init.headers.Authorization === undefined && keyParam !== undefined) {
+      if (keyParam !== this.validApiKey) return json(400, { error: { message: "API key not valid." } });
+      if (init.method !== "GET") return json(401, { error: { status: "UNAUTHENTICATED" } });
+      return this.serve(url, init, true);
+    }
     if (!url.includes("/session/") && init.headers.Authorization !== `Bearer ${this.validToken}`) {
       return json(401, { error: { status: "UNAUTHENTICATED" } });
     }
     return this.serve(url, init);
   }
 
-  private serve(url: string, init: DriveRequestInit): DriveResponse {
+  /** Readable with only an API key: the file, or a folder above it, is shared with anyone. */
+  private isPublic(file: StoredFile): boolean {
+    if (file.trashed) return false;
+    if (file.permissions.some((p) => p.type === "anyone")) return true;
+    return file.parents.some((id) => {
+      const parent = this.files.get(id);
+      return parent !== undefined && this.isPublic(parent);
+    });
+  }
+
+  private serve(url: string, init: DriveRequestInit, publicOnly = false): DriveResponse {
     const { path, params } = parseUrl(url);
+
+    const permissionMatch = /^\/drive\/v3\/files\/([^/]+)\/permissions(?:\/([^/]+))?$/.exec(path);
+    if (permissionMatch) {
+      const file = this.files.get(permissionMatch[1]!);
+      if (file === undefined) return notFound();
+      if (init.method === "GET") return json(200, { permissions: file.permissions });
+      if (init.method === "POST") {
+        const body = JSON.parse(bodyText(init)) as { type: string; role: string };
+        const permission = { id: `p${this.nextId++}`, type: body.type, role: body.role };
+        file.permissions.push(permission);
+        return json(200, { id: permission.id });
+      }
+      if (init.method === "DELETE") {
+        const before = file.permissions.length;
+        file.permissions = file.permissions.filter((p) => p.id !== permissionMatch[2]);
+        return before === file.permissions.length ? notFound() : json(204, {});
+      }
+    }
 
     if (path.startsWith("/session/")) return this.resumableChunk(path, init);
 
-    if (path === "/drive/v3/files" && init.method === "GET") return this.list(params);
+    if (path === "/drive/v3/files" && init.method === "GET") return this.list(params, publicOnly);
     if (path === "/drive/v3/files" && init.method === "POST") {
       const meta = JSON.parse(bodyText(init)) as MetadataBody;
       return json(200, this.describe(this.insert(fromMetadata(meta))));
@@ -127,7 +166,7 @@ export class FakeDrive {
     const fileMatch = /^\/drive\/v3\/files\/([^/]+)$/.exec(path);
     if (fileMatch) {
       const file = this.files.get(fileMatch[1]!);
-      if (file === undefined) return notFound();
+      if (file === undefined || (publicOnly && !this.isPublic(file))) return notFound();
       if (init.method === "GET" && params.alt === "media") return this.download(file, init);
       if (init.method === "GET") return json(200, this.describe(file));
       if (init.method === "PATCH") {
@@ -176,7 +215,7 @@ export class FakeDrive {
     return json(400, { error: { status: "INVALID_ARGUMENT", message: `fake: ${init.method} ${path}` } });
   }
 
-  private list(params: Record<string, string>): DriveResponse {
+  private list(params: Record<string, string>, publicOnly: boolean): DriveResponse {
     let predicate: (file: StoredFile) => boolean;
     try {
       predicate = compileQuery(params.q ?? "");
@@ -184,7 +223,9 @@ export class FakeDrive {
       return json(400, { error: { status: "INVALID_ARGUMENT", message: String(error) } });
     }
 
-    const matched = [...this.files.values()].filter(predicate);
+    const matched = [...this.files.values()].filter(
+      (file) => predicate(file) && (!publicOnly || this.isPublic(file)),
+    );
     const order = params.orderBy ?? "";
     if (order === "modifiedTime desc") matched.sort((a, b) => b.modifiedTime - a.modifiedTime);
     else if (order === "createdTime") matched.sort((a, b) => a.createdTime - b.createdTime);
@@ -310,6 +351,7 @@ export class FakeDrive {
       modifiedTime: now,
       appProperties: {},
       content: new Uint8Array(0),
+      permissions: [],
       ...fields,
     };
     this.files.set(file.id, file);

@@ -129,9 +129,6 @@ importers:
       '@chatvault/storage':
         specifier: workspace:*
         version: link:../../packages/storage
-      fflate:
-        specifier: ^0.8.3
-        version: 0.8.3
       next:
         specifier: ^15.5.4
         version: 15.5.23(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

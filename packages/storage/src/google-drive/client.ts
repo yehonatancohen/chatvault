@@ -71,7 +71,13 @@ export interface DriveClientOptions {
    * should return a cached token cheaply; called with `forceRefresh: true` after a 401, when the
    * cached one has expired or been revoked.
    */
-  readonly getAccessToken: (options: { readonly forceRefresh: boolean }) => Promise<string>;
+  readonly getAccessToken?: (options: { readonly forceRefresh: boolean }) => Promise<string>;
+  /**
+   * Instead of a token: a public API key, for reading files shared "anyone with the link" with
+   * no sign-in at all — how the website opens a chat someone shared (`sharing.ts`). Read-only
+   * by nature; Drive refuses writes without a token.
+   */
+  readonly apiKey?: string;
   /** Attempts per request for rate limits, 5xx and network failures. Default 5. */
   readonly maxAttempts?: number;
   /** First backoff delay; doubles per attempt, with jitter. Default 500 ms. */
@@ -112,6 +118,7 @@ export function quote(value: string): string {
 export class DriveClient {
   private readonly fetchImpl: DriveFetch;
   private readonly getAccessToken: DriveClientOptions["getAccessToken"];
+  private readonly apiKey: string | undefined;
   private readonly maxAttempts: number;
   private readonly baseDelayMs: number;
   private readonly sleep: (ms: number) => Promise<void>;
@@ -121,6 +128,10 @@ export class DriveClient {
     this.fetchImpl = options.fetch;
     this.uploadFile = options.uploadFile;
     this.getAccessToken = options.getAccessToken;
+    this.apiKey = options.apiKey;
+    if (this.getAccessToken === undefined && this.apiKey === undefined) {
+      throw new Error("DriveClient needs an access token provider or an API key");
+    }
     this.maxAttempts = options.maxAttempts ?? 5;
     this.baseDelayMs = options.baseDelayMs ?? 500;
     this.sleep = options.sleep ?? defaultSleep;
@@ -145,13 +156,18 @@ export class DriveClient {
     let refreshed = false;
 
     for (let attempt = 1; ; attempt += 1) {
-      const token = await this.getAccessToken({ forceRefresh: refreshed });
       let response: DriveResponse;
       try {
-        response = await this.fetchImpl(url, {
-          ...init,
-          headers: { ...init.headers, Authorization: `Bearer ${token}` },
-        });
+        if (this.getAccessToken !== undefined) {
+          const token = await this.getAccessToken({ forceRefresh: refreshed });
+          response = await this.fetchImpl(url, {
+            ...init,
+            headers: { ...init.headers, Authorization: `Bearer ${token}` },
+          });
+        } else {
+          const keyed = `${url}${url.includes("?") ? "&" : "?"}key=${encodeURIComponent(this.apiKey!)}`;
+          response = await this.fetchImpl(keyed, init);
+        }
       } catch (error) {
         if (attempt >= maxAttempts) throw error;
         await this.backoff(attempt);
@@ -160,7 +176,7 @@ export class DriveClient {
 
       if (accept.includes(response.status)) return response;
 
-      if (response.status === 401) {
+      if (response.status === 401 && this.getAccessToken !== undefined) {
         if (refreshed) {
           throw new DriveAuthError(
             `Google Drive rejected the access token after a refresh: ${await errorMessage(response)}`,

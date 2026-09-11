@@ -269,3 +269,34 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 .chat-link:hover { background: rgba(127, 127, 127, 0.18); }
 button.quiet { background: none; border: none; color: var(--muted); cursor: pointer; margin-top: 1rem; }
+
+/* ── Home ────────────────────────────────────────────────────────────────────────────────── */
+.home { max-width: 44rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; display: grid; gap: 3rem; }
+.home-hero { display: grid; gap: 1.1rem; justify-items: start; }
+.home-hero h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.15; margin: 0; }
+.home-lead { font-size: 1.15rem; line-height: 1.6; margin: 0; opacity: 0.85; }
+.home-section h2 { font-size: 1.4rem; margin: 0 0 1rem; }
+.home-steps { margin: 0; padding-inline-start: 1.25rem; display: grid; gap: 0.75rem; line-height: 1.6; }
+.home-points { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 1rem; }
+.home-points h3 { margin: 0 0 0.35rem; font-size: 1.05rem; }
+.home-points p { margin: 0; line-height: 1.55; opacity: 0.85; }
+.home-prices { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.75rem; }
+.home-price { padding: 1.1rem; border-radius: 0.8rem; background: rgba(127, 127, 127, 0.1); display: grid; gap: 0.25rem; }
+.home-price-name { font-weight: 700; }
+.home-price-amount { font-size: 1.3rem; font-weight: 800; }
+.home-price-note { opacity: 0.75; font-size: 0.9rem; }
+.home-end { display: grid; gap: 1rem; justify-items: center; text-align: center; }
+
+/* ── Get the app ─────────────────────────────────────────────────────────────────────────── */
+.app-cta {
+  display: inline-block;
+  padding: 0.85rem 1.4rem;
+  border-radius: 999px;
+  background: #7a4a21;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+}
+.app-cta-compact { padding: 0.5rem 0.9rem; font-size: 0.9rem; }
+.app-cta.soon { background: rgba(127, 127, 127, 0.18); color: inherit; }
+.shared-status { max-width: 32rem; margin: 4rem auto; padding: 0 1.25rem; display: grid; gap: 1.25rem; justify-items: center; text-align: center; }

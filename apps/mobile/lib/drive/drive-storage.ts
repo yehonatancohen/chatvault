@@ -29,7 +29,7 @@ import {
   type FileUploader,
 } from "@chatvault/storage";
 
-export type AccessTokenProvider = DriveClientOptions["getAccessToken"];
+export type AccessTokenProvider = NonNullable<DriveClientOptions["getAccessToken"]>;
 
 const driveFetch: DriveFetch = (url, init) =>
   expoFetch(url, {

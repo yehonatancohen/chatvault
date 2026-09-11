@@ -1,35 +1,85 @@
+import { GetTheApp } from "./_components/GetTheApp";
+
 /**
- * Landing. Short on purpose (owner's rule: minimal text): what Boydem is, and the two ways in —
- * your own chats from Google Drive (`/chats`), or a chat file someone gave you (`/open`).
+ * The home page: what Boydem is, why, and what it costs — and every path leads to the app.
  *
- * Set in Hebrew, RTL. Invariant 1 (root CLAUDE.md): Boydem never deletes from WhatsApp and never
- * says it frees storage; it shows the reader how to delete the original themselves.
+ * The website has exactly two jobs (owner, 2026-09-11): this page, and showing a chat someone
+ * shared (`/s/<id>`). No sign-in, no accounts, no tools — saving chats happens in the app.
+ *
+ * Hebrew, RTL. Copy rules still apply: Boydem never deletes from WhatsApp and never says it frees
+ * storage itself (invariant 1); chats never go to our servers (invariant 2).
  */
 export default function HomePage() {
   return (
-    <main className="landing" dir="rtl" lang="he">
-      <div className="landing-brand">
-        <img src="/icon-boydem.svg" alt="" />
-        <span>בוידעם</span>
-      </div>
+    <main className="home" dir="rtl" lang="he">
+      <section className="home-hero">
+        <div className="landing-brand">
+          <img src="/icon-boydem.svg" alt="" />
+          <span>בוידעם</span>
+        </div>
+        <h1>הטלפון מלא בגלל וואטסאפ?</h1>
+        <p className="home-lead">
+          בוידעם שומר את הצ׳אטים שלכם — עם כל התמונות — ב־Google Drive שלכם. אחר כך אפשר למחוק אותם
+          מוואטסאפ בראש שקט, ולקרוא אותם מתי שרוצים.
+        </p>
+        <GetTheApp />
+      </section>
 
-      <h1>הצ׳אטים של וואטסאפ, שמורים אצלכם.</h1>
+      <section className="home-section">
+        <h2>איך זה עובד</h2>
+        <ol className="home-steps">
+          <li>
+            <strong>מייצאים צ׳אט</strong> מוואטסאפ ומשתפים אותו לבוידעם.
+          </li>
+          <li>
+            <strong>בוידעם שומר אותו</strong> ומגבה אותו ל־Google Drive שלכם.
+          </li>
+          <li>
+            <strong>מוחקים את הצ׳אט בוואטסאפ</strong> בעצמכם, ומפנים מקום בטלפון.
+          </li>
+        </ol>
+      </section>
 
-      <p className="landing-lead">
-        שומרים צ׳אט באפליקציה, והוא מגובה ל־Google Drive שלכם. כאן אפשר לקרוא אותו מכל מחשב.
-      </p>
+      <section className="home-section home-points">
+        <div>
+          <h3>מקום בטלפון</h3>
+          <p>התמונות עוברות ל־Drive. בטלפון נשארות רק ההודעות ותצוגה מקדימה קטנה.</p>
+        </div>
+        <div>
+          <h3>שלכם</h3>
+          <p>הצ׳אטים נשמרים ב־Drive שלכם, כקבצים רגילים. לא אצלנו — אף פעם.</p>
+        </div>
+        <div>
+          <h3>לשתף צ׳אט</h3>
+          <p>שולחים קישור, והצד השני קורא את הצ׳אט בדפדפן. בלי הרשמה.</p>
+        </div>
+      </section>
 
-      <a className="landing-cta" href="/chats">
-        הצ׳אטים שלי
-      </a>
+      <section className="home-section">
+        <h2>מחירים</h2>
+        <div className="home-prices">
+          <div className="home-price">
+            <div className="home-price-name">חינם</div>
+            <div className="home-price-amount">₪0</div>
+            <div className="home-price-note">עד 5 צ׳אטים</div>
+          </div>
+          <div className="home-price">
+            <div className="home-price-name">רגיל</div>
+            <div className="home-price-amount">₪10 לחודש</div>
+            <div className="home-price-note">עד 20 צ׳אטים</div>
+          </div>
+          <div className="home-price">
+            <div className="home-price-name">בלי הגבלה</div>
+            <div className="home-price-amount">₪20 לחודש</div>
+            <div className="home-price-note">כל הצ׳אטים</div>
+          </div>
+        </div>
+      </section>
 
-      <p className="landing-note">
-        <a href="/open">פתיחת קובץ צ׳אט</a> · שום דבר לא נשלח לשרתים שלנו.
-      </p>
-
-      <p className="landing-en">
-        Boydem — your WhatsApp chats, kept in your own Google Drive. <a href="/chats">Open my chats →</a>
-      </p>
+      <section className="home-section home-end">
+        <GetTheApp />
+        <p className="landing-en">Boydem — keep your WhatsApp chats in your own Google Drive.</p>
+      </section>
     </main>
   );
 }

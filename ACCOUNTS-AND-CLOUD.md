@@ -15,7 +15,7 @@ invariant 2 has been rewritten to match.
 | **Where chats live** | **Never on Boydem's servers — not even encrypted.** On the phone and in storage the user owns: Google Drive, Dropbox, iCloud. Our backend holds only accounts, subscriptions and sharing records. |
 | Money | A subscription priced by number of chats: **up to 5 free · 6–20 for ₪10/month · 21+ for ₪20/month.** Numbers will move; the shape is the point. 1:1 chats and groups count the same. |
 | Encryption | **Opt-in.** Chats are saved as plain, readable files by default — on the phone and in Drive. "Protect with a passphrase" at import (or as the default in Settings) seals a chat end-to-end. *(Built — see "Done".)* A recovery key for protected chats is still to do. |
-| Who needs an account | The app, always. The website only to store — **viewing a chat shared by link works signed out.** |
+| Who needs an account | The app, always. **The website never** — it is a home page and a viewer for chats shared by link. |
 | Destinations | Drive, Dropbox and iCloud are available on **every tier**, free included. |
 | Backend | **Supabase** (Postgres + auth). |
 | Chat icon | Initials by default; the user can pick a photo from the chat. *(Built.)* |
@@ -184,9 +184,12 @@ a phone) still comes first — everything below syncs what that pipeline produce
   from the file (the 150 MB cap is gone) and deleted after import. Each photo gets a small
   preview kept on the phone, so galleries stay instant after photos move to Drive.
 
-- **Website reads your Drive (2026-09-11).** `/chats`: sign in with Google, see the chats the
-  phone backed up, open them (plain directly, protected by passphrase). Needs the Web OAuth
-  client ID and a Vercel deployment. Release (non-dev) app build verified on device.
+- **Website: home page + shared chats only (2026-09-11, owner's direction).** No sign-in on the
+  site — the goal is to send people to the app. "Share chat" in the app turns on Drive's
+  "anyone with the link" for the chat's folder and sends `/s/<folderId>` (plus `#k=` for a
+  protected chat); the site reads it straight from Drive with a public API key. "Stop sharing"
+  removes the permission. Needs the API key, a Vercel deployment and `extra.webUrl` in the app.
+  Release (non-dev) app build verified on device.
 
 ### Next — Phase 1, remaining
 

@@ -41,6 +41,9 @@
           "iosUrlScheme": "com.googleusercontent.apps.139728547435-dsthuhtrdt4kqgvp5o23seuvsf5l3omr"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "webUrl": ""
+    }
   }
 }

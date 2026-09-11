@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { mediaStats } from "@chatvault/core";
 import { readPreferences, updatePreferences } from "../../../lib/archive/preferences";
@@ -13,6 +13,7 @@ import { DriveBackup } from "../../../components/archive/DriveBackup";
 import { MediaNote } from "../../../components/archive/MediaNote";
 import { StatusPill } from "../../../components/archive/StatusPill";
 import { useChatStatus } from "../../../components/archive/useChatStatus";
+import { isChatShared, shareChat, stopSharingChat } from "../../../lib/drive/share";
 import { useChatPhoto } from "../../../components/archive/useChatPhoto";
 import { createStyles, useApp } from "../../../components/app/providers";
 import { LinkRow, Row, Section } from "../../../components/app/ui";
@@ -103,6 +104,34 @@ export default function ArchiveInfoScreen() {
   const chatPhoto = useMemo(() => findChatPhoto(media, chatPhotoSha256), [media, chatPhotoSha256]);
   const status = useChatStatus(archiveId, state.kind === "ready" ? state.manifest.updatedAt : 0);
 
+  // Sharing by link: Drive's "anyone with the link" on the chat's folder, and the website's
+  // viewer. Only offered once the chat is in Drive (the link points at its folder).
+  const [shared, setShared] = useState(false);
+  const [shareProblem, setShareProblem] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    void isChatShared(archiveId).then(setShared);
+  }, [archiveId]);
+  const share = useCallback(async () => {
+    setShareProblem(undefined);
+    try {
+      const link = await shareChat(archiveId);
+      setShared(true);
+      const title = state.kind === "ready" ? state.manifest.chatTitle : "";
+      await Share.share({ message: t("share.message", { chat: title, link }) });
+    } catch (error) {
+      setShareProblem(error instanceof Error ? error.message : String(error));
+    }
+  }, [archiveId, state, t]);
+  const unshare = useCallback(async () => {
+    setShareProblem(undefined);
+    try {
+      await stopSharingChat(archiveId);
+      setShared(false);
+    } catch (error) {
+      setShareProblem(error instanceof Error ? error.message : String(error));
+    }
+  }, [archiveId]);
+
   if (state.kind !== "ready") {
     return (
       <View style={styles.centered}>
@@ -161,6 +190,14 @@ export default function ArchiveInfoScreen() {
 
       <Section title={t("info.drive")}>
         <DriveBackup archiveId={archiveId} updatedAt={manifest.updatedAt} />
+        {(status.kind === "safe" || status.kind === "deleted") && (
+          <LinkRow
+            label={shared ? t("share.again") : t("share.cta")}
+            onPress={() => void share()}
+          />
+        )}
+        {shared && <LinkRow label={t("share.stop")} tone="danger" onPress={() => void unshare()} />}
+        {shareProblem !== undefined && <Text style={styles.hint}>{shareProblem}</Text>}
         {(status.kind === "safe" || status.kind === "deleted") && (
           <LinkRow
             label={t("verify.cta.delete")}

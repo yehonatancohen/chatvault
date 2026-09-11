@@ -16,6 +16,7 @@ import { GoogleDriveStorageAdapter } from "./google-drive/adapter.js";
 import { DriveClient } from "./google-drive/client.js";
 import { FakeDrive } from "./google-drive/fake-drive.js";
 import { offloadMedia, pullArchive, pushArchive, type SyncLedger } from "./sync.js";
+import { isSharedWithAnyone, shareWithAnyone, stopSharing } from "./google-drive/sharing.js";
 
 /**
  * Sync is checked against *real archives* — written by core's `ArchiveWriter` with a real
@@ -375,6 +376,42 @@ describe("offloadMedia", () => {
 
     expect((await (await open(local)).readAll()).map((m) => m.body)).toEqual(["hi"]);
     expect(await (await open(adapter())).readMedia(written.media[0]!.sha256)).toHaveLength(300 * 1024);
+  });
+});
+
+describe("sharing a chat by link", () => {
+  it("lets the website read a shared chat with only an API key, until sharing stops", async () => {
+    const local = new MemoryStorageAdapter();
+    await writer(local).write(content("s1", [text(0, "Dana", "hi")], [photo(1)]));
+    const { fake, folder, adapter } = drive();
+    await pushArchive(local, adapter(), {}, { sha256Hex });
+    const owner = new DriveClient({ fetch: fake.fetch, getAccessToken: () => Promise.resolve(fake.validToken), sleep: () => Promise.resolve() });
+    const website = () =>
+      new GoogleDriveStorageAdapter({
+        client: new DriveClient({ fetch: fake.fetch, apiKey: fake.validApiKey, sleep: () => Promise.resolve() }),
+        rootFolderId: folder,
+      });
+
+    // Not shared: the folder does not exist as far as the website is concerned.
+    await expect(open(website())).rejects.toThrow();
+
+    await shareWithAnyone(owner, folder);
+    expect(await isSharedWithAnyone(owner, folder)).toBe(true);
+    const reader = await open(website());
+    expect((await reader.readAll()).map((m) => m.body)).toEqual(["hi"]);
+    expect(await reader.readMedia(reader.manifest.media[0]!.sha256)).toHaveLength(300 * 1024);
+
+    await stopSharing(owner, folder);
+    await expect(open(website())).rejects.toThrow();
+  });
+
+  it("cannot write with an API key", async () => {
+    const { fake, folder } = drive();
+    const website = new GoogleDriveStorageAdapter({
+      client: new DriveClient({ fetch: fake.fetch, apiKey: fake.validApiKey, sleep: () => Promise.resolve() }),
+      rootFolderId: folder,
+    });
+    await expect(website.put("x.txt", photo(1, 3))).rejects.toThrow();
   });
 });
 

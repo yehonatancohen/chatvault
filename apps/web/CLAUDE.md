@@ -1,144 +1,89 @@
 # @chatvault/web
 
-Next.js App Router on Vercel. Two jobs: let a group member **read** an archive someone shared,
-and let them **append** their own export of the same chat. Read the root `CLAUDE.md` first.
+Next.js App Router on Vercel. Read the root `CLAUDE.md` first.
+
+**The website has exactly two jobs (owner, 2026-09-11):**
+
+1. **The home page** (`app/page.tsx`) — what Boydem is, how it works, prices. Every path leads to
+   the app (`GetTheApp`).
+2. **A chat someone shared** (`app/s/[folderId]/page.tsx`) — read it in the browser, no sign-in,
+   then get the app to save your own.
+
+**No sign-in, no accounts, no tools on the website.** Saving chats, backing up, adding exports —
+all of it happens in the app. Don't add a login, a file picker or an "upload" here; the goal is
+to send people to the app.
 
 ## Commands
 
 ```bash
 pnpm dev         # next dev
-pnpm build
+pnpm build       # catches Server/Client Component mistakes that dev mode tolerates
 pnpm typecheck
 ```
 
-## The rule that governs this whole app
+## How a shared chat reaches this site
 
-**The key lives in the URL fragment and must never leave the browser.**
+In the app, "Share chat" turns on Google Drive's **"anyone with the link can view"** for that
+chat's folder (`packages/storage/src/google-drive/sharing.ts`) and sends a link to
+`/s/<folderId>`. This page reads the folder **straight from Drive in the browser**, with only the
+site's public API key (`lib/shared-chat.ts`) — the same `GoogleDriveStorageAdapter` the phone
+uses. Nothing passes through Boydem's servers (invariant 2). "Stop sharing" in the app removes
+the permission and the link stops working.
 
-Archive links are `/a/<archiveId>#k=<base64url key>`. Browsers do not send the fragment to the
-server, do not include it in `Referer`, and do not log it. That single fact is what lets this
-site display a chat it cannot itself decrypt.
+- **Plain chats** open directly. **Protected chats** carry their key in the URL fragment,
+  `#k=<base64url key>` (`lib/fragment-key.ts`).
+- Photos draw their small previews; full photos load when opened; videos and files load only
+  when tapped — every byte shown is a Drive download.
 
-Consequences, all load-bearing:
+## The rule for pages that carry a key
 
-- **Decryption is client-only.** Anything touching a key is a Client Component. A Server
-  Component cannot see the fragment; if you find yourself reaching for it on the server, the
-  component is in the wrong place.
-- **Never serialize a URL with its fragment.** Not to analytics, not to an error reporter, not
-  into `fetch`, not into a log line. `lib/fragment-key.ts` exports `withoutKey()` — use it at
-  every boundary.
-- **No third-party script that reads `location`.** Session-replay and most analytics tools
-  capture full URLs by default and would exfiltrate the key wholesale.
+**The key lives in the URL fragment and must never leave the browser.** Browsers do not send
+the fragment to the server, do not include it in `Referer`, and do not log it.
+
+- **Anything touching a key is a Client Component.** A Server Component cannot see the fragment.
+- **Never serialize a URL with its fragment** — not to analytics, an error reporter, `fetch` or a
+  log line. `withoutKey()` in `lib/fragment-key.ts`.
+- **No third-party script on `/s/` pages**, and none site-wide that reads `location` —
+  session-replay and most analytics capture full URLs and would leak keys wholesale.
 - `metadata.referrer` is `no-referrer` in `app/layout.tsx`. Do not relax it.
 
-## Your chats from Google Drive (`/chats`)
+## Configuration (`lib/site.ts`)
 
-Sign in with Google (Identity Services token client, `lib/google.ts`), list the Boydem folder
-in the user's Drive (`lib/drive-chats.ts`), and open a chat straight from its folder with the
-same `GoogleDriveStorageAdapter` the phone uses, over the browser's `fetch`. Plain chats open
-directly; protected ones ask for their passphrase. Photos draw their previews and load full
-size only when opened; videos and files load only when tapped.
-
-- **`NEXT_PUBLIC_GOOGLE_CLIENT_ID`** is the *Web* OAuth client from the same Google Cloud
-  project as the iOS client — that is what lets the site see files the phone created under the
-  `drive.file` scope. Its *Authorized JavaScript origins* must list every origin the site runs
-  on (`http://localhost:3000`, the Vercel domain). Without it `/chats` says sign-in is not set up.
-- **The Google script is loaded only by `/chats` pages**, never site-wide: it is third-party
-  code, and the rule above about pages that carry keys in their URL still stands.
-- The access token lives in memory for the tab; there is no silent refresh, so an expired token
-  means "sign in again". Nothing is stored server-side, and nothing goes to Boydem's servers.
+| Variable | What |
+|---|---|
+| `NEXT_PUBLIC_GOOGLE_API_KEY` | Google Cloud **API key** (not an OAuth client), same project as the app. Restrict it to the *Google Drive API* and, under website restrictions, to this site's domain. It reads only what was shared "anyone with the link". Without it, `/s/` pages say sharing is not set up. |
+| `NEXT_PUBLIC_APP_STORE_URL` | Where "Get the app" goes. Unset until the app is in the App Store — the button then says "coming soon". |
 
 ## Deploying (Vercel)
 
-Import the GitHub repo in Vercel with **Root Directory `apps/web`** (the pnpm workspace is
-detected from the repo root; `patches/` and `patchedDependencies` come along). Set
-`NEXT_PUBLIC_GOOGLE_CLIENT_ID` in the project's environment variables, then add the Vercel
-domain to the Web OAuth client's authorized origins. Pushes to the production branch redeploy.
+Import the GitHub repo in Vercel with **Root Directory `apps/web`** (the pnpm workspace and
+`patches/` are picked up from the repo root). Set the variables above. Pushes to the production
+branch redeploy. The app's `app.json` → `extra.webUrl` must be this site's address, or the
+links it shares point nowhere.
 
 ## How to test this app
 
-```bash
-pnpm dev
-pnpm build        # catches Server/Client Component mistakes that dev mode tolerates
-pnpm typecheck
-```
+**The privacy check is manual and it matters most.** Open a protected shared chat's link, then in
+DevTools → Network confirm that no request — document, RSC payload, image, beacon — contains the
+key or the fragment. Do it after any change to routing, layout, metadata or dependencies.
 
-**The check that matters most is a privacy check, and it is manual.** Open an archive URL with
-its key in the fragment, then in DevTools → Network, confirm that no request — document,
-RSC payload, image, analytics beacon — contains the key or the fragment. Do this after any
-change that touches routing, layout, metadata, or adds a dependency. A leak here silently
-destroys the product's central promise, and nothing else in the stack will catch it.
+Also by hand: a turned-off link shows "This chat isn't available", not a crash; a protected link
+without its key shows `MissingKeyError`'s message; a long chat scrolls smoothly (virtualized).
 
-Also confirm by hand:
-
-- The viewer renders with JavaScript enabled and shows a clear, non-alarming message with it
-  disabled — decryption is client-side by design, so a blank page is a bug.
-- A wrong or truncated key produces `MissingKeyError`'s message, not a crash or a blank screen.
-- A long archive scrolls smoothly. If it stutters, the list is not virtualized.
-- Append-and-merge: drop in a second export of the same chat and confirm the message count
-  grows by the *new* messages only. `summarize()` from `@chatvault/core` gives you the numbers.
-
-**Never test with a real chat export committed to the repo.** Keep test archives outside it.
+The Drive side is covered in CI by `packages/storage` → `sync.test.ts` → "sharing a chat by
+link" (API-key reads work only while shared; writes are refused).
 
 ## Structure
 
 | Path | Role |
 |---|---|
-| `app/page.tsx` | Landing + plain-language explanation of the trust model, links to `/open` |
-| `app/open/page.tsx` | **The viewer (B0a: bundle-open, no backend).** File picker → passphrase unlock → virtualized message list → append panel. State machine over `pick` / `unlocking` / `unlock-error` / `viewing`, all in one Client Component per the rule above. |
-| `app/open/MessageList.tsx` | `react-virtuoso`-backed virtualized list. Variable row heights, so not a fixed-row virtualizer — a chat mixes one-line texts, photos and system notices. |
-| `app/open/MessageRow.tsx` | One message. `unicodeBidi: "plaintext"` on the body is what makes RTL correct without a language heuristic — the browser picks direction per-message from its own first strong character. |
-| `app/open/MediaAttachment.tsx` | Decrypts a blob lazily, object-URLs it, revokes on unmount. |
-| `app/open/Lightbox.tsx` | Full-screen image view on click. |
-| `app/open/AppendPanel.tsx` | Client-side append-and-merge (B3). |
-| `lib/fragment-key.ts` | Reading and stripping the key from `location.hash`. **Not yet wired to a route** — there is no `/a/[archiveId]#k=...` link today because that needs a backend or Drive (B0b, Track C). Exists for when that lands. |
-| `lib/bundle-storage.ts` | `.cvault` file ⇄ `ArchiveStoragePort`. The zip format lives here; `core` never sees it. |
-| `lib/open-archive.ts` | File + passphrase → `{ storage, reader, key }`. |
-| `lib/unwrap-key.ts` | Passphrase → archive key via `ArchiveHeader.keyWrapping`. Mirrors the pattern in `packages/core/src/archive/reader.test.ts`. |
-| `lib/read-export.ts` | Raw WhatsApp export (`.zip` or `.txt`) → transcript text + `InMemoryMediaSource`, filtering `_chat.txt`/OS debris. |
-| `lib/build-import.ts` | `ParseResult` + `MediaSource` → a `MessageBatch` with `attachment.sha256` filled in, plus the `MediaBlob[]` to seal. `parseExport` never fills in the hash itself — this is where it happens. |
-| `lib/mime.ts`, `lib/base64.ts` | Small format helpers. |
+| `app/page.tsx` | Home: hero, how it works, why, prices — Hebrew, RTL. |
+| `app/s/[folderId]/page.tsx` | A shared chat. Client-only (the key is in the fragment). |
+| `app/_components/` | The viewer: `MessageList` (react-virtuoso), `MessageRow` (`unicodeBidi: "plaintext"` makes RTL right per message), `MediaAttachment` (previews first, full on demand), `Lightbox`, `GetTheApp`. |
+| `lib/shared-chat.ts` | Folder id + fragment → `ArchiveReader`, over Drive with the API key. |
+| `lib/fragment-key.ts` | Reading and stripping the key from `location.hash`. |
+| `lib/site.ts`, `lib/mime.ts` | Configuration; small helpers. |
 
-**Dependencies added for the viewer:** `fflate` (zip, both directions — bundle and raw export)
-and `react-virtuoso` (the message list). Neither exists in `core`; both are web-only.
-
-**`next.config.ts` needs `webpack.resolve.extensionAlias`.** `core`'s internal imports use
-explicit `.js` extensions on `.ts` files (NodeNext-style, so it runs unmodified under Node's
-ESM loader) — webpack does not resolve that on its own and needs to be told a `.js` specifier
-may resolve to a `.ts` file. Without it, `next build` fails with "Module not found" on every
-`core` import, even though `next dev` and `tsc --noEmit` both stay silent about it. Do not
-remove this if `core`'s import style ever seems safe to "clean up" — it isn't a workaround for
-a bug in `core`, it's what keeps `core` isomorphic (root CLAUDE.md invariant 3).
-
-## How the viewer works (built, B0a)
-
-- Decrypt with `createWebCryptoProvider(crypto.subtle, ...)` from `@chatvault/core`. The web
-  client needs no crypto dependency — AES-256-GCM was chosen precisely so WebCrypto suffices.
-- No fragment key in this flow: B0a has no link, just a `.cvault` file, so `readHeader` gets the
-  KDF params and `unwrapArchiveKey` turns a typed passphrase into the archive key. The whole of
-  `lib/fragment-key.ts` is for B0b, later.
-- `ArchiveReader.readAll()` is used rather than lazy per-chunk fetches — fine at the message
-  counts this has been tested against, but if a very large archive turns out to stutter on
-  open, chunk-lazy loading via `manifest.chunks[]`'s `firstTs`/`lastTs` is the fix, not
-  reaching for a bigger virtualizer.
-- `AppendPanel` needs the raw archive key to build a fresh `ArchiveWriter` and reopen a reader
-  after appending — `OpenedArchive.key` carries it alongside the reader for exactly that reason
-  (`ArchiveReader` deliberately keeps it private). Never sent anywhere; lives only in this tab.
-
-## How append-and-merge works (built, B3)
-
-`lib/read-export.ts` is the port implementation for the uploaded zip — the same job
-`apps/mobile/CLAUDE.md` describes for `MediaSource` on mobile. `list()` (here, the filtered
-entries handed to `InMemoryMediaSource`) must return media candidates **only**: filter out
-`_chat.txt` and OS debris (`.DS_Store`, `__MACOSX/`, `Thumbs.db`) before handing entries to
-core, or `linkMedia` will report them as unreferenced files forever. Core does not hardcode
-those names on purpose; the filter belongs to whoever knows the platform.
-
-Parse and merge **in the browser**, with `parseExport` and `mergeBatches` from
-`@chatvault/core` — the same code the mobile app runs. The uploaded export must never be sent
-to a server; that would break invariant 2 for the one flow where it is most tempting to cheat.
-
-Show the contributor what their export added — today that's a before/after `messageCount` diff
-off the returned `Manifest`, which is the whole incentive to contribute. `summarize()` exists
-for a richer per-contributor breakdown (how many of *your* messages were already known vs.
-genuinely new) and would be the natural next step here, not yet wired up.
+**`next.config.ts` needs `webpack.resolve.extensionAlias`**: `core` imports `.ts` files with
+explicit `.js` extensions (NodeNext-style, which keeps it isomorphic — invariant 3). Without the
+alias `next build` fails on every `core` import while `dev` and `tsc` stay silent.

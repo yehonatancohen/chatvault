@@ -29,6 +29,7 @@ export {
   listArchiveFolders,
 } from "./google-drive/folders.js";
 export { runLiveDriveContract } from "./google-drive/live-contract.js";
+export { isSharedWithAnyone, shareWithAnyone, stopSharing } from "./google-drive/sharing.js";
 export {
   offloadMedia,
   pullArchive,
