@@ -139,6 +139,32 @@ The lesson both times: **an expo-modules signature describes the JS wrapper, not
 contract.** When a call crosses into Swift, the device checks are the only thing that will tell
 you the truth — which is the argument for keeping them exhaustive.
 
+### After `pod install`: the Debug build links against *release* React Native
+
+Found when adding Google sign-in. The Debug build failed to link with
+`Undefined symbols for architecture arm64` — `facebook::react::Sealable`, `ShadowNode`,
+`RCTPackagerConnection` — referenced from gesture-handler, Reanimated, screens and the dev
+launcher alike. (Expo's output truncates the symbol list; the `SwiftUICore` line printed beside
+it is a harmless warning, not the cause.)
+
+The app uses React Native's **prebuilt core** (`RCT_USE_PREBUILT_RNCORE`, `Pods/React-Core-
+prebuilt/React.xcframework`), which exists in a debug and a release flavour. Those symbols are
+debug-only. A build phase (`[RNCore] Replace React Native Core for the right configuration`)
+swaps flavours, remembering the last one in `Pods/React-Core-prebuilt/.last_build_configuration`.
+`pod install` recreates that directory **without** the marker file, and when the file is absent
+the script assumes the framework is already debug and skips the swap — so a Debug build links
+the release framework left in place. The tell: the device slice's binary is ~12 MB instead of
+~68 MB. The fix, from `apps/mobile/ios/Pods`:
+
+```bash
+printf Release > React-Core-prebuilt/.last_build_configuration
+node "$(cd ../.. && node -p "require('path').dirname(require.resolve('react-native/package.json'))")/scripts/replace-rncore-version.js" \
+  -c Debug -r 0.86.2 -p "$PWD"
+```
+
+Check `nm -gU React-Core-prebuilt/React.xcframework/ios-arm64/React.framework/React | grep
+Sealable` is non-empty, then build again. Re-check after every `pod install`.
+
 ### Debugging a launch crash: use the simulator, even though it cannot test this app
 
 The simulator cannot prove anything about the Share Extension, and the table below is still
