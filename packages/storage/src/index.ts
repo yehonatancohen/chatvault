@@ -5,6 +5,27 @@ export {
 } from "./adapter.js";
 export { MemoryStorageAdapter } from "./memory.js";
 export {
+  GoogleDriveStorageAdapter,
+  type GoogleDriveAdapterOptions,
+} from "./google-drive/adapter.js";
+export {
+  DriveAuthError,
+  DriveClient,
+  DriveError,
+  DRIVE_SCOPE,
+  type DriveClientOptions,
+  type DriveFetch,
+  type DriveRequestInit,
+  type DriveResponse,
+} from "./google-drive/client.js";
+export {
+  APP_FOLDER_NAME,
+  ensureAppFolder,
+  ensureArchiveFolder,
+  listArchiveFolders,
+} from "./google-drive/folders.js";
+export { runLiveDriveContract } from "./google-drive/live-contract.js";
+export {
   runStorageContract,
   storageContract,
   isContractSkip,

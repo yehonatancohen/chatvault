@@ -167,6 +167,32 @@ a phone) still comes first — everything below syncs what that pipeline produce
 
 ## Done
 
+- **Google Drive storage adapter (2026-09-11) — Phase 1, first half.** `packages/storage/src/
+  google-drive/`: archives stored as real folders under `My Drive/Boydem/<archiveId>/`,
+  `drive.file` scope only, resumable chunked uploads that resume correctly after a dropped
+  connection, ranged downloads, token refresh on 401, backoff on rate limits, tolerant of
+  duplicate names, removals go to the Drive trash. Passes the full storage contract (including
+  streaming) against `FakeDrive` in CI, plus 15 Drive-specific tests. Mobile wiring over
+  `expo/fetch` in `apps/mobile/lib/drive/drive-storage.ts`.
+  **Not yet run against real Google Drive** — see "Next" below.
+
+### Next — Phase 1, second half
+
+1. **Real-Drive contract run** (no app setup needed): get a `drive.file` token from the OAuth
+   Playground with a throwaway Google account, then `GOOGLE_DRIVE_TEST_TOKEN=… pnpm --filter
+   @chatvault/storage test` on a laptop, and the "Run against Google Drive" button on the
+   phone's dev screen.
+2. **Google Cloud project** (owner's action): create a project, enable the Drive API, set up
+   the OAuth consent screen (app name, support email, `drive.file` scope), and create OAuth
+   client IDs — one iOS (bundle id `app.chatvault.mobile`), one Android, one Web.
+3. **Sign in with Google in the app** — recommended library
+   `@react-native-google-signin/google-signin`: one native sign-in gives both a Google ID token
+   (for the Supabase account) and a Drive access token (for the adapter), with refresh handled.
+   Needs the iOS client ID for its URL scheme, so it waits on step 2. Native dependency: follow
+   `apps/mobile/CLAUDE.md` → "Dependency pinning is load-bearing" and rebuild the dev client.
+4. **Sync**: after an import writes locally, copy the archive to Drive; on a new device, list
+   `Boydem/` and pull.
+
 - **Chat icon (2026-09-11).** The library used to show the *smallest image in the chat* as its
   icon — usually a sticker — in the place people expect the real chat photo, which a WhatsApp
   export never contains. Now: initials by default; "Use as chat photo" on any photo in chat info

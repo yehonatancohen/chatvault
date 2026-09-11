@@ -73,7 +73,22 @@ anything reaches this layer.
   from the web viewer, not from their own laptop browser. The UI must say so at the moment the
   user picks the destination, not after they have shared a link that will never open.
 - **Google Drive is the only destination that serves all three clients**, which is why it is
-  first in the cloud phase.
+  first in the cloud phase. Built: `src/google-drive/` — `DriveClient` (auth, retry, backoff
+  over an injected `fetch`), `GoogleDriveStorageAdapter`, `folders.ts` (`My Drive/Boydem/
+  <archiveId>/`, found by `appProperties` tag so a renamed folder is not lost), and `FakeDrive`,
+  the strict in-memory Drive the contract runs against in CI. The real-Drive run is
+  `google-drive.live.test.ts` (`GOOGLE_DRIVE_TEST_TOKEN=… pnpm test`) and, on a phone, the dev
+  screen — both through `runLiveDriveContract`. Things worth knowing before changing it:
+  - Scope is `drive.file` only. Anything broader is a "restricted" scope with a paid annual
+    Google security assessment, and would let us see files that are none of our business.
+  - Drive names are not unique. Reads take the newest, `list` reports a path once, `remove`
+    trashes every copy. Folder lookups take the *oldest*, so every device picks the same one.
+  - `remove` moves to the Drive trash rather than deleting — recoverable for 30 days.
+  - Streamed uploads use resumable sessions; after a dropped connection the adapter asks the
+    session what it committed instead of re-sending blindly (`sendChunk`). `FakeDrive` rejects
+    overlapping or gapped ranges, which is what keeps that honest.
+  - No `URLSearchParams`, no `TextEncoder`: Hermes support for both is partial. Request JSON is
+    ASCII-escaped (`asciiJson`) so it becomes bytes without an encoder.
 - **Streaming matters for media.** `put`/`get` take a whole `Uint8Array`; a 40 MB video
   buffered whole is how a mobile process gets killed. Implement `putStream`/`getStream` and set
   `capabilities().streaming` for any adapter that will carry media.

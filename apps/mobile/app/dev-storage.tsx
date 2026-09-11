@@ -5,10 +5,16 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { Directory, Paths } from "expo-file-system";
-import { runStorageContract, type ContractResult } from "@chatvault/storage";
+import {
+  runLiveDriveContract,
+  runStorageContract,
+  type ContractResult,
+} from "@chatvault/storage";
+import { createDriveClient } from "../lib/drive/drive-storage";
 import { ExpoFileSystemStorageAdapter } from "../lib/storage/expo-file-system-adapter";
 import { runPipelineChecks } from "../lib/dev/pipeline-check";
 import { createStyles } from "../components/app/providers";
@@ -62,6 +68,7 @@ type Run =
 export default function DevStorageScreen() {
   const styles = useStyles();
   const [run, setRun] = useState<Run>({ status: "idle" });
+  const [driveToken, setDriveToken] = useState("");
 
   const start = useCallback(async (): Promise<void> => {
     setRun({ status: "running" });
@@ -97,6 +104,29 @@ export default function DevStorageScreen() {
     }
   }, []);
 
+  /**
+   * The storage contract against the user's real Google Drive, through `expo/fetch`.
+   *
+   * Separate from the button above because it needs a token and a network, and because it is
+   * checking something different: not this phone's filesystem but how this phone's HTTP stack
+   * talks to Drive — in particular whether it hands back Drive's `308 Resume Incomplete` during
+   * a chunked upload instead of treating it as a redirect. Until Google sign-in exists, the
+   * token is pasted from https://developers.google.com/oauthplayground (scope `drive.file`,
+   * **a throwaway account**). It is held in memory for this screen only.
+   */
+  const startDrive = useCallback(async (): Promise<void> => {
+    const token = driveToken.trim();
+    if (token === "") return;
+    setRun({ status: "running" });
+    try {
+      const client = createDriveClient(() => Promise.resolve(token));
+      const results = await runLiveDriveContract(client);
+      setRun({ status: "done", suites: [{ title: "Storage contract — Google Drive", results }] });
+    } catch (error) {
+      setRun({ status: "error", message: error instanceof Error ? error.message : String(error) });
+    }
+  }, [driveToken]);
+
   const results = run.status === "done" ? run.suites.flatMap((suite) => suite.results) : [];
   const failed = results.filter((r) => r.status === "failed").length;
   const skipped = results.filter((r) => r.status === "skipped").length;
@@ -124,6 +154,30 @@ export default function DevStorageScreen() {
         <Text style={styles.buttonLabel}>
           {run.status === "done" ? "Run again" : "Run the device checks"}
         </Text>
+      </Pressable>
+
+      <Text style={styles.suiteTitle}>Google Drive (real, throwaway account)</Text>
+      <TextInput
+        value={driveToken}
+        onChangeText={setDriveToken}
+        placeholder="Paste a drive.file access token"
+        placeholderTextColor="#999"
+        autoCapitalize="none"
+        autoCorrect={false}
+        secureTextEntry
+        style={styles.input}
+      />
+      <Pressable
+        onPress={() => void startDrive()}
+        accessibilityRole="button"
+        disabled={run.status === "running" || driveToken.trim() === ""}
+        style={({ pressed }) => [
+          styles.button,
+          styles.buttonTight,
+          (pressed || run.status === "running" || driveToken.trim() === "") && styles.buttonPressed,
+        ]}
+      >
+        <Text style={styles.buttonLabel}>Run against Google Drive</Text>
       </Pressable>
 
       {run.status === "running" && (
@@ -218,6 +272,18 @@ const useStyles = createStyles((t) => ({
     backgroundColor: t.accent,
   },
   buttonPressed: { opacity: 0.7 },
+  buttonTight: { marginTop: 8 },
+  input: {
+    marginTop: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: t.hairline,
+    color: t.ink,
+    fontFamily: "Menlo",
+    fontSize: 12,
+  },
   buttonLabel: { fontSize: 16, fontWeight: "600", color: t.onAccent },
   working: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 16 },
   summaryBox: { paddingVertical: 16, gap: 4 },

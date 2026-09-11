@@ -172,6 +172,7 @@ app's real risk lives.
 | Core logic | `pnpm --filter @chatvault/core test` | Parsing/merge/crypto are correct — but that is `core`, not this app |
 | This app's pure-JS logic | `pnpm test` | 87 tests: the **whole import pipeline** (`lib/import`, every port injected), the crypto provider against WebCrypto, key wrapping across both providers, `ZipMediaSource`, formatting. Real evidence — and none of it is about Hermes, the Keychain or the filesystem |
 | Any device or simulator | the **device checks** screen (`app/dev-storage.tsx`) | Two suites `pnpm test` cannot reach: the storage contract against the real filesystem adapter, and the crypto + import pipeline against Hermes, native SHA-256 and a real directory — including that this phone's AES-GCM and PBKDF2 match the bytes a browser produces |
+| Device + network + a throwaway Google account | **Run against Google Drive** on the same screen, with a pasted `drive.file` token | The storage contract against real Drive through `expo/fetch` (`lib/drive/drive-storage.ts`) — in particular that the HTTP stack hands back Drive's `308 Resume Incomplete` during chunked uploads rather than treating it as a redirect. No other test can tell you that |
 | Android device | `pnpm build:dev:android` | The import pipeline end to end — cheap, no Apple account |
 | **iPhone** | `pnpm build:dev:ios` + WhatsApp | **The only thing that proves the product works** |
 
@@ -246,16 +247,19 @@ all three are tested. Keep it that way. Logic that migrates into a screen become
   sender grouped under a single name, newest at the bottom. Grouping breaks after five minutes
   even for the same speaker — stacking a morning and an evening message under one name implies
   they were said together, which is a lie about a record someone is checking against memory.
-- **A WhatsApp export contains no avatars and no thumbnails**, so a chat's own smallest image
-  stands in for it in the library (`pickChatThumbnail` — smallest, not newest, because this
-  decrypts while a list renders), with coloured initials shown immediately underneath. The
-  format has no preview line and no blob→message back-link either, which is why `readLibrary`
-  reads messages to build a row; if that gets slow, the fix is a summary sealed into the
-  archive at write time, not a cache outside it.
-- **An export never says which participant is "you"**, so the reader cannot know whose messages
-  to put on the right. `lib/archive/preferences.ts` stores that choice per archive, outside the
-  archive directory: it is a display preference, not archive content, and the format must stay
-  free of device-local state.
+- **A WhatsApp export contains no avatars and no thumbnails**, so a chat shows coloured initials
+  unless the user picks one of its photos ("Use as chat photo" in the lightbox; `findChatPhoto`).
+  **Never pick one automatically** — an earlier version showed the smallest image, which was
+  usually a sticker, in the exact place people expect the chat's real icon. The format has no
+  preview line and no blob→message back-link either, which is why `readLibrary` reads messages
+  to build a row; if that gets slow, the fix is a summary sealed into the archive at write time,
+  not a cache outside it.
+- **An export never says which participant is "you", or what the chat's photo is**, so
+  `lib/archive/preferences.ts` stores both per archive, outside the archive directory: display
+  preferences, not archive content, and the format must stay free of device-local state. The
+  photo is a content address into the archive, never image bytes — nothing decrypted is written
+  out. Use `updatePreferences`, which merges; a whole-object write from one screen erases the
+  other's choice.
 
 **The Verify screen is the trust moment** and deserves more care than anything else in the UI.
 Before we suggest deleting anything, we show what was captured: message count, date range,
