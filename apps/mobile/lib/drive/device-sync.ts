@@ -18,7 +18,7 @@
  */
 
 import { Directory } from "expo-file-system";
-import { ArchiveReader, toHex } from "@chatvault/core";
+import { ArchiveReader, ArchiveWriter, toHex } from "@chatvault/core";
 import {
   ensureAppFolder,
   GoogleDriveStorageAdapter,
@@ -33,9 +33,12 @@ import { ExpoFileSystemStorageAdapter } from "../storage/expo-file-system-adapte
 import { archivesRoot, keyForArchive, listArchiveIds, storageFor } from "../archive/vault";
 import { translate } from "../i18n/translate";
 import { readSettingsSync } from "../settings/settings";
-import { readBackupState, writeBackupState } from "./backup-state";
-import { createDriveClient, driveFolderUrl, driveStorageFor } from "./drive-storage";
-import { googleAccessToken, restoreGoogleConnection } from "./google-auth";
+import { markPreviewsDone, readBackupState, writeBackupState } from "./backup-state";
+import { makeThumbnail } from "../media/thumbnailer";
+import { readableStorageFor } from "../archive/readable-storage";
+import { driveFolderUrl, driveStorageFor } from "./drive-storage";
+import { restoreGoogleConnection } from "./google-auth";
+import { driveClient, folderIdFor, remoteFor, remotes } from "./drive-client";
 
 export type BackupStatus =
   | { readonly kind: "idle"; readonly backedUpAt?: number }
@@ -53,12 +56,6 @@ const listeners = new Map<string, Set<Listener>>();
 
 const sha256Hex = async (bytes: Uint8Array): Promise<string> =>
   toHex(await getCryptoProvider().sha256(bytes));
-
-let client: ReturnType<typeof createDriveClient> | undefined;
-function driveClient() {
-  client ??= createDriveClient(googleAccessToken);
-  return client;
-}
 
 /** Whether a Google account with Drive access is connected on this phone. */
 export async function isDriveConnected(): Promise<boolean> {
@@ -159,6 +156,7 @@ export function backupPending(
     try {
       if (!(await isDriveConnected())) return;
       for (const chat of chats) {
+        await ensurePreviews(chat.archiveId, chat.updatedAt);
         const { backedUpAt, folderId } = await readBackupState(chat.archiveId);
         const behind = backedUpAt === undefined || backedUpAt < chat.updatedAt;
         // Also re-run for a chat that is current but was backed up before folders were named
@@ -173,6 +171,29 @@ export function backupPending(
     }
   })();
   return pendingRun;
+}
+
+/**
+ * Photo previews for a chat that lacks them — chats imported before previews existed, or whose
+ * import was interrupted. Photos already moved to Drive are fetched from there, once, to be
+ * previewed. Recorded when done so it runs once per change of the chat.
+ */
+async function ensurePreviews(archiveId: string, updatedAt: number): Promise<void> {
+  try {
+    const { previewsAt } = await readBackupState(archiveId);
+    if (previewsAt !== undefined && previewsAt >= updatedAt) return;
+    const key = await keyForArchive(archiveId);
+    if (key === null) return; // protected and locked: nothing to preview with
+    await new ArchiveWriter({
+      crypto: getCryptoProvider(),
+      storage: readableStorageFor(archiveId),
+      archiveId,
+      ...(key !== undefined ? { key } : {}),
+    }).addMissingThumbnails(makeThumbnail);
+    await markPreviewsDone(archiveId);
+  } catch {
+    // Offline, or a chat that will not open: try again next time the list opens.
+  }
 }
 
 /** Back up every archive on this phone, one after another. */
@@ -221,32 +242,6 @@ export async function restoreArchive(
 export async function driveLinkFor(archiveId: string): Promise<string | undefined> {
   const { folderId } = await readBackupState(archiveId);
   return folderId !== undefined ? driveFolderUrl(folderId) : undefined;
-}
-
-const remotes = new Map<string, GoogleDriveStorageAdapter>();
-
-/**
- * The chat's folder in Drive, for reading back photos the phone no longer keeps. One adapter
- * per chat for the life of the app, so its listing cache makes repeat lookups free.
- */
-export async function remoteFor(archiveId: string): Promise<GoogleDriveStorageAdapter> {
-  const known = remotes.get(archiveId);
-  if (known !== undefined) return known;
-  const adapter = new GoogleDriveStorageAdapter({
-    client: driveClient(),
-    rootFolderId: await folderIdFor(archiveId),
-  });
-  remotes.set(archiveId, adapter);
-  return adapter;
-}
-
-async function folderIdFor(archiveId: string): Promise<string> {
-  const { folderId } = await readBackupState(archiveId);
-  if (folderId !== undefined) return folderId;
-  const appFolder = await ensureAppFolder(driveClient());
-  const found = (await listArchiveFolders(driveClient(), appFolder)).find((f) => f.archiveId === archiveId);
-  if (found === undefined) throw new Error("This chat is not in your Google Drive.");
-  return found.folderId;
 }
 
 /**

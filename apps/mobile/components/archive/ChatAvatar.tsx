@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Image, Text, View } from "react-native";
 import type { ArchiveReader } from "@chatvault/core";
-import { toBase64 } from "../../lib/crypto/base64";
-import { mimeTypeOf } from "../../lib/ui/mime";
+import { previewUri } from "../../lib/ui/media-uri";
 import { initialsFor } from "../../lib/ui/media-index";
 import { colorForParticipant } from "../../lib/ui/participants";
 import type { MediaItem } from "../../lib/ui/media-index";
@@ -59,9 +58,8 @@ export function ChatAvatar({
 
     void (async () => {
       try {
-        const bytes = await reader.readMedia(thumbnail.sha256);
+        const { uri: dataUri } = await previewUri(reader, thumbnail.sha256, thumbnail.filename);
         if (stale) return;
-        const dataUri = `data:${mimeTypeOf(thumbnail.filename)};base64,${toBase64(bytes)}`;
         cache.set(thumbnail.sha256, dataUri);
         setLoaded({ sha256: thumbnail.sha256, uri: dataUri });
       } catch {

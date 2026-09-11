@@ -6,9 +6,9 @@ Where things stand and what to do next, ordered by risk rather than by convenien
 
 | Layer | Status |
 |---|---|
-| `packages/core` | **Done for v1.** Parser, identity, merge, archive read/write, media pipeline, crypto. 125 tests. Parser and merge verified against a real export pair. |
-| `packages/storage` | Interface + contract suite (runnable under vitest *and* inside a device runtime) + in-memory adapter. No cloud adapter yet. |
-| `apps/mobile` | **Track A built end to end** — share → import → verify → guided delete → library → reader, with Hermes crypto and a device-proven storage adapter. 87 tests. Awaits one real-export run on a phone. |
+| `packages/core` | **Done for v1.** Parser, identity, merge, archive read/write (sealed v1 and plain v2), previews, media pipeline, crypto. 143 tests. Parser and merge verified against a real export pair. |
+| `packages/storage` | Interface + contract suite, in-memory adapter, **Google Drive adapter** (verified on device) and key-free sync: backup, restore, offloading photos from the phone. 66 tests. |
+| `apps/mobile` | **Track A built end to end**, plus Google sign-in, Drive backup/restore, per-chat status, previews, no export size limit. 174 tests. See `ACCOUNTS-AND-CLOUD.md` for the current phase. |
 | `apps/web` | **B0a done.** `/open`: pick a `.cvault` bundle, unlock by passphrase, virtualized RTL-correct viewer with media lightbox, client-side append-and-merge. No backend yet — see Track B. |
 | `apps/api` | Health endpoint. Intentionally minimal. |
 
@@ -89,11 +89,12 @@ A3, testable.
   silent, and fatal to a media blob). Fixed with `create({ overwrite: true })`, and the second
   bug now has a contract case of its own.
 
-- **A2. `MediaSource` over the export zip** — unchanged, plus `readTranscript()`: `list()`
-  hides the transcript by contract, so the parser needed a way to it. Still loads the whole zip
-  into memory (`fflate.unzipSync`'s only mode), still capped at 150 MB, still owed a
-  central-directory reader over a `FileHandle`. **This is now the largest known gap in the
-  mobile app.**
+- **A2. `MediaSource` over the export zip** — **done (2026-09-11).** `lib/media/zip-reader.ts`
+  reads the central directory from a `FileHandle` and inflates one entry at a time (stored,
+  deflated, data descriptors, archive comments, ZIP64). The 150 MB cap is gone; memory is about
+  one entry. Tested in Node, including a hand-built ZIP64 archive and a check that reading one
+  photo never touches the rest of the file. The shared export is deleted after a successful
+  import, and day-old leftovers are swept.
 
 - **A3. `CryptoProvider` for Hermes** — **built** (`lib/crypto/noble-provider.ts`).
   AES-256-GCM and PBKDF2 in pure JS (`@noble`), SHA-256 and the CSPRNG native via expo-crypto.

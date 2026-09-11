@@ -1,12 +1,7 @@
 import { zipSync } from "fflate";
 import { MediaNotFoundError } from "@chatvault/core";
 import { describe, expect, it } from "vitest";
-import {
-  MAX_SAFE_ZIP_BYTES,
-  NoTranscriptError,
-  ZipMediaSource,
-  ZipTooLargeError,
-} from "./zip-media-source";
+import { NoTranscriptError, ZipMediaSource } from "./zip-media-source";
 
 function bytes(s: string): Uint8Array {
   return new TextEncoder().encode(s);
@@ -24,7 +19,7 @@ function makeExportZip(): Uint8Array {
 
 describe("ZipMediaSource", () => {
   it("lists media candidates only — no transcript, no OS debris", async () => {
-    const source = new ZipMediaSource(makeExportZip());
+    const source = await ZipMediaSource.fromBytes(makeExportZip());
     expect([...(await source.list())].sort()).toEqual([
       "00000043-PHOTO-2025-03-14-20-10-34.jpg",
       "00000049-STICKER-2025-03-15-15-48-45.webp",
@@ -32,19 +27,19 @@ describe("ZipMediaSource", () => {
   });
 
   it("reads a listed file's exact bytes", async () => {
-    const source = new ZipMediaSource(makeExportZip());
+    const source = await ZipMediaSource.fromBytes(makeExportZip());
     expect(await source.read("00000043-PHOTO-2025-03-14-20-10-34.jpg")).toEqual(
       bytes("fake jpeg bytes"),
     );
   });
 
   it("rejects with MediaNotFoundError for a name not in the zip", async () => {
-    const source = new ZipMediaSource(makeExportZip());
+    const source = await ZipMediaSource.fromBytes(makeExportZip());
     await expect(source.read("nope.jpg")).rejects.toBeInstanceOf(MediaNotFoundError);
   });
 
   it("reads the transcript that list() deliberately hides", async () => {
-    const source = new ZipMediaSource(makeExportZip());
+    const source = await ZipMediaSource.fromBytes(makeExportZip());
     expect(await source.readTranscript()).toBe("[3/14/25, 8:10:12 PM] Dana: hi");
   });
 
@@ -52,26 +47,26 @@ describe("ZipMediaSource", () => {
     // The parser's whole difficulty is invisible characters (root CLAUDE.md); a transcript
     // reader that mangled them would break parsing in a way no fixture here would catch.
     const line = "[14/03/2025, 20:10:34] דנה: תראה מה מצאתי ‎<attached: a.jpg>";
-    const source = new ZipMediaSource(zipSync({ "_chat.txt": bytes(line) }));
+    const source = await ZipMediaSource.fromBytes(zipSync({ "_chat.txt": bytes(line) }));
     expect(await source.readTranscript()).toBe(line);
   });
 
   it("finds the transcript under a folder, as some exports nest it", async () => {
-    const source = new ZipMediaSource(
+    const source = await ZipMediaSource.fromBytes(
       zipSync({ "WhatsApp Chat - Dana/_chat.txt": bytes("hello"), "a.jpg": bytes("x") }),
     );
     expect(await source.readTranscript()).toBe("hello");
   });
 
   it("does not mistake a macOS resource fork for the transcript", async () => {
-    const source = new ZipMediaSource(
+    const source = await ZipMediaSource.fromBytes(
       zipSync({ "__MACOSX/._chat.txt": bytes("junk"), "_chat.txt": bytes("real") }),
     );
     expect(await source.readTranscript()).toBe("real");
   });
 
   it("says so plainly when a zip is not an export at all", async () => {
-    const source = new ZipMediaSource(zipSync({ "photo.jpg": bytes("x") }));
+    const source = await ZipMediaSource.fromBytes(zipSync({ "photo.jpg": bytes("x") }));
     await expect(source.readTranscript()).rejects.toBeInstanceOf(NoTranscriptError);
   });
 
@@ -84,18 +79,13 @@ describe("ZipMediaSource", () => {
       "_chat.txt": bytes("irrelevant"),
       "good.jpg": bytes("readable"),
     });
-    const source = new ZipMediaSource(zip);
+    const source = await ZipMediaSource.fromBytes(zip);
     await expect(source.list()).resolves.toEqual(["good.jpg"]);
     await expect(source.read("good.jpg")).resolves.toEqual(bytes("readable"));
   });
 
-  it("refuses a zip over the safe in-memory ceiling", () => {
-    const oversized = new Uint8Array(MAX_SAFE_ZIP_BYTES + 1);
-    expect(() => new ZipMediaSource(oversized)).toThrow(ZipTooLargeError);
-  });
-
   it("caches the listing rather than re-scanning on every call", async () => {
-    const source = new ZipMediaSource(makeExportZip());
+    const source = await ZipMediaSource.fromBytes(makeExportZip());
     const first = await source.list();
     const second = await source.list();
     expect(second).toBe(first); // same array reference: proof the cache path was taken

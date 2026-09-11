@@ -87,6 +87,15 @@ export interface MediaBlob {
   read(): Promise<Uint8Array>;
 }
 
+/**
+ * Makes a small JPEG preview of an image, or `undefined` when it cannot (not an image it can
+ * decode). A platform capability, injected like crypto: the phone resizes natively, a browser
+ * could use a canvas, and core never needs to know how.
+ */
+export type Thumbnailer = (bytes: Uint8Array, filename: string) => Promise<Uint8Array | undefined>;
+
+const PREVIEWABLE = /\.(jpe?g|png|webp|heic|heif|gif)$/i;
+
 export interface ArchiveParticipant {
   readonly id: string;
   readonly displayName: string;
@@ -214,6 +223,46 @@ export class ArchiveWriter {
 
     const merged = mergeMerged(...priorMessages, mergeBatches(content.batches));
     return this.commit(content, merged, existing, priorText);
+  }
+
+  /**
+   * Add a preview for every photo in the archive that lacks one. Safe to repeat — each call
+   * only fills gaps — and safe to interrupt. Photos are read through this writer's storage, so
+   * pass one that can reach media the phone no longer holds.
+   *
+   * Returns how many previews were written.
+   */
+  async addMissingThumbnails(
+    thumbnailer: Thumbnailer,
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<number> {
+    if (!(await this.storage.has(HEADER_PATH))) throw new MissingHeaderError(this.archiveId);
+    const header = JSON.parse(decodeUtf8(await this.storage.get(HEADER_PATH))) as ArchiveHeader;
+    this.layout = layoutFor(header);
+    if (this.layout.sealed && this.key === undefined) throw new KeyRequiredError(this.archiveId);
+
+    const manifest = await this.readManifest();
+    const photos = manifest.media.filter((ref) => ref.filenames.some((name) => PREVIEWABLE.test(name)));
+    let written = 0;
+    for (const [i, ref] of photos.entries()) {
+      const target = this.layout.thumb(ref.sha256);
+      if (!(await this.storage.has(target))) {
+        try {
+          const bytes = await this.openAt(ref.path ?? this.layout.media(ref.sha256));
+          const name = ref.filenames.find((n) => PREVIEWABLE.test(n)) ?? ref.filenames[0] ?? "";
+          const preview = await thumbnailer(bytes, name);
+          if (preview !== undefined) {
+            await this.sealTo(target, preview);
+            written += 1;
+          }
+        } catch {
+          // One photo that will not decode or download must not stop the others; it stays
+          // without a preview and the gallery falls back to the full photo.
+        }
+      }
+      onProgress?.(i + 1, photos.length);
+    }
+    return written;
   }
 
   private async commit(

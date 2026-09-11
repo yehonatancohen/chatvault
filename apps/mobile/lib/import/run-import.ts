@@ -75,7 +75,9 @@ export type ImportStage =
   | "parsing"
   | "checking-media"
   | "writing"
-  | "verifying";
+  | "verifying"
+  /** Making the small photo previews the gallery shows. Reported by `completeImport`. */
+  | "previews";
 
 export interface ImportRequest {
   readonly transcript: string;

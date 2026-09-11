@@ -12,7 +12,7 @@
 
 import { ObjectNotFoundError } from "@chatvault/storage";
 import type { ArchiveStoragePort } from "@chatvault/core";
-import { remoteFor } from "../drive/device-sync";
+import { remoteFor } from "../drive/drive-client";
 import { storageFor } from "./vault";
 
 const MEDIA_PREFIX = "media/";

@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 import type { ArchiveReader } from "@chatvault/core";
-import { toBase64 } from "../../lib/crypto/base64";
-import { mimeTypeOf } from "../../lib/ui/mime";
 import type { MediaItem } from "../../lib/ui/media-index";
 import { createStyles, useApp } from "../app/providers";
 import { space } from "../../lib/ui/theme";
 import type { LightboxSubject } from "./Lightbox";
+import { fullUri, previewUri } from "../../lib/ui/media-uri";
 
 /**
  * A grid of the archive's photos.
@@ -17,8 +16,9 @@ import type { LightboxSubject } from "./Lightbox";
  * screenful is nine photos at once instead of two — which is why the tile size is modest and
  * why `MediaScreen` pages through a `FlatList` rather than rendering every photo at once.
  *
- * There is no thumbnail in the format. If this ever feels slow, the fix is sealing a small
- * preview *into* the archive at import time, never a decrypted cache on disk.
+ * Tiles draw each photo's small preview (`thumbs/`, made at import and sealed like the rest of
+ * a protected archive) and keep the full photo for the lightbox — which after a backup may be
+ * in Drive rather than on the phone. A chat without previews falls back to full photos.
  */
 
 export function MediaGrid({
@@ -72,15 +72,18 @@ export function MediaTile({
   const { t } = useApp();
   const styles = useStyles();
   const [uri, setUri] = useState<string | undefined>(undefined);
+  const [isFull, setIsFull] = useState(true);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let stale = false;
     void (async () => {
       try {
-        const bytes = await reader.readMedia(item.sha256);
+        // The preview when there is one: small, on the phone, instant.
+        const loaded = await previewUri(reader, item.sha256, item.filename);
         if (stale) return;
-        setUri(`data:${mimeTypeOf(item.filename)};base64,${toBase64(bytes)}`);
+        setUri(loaded.uri);
+        setIsFull(loaded.isFull);
       } catch {
         // `readMedia` verifies the blob against its own address, so a failure is an integrity
         // problem. A tile is too small to explain one; it goes grey and the chat row, which
@@ -107,6 +110,7 @@ export function MediaTile({
             ts: item.ts,
             byteLength: item.byteLength,
             sha256: item.sha256,
+            ...(isFull ? {} : { resolveFull: () => fullUri(reader, item.sha256, item.filename) }),
           })
         }
         disabled={uri === undefined}

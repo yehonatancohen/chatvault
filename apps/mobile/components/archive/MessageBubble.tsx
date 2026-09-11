@@ -8,6 +8,7 @@ import { colorForParticipant } from "../../lib/ui/participants";
 import { createStyles, useApp } from "../app/providers";
 import { radius, space } from "../../lib/ui/theme";
 import type { LightboxSubject } from "./Lightbox";
+import { fullUri, previewUri } from "../../lib/ui/media-uri";
 
 /**
  * One message, as a chat bubble.
@@ -142,7 +143,7 @@ function Attachment({
   const { t } = useApp();
   const styles = useStyles();
   const [uri, setUri] = useState<string | undefined>(undefined);
-  const [byteLength, setByteLength] = useState<number | undefined>(undefined);
+  const [isFull, setIsFull] = useState(true);
   const [failed, setFailed] = useState<string | undefined>(undefined);
   const kind = mediaKindOf(filename);
 
@@ -152,10 +153,10 @@ function Attachment({
 
     void (async () => {
       try {
-        const bytes = await reader.readMedia(sha256);
+        const loaded = await previewUri(reader, sha256, filename);
         if (stale) return;
-        setByteLength(bytes.byteLength);
-        setUri(`data:${mimeTypeOf(filename)};base64,${toBase64(bytes)}`);
+        setUri(loaded.uri);
+        setIsFull(loaded.isFull);
       } catch (error) {
         if (stale) return;
         // Two different things: a photo that came back but does not match its own content
@@ -212,7 +213,8 @@ function Attachment({
           filename,
           sender,
           ts,
-          ...(byteLength !== undefined ? { byteLength } : {}),
+          sha256,
+          ...(isFull ? {} : { resolveFull: () => fullUri(reader, sha256, filename) }),
         })
       }
       accessibilityRole="imagebutton"

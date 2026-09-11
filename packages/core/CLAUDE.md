@@ -170,6 +170,11 @@ options, so an append never changes an archive's kind. Two things to keep:
 - **`MediaRef.path` (plain only) is fixed at first write**, with the extension of the first
   filename seen, so a later alias never moves a photo in the user's Drive.
 - `chat.txt` (plain only) is regenerated on every commit and never read back.
+- **Previews (`thumbs/<sha256>.jpg`, sealed `.enc` in protected archives) are optional and
+  derived** — `ArchiveWriter.addMissingThumbnails(thumbnailer)` adds them, `readThumbnail`
+  returns `undefined` when absent, and nothing may require one. That is why they did not bump
+  the format version: an archive without previews is exactly as valid. The resizing itself is a
+  port (`Thumbnailer`), supplied by the platform.
 
 ## The sealed archive, and the two things that must not be re-broken
 

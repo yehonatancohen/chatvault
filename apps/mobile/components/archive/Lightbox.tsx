@@ -1,4 +1,5 @@
-import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useApp } from "../app/providers";
 import { formatBytes, formatDateTime } from "../../lib/ui/format";
 
@@ -26,6 +27,11 @@ export interface LightboxSubject {
   readonly byteLength?: number;
   /** Content address of the photo, when the caller wants to act on it (e.g. set a chat photo). */
   readonly sha256?: string;
+  /**
+   * When `uri` is only the small preview: loads the full photo, which replaces it once it
+   * arrives (from the phone, or from Drive for a photo the phone no longer keeps).
+   */
+  readonly resolveFull?: () => Promise<string>;
 }
 
 /** One optional button beside Done. `disabled` shows it as a settled state, e.g. "Chat photo ✓". */
@@ -45,6 +51,26 @@ export function Lightbox({
   action?: LightboxAction | undefined;
 }) {
   const { t } = useApp();
+  const [fullUri, setFullUri] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    setFullUri(undefined);
+    if (subject?.resolveFull === undefined) return;
+    let stale = false;
+    subject
+      .resolveFull()
+      .then((uri) => {
+        if (!stale) setFullUri(uri);
+      })
+      .catch(() => {
+        // Offline, or Drive unreachable: the preview stays up, which is still the photo.
+      });
+    return () => {
+      stale = true;
+    };
+  }, [subject]);
+
+  const loadingFull = subject?.resolveFull !== undefined && fullUri === undefined;
 
   return (
     <Modal
@@ -68,13 +94,15 @@ export function Lightbox({
           >
             <Pressable onPress={onClose} accessibilityRole="button" style={styles.imagePress}>
               <Image
-                source={{ uri: subject.uri }}
+                source={{ uri: fullUri ?? subject.uri }}
                 style={styles.image}
                 resizeMode="contain"
                 accessibilityLabel={subject.filename}
               />
             </Pressable>
           </ScrollView>
+
+          {loadingFull && <ActivityIndicator color="#fff" style={styles.loadingFull} />}
 
           <View style={styles.caption}>
             <Text style={styles.captionPrimary} numberOfLines={1}>
@@ -149,5 +177,6 @@ const styles = StyleSheet.create({
   action: { right: undefined, left: 20 },
   settled: { opacity: 0.55 },
   pressed: { opacity: 0.6 },
+  loadingFull: { position: "absolute", top: 64, alignSelf: "center" },
   closeLabel: { color: "#fff", fontSize: 15, fontWeight: "600" },
 });

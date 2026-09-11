@@ -180,6 +180,10 @@ a phone) still comes first — everything below syncs what that pipeline produce
   folders are named after the chat; "In your Google Drive" opens the folder. Share extension
   patched so WhatsApp no longer looks frozen after sharing. Home button on every inner screen.
 
+- **No export size limit; photo previews (2026-09-11).** Exports are read one entry at a time
+  from the file (the 150 MB cap is gone) and deleted after import. Each photo gets a small
+  preview kept on the phone, so galleries stay instant after photos move to Drive.
+
 ### Next — Phase 1, remaining
 
 1. **Device check of backup and restore**: import a chat with Drive connected, watch Verify

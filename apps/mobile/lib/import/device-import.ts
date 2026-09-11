@@ -17,6 +17,7 @@
 
 import { File } from "expo-file-system";
 import {
+  ArchiveWriter,
   parseExport,
   InMemoryMediaSource,
   isPlainHeader,
@@ -35,6 +36,9 @@ import {
   storageFor,
 } from "../archive/vault";
 import { ZipMediaSource } from "../media/zip-media-source";
+import { openRandomAccess } from "../media/file-random-access";
+import { makeThumbnail } from "../media/thumbnailer";
+import { markPreviewsDone } from "../drive/backup-state";
 import { chatTitleFromFilename, chooseTarget, type ArchiveCandidate } from "./match";
 import {
   runImport,
@@ -51,7 +55,7 @@ export class ExportTooLargeError extends Error {
   constructor(readonly byteLength: number) {
     super(
       `This text export is ${(byteLength / (1024 * 1024)).toFixed(0)} MB — too large to read ` +
-        "in one piece. Importing it needs the streaming reader that ZipMediaSource still owes.",
+        "in one piece. WhatsApp's own limit keeps a real transcript far below this.",
     );
     this.name = "ExportTooLargeError";
   }
@@ -96,6 +100,10 @@ export interface PreparedImport {
   /** Messages of this export the target archive already holds. 0 when creating. */
   readonly overlap: number;
   readonly byteLength: number;
+  /** The shared export on disk — deleted once the chat is saved, so it does not linger. */
+  readonly sourcePath: string;
+  /** Closes the export's file handle. */
+  readonly release: () => void;
 }
 
 export async function prepareImport(params: {
@@ -105,6 +113,7 @@ export async function prepareImport(params: {
 }): Promise<PreparedImport> {
   const file = new File(params.path);
   if (!file.exists) throw new ShareFileMissingError(params.path);
+  sweepOldShares(file);
 
   const byteLength = file.size ?? 0;
   const name = (params.fileName ?? "").toLowerCase();
@@ -112,12 +121,14 @@ export async function prepareImport(params: {
 
   let transcript: string;
   let media: MediaSource;
+  let release = () => {};
 
   if (isZip) {
-    // The whole zip lands in memory here — the A2 gap, capped rather than solved. See
-    // `zip-media-source.ts`; `ZipTooLargeError` is what a too-large export gets instead of the
-    // process being killed.
-    const zip = new ZipMediaSource(await file.bytes());
+    // Read in place: the zip's table of contents now, each photo only when it is needed. No
+    // size limit — memory is about one entry at a time (`zip-reader.ts`).
+    const access = openRandomAccess(file);
+    release = () => access.close();
+    const zip = await ZipMediaSource.open(access);
     transcript = await zip.readTranscript();
     media = zip;
   } else {
@@ -147,6 +158,8 @@ export async function prepareImport(params: {
       requirement: hasKey ? "ready" : "unlock",
       overlap: target.overlap,
       byteLength,
+      sourcePath: params.path,
+      release,
     };
   }
 
@@ -161,6 +174,8 @@ export async function prepareImport(params: {
     requirement: "new",
     overlap: 0,
     byteLength,
+    sourcePath: params.path,
+    release,
   };
 }
 
@@ -217,27 +232,55 @@ export async function completeImport(
     ? await createKeyMaterial(prepared.archiveId, passphrase, crypto)
     : await existingKeyMaterial(prepared.archiveId, passphrase, crypto);
 
-  const outcome = await runImport({
-    transcript: prepared.transcript,
-    parsed: prepared.parsed,
-    media: prepared.media,
-    storage,
-    crypto,
-    key,
-    archiveId: prepared.archiveId,
-    keyWrapping,
-    chatTitle: prepared.chatTitle,
-    // A source is one import event. The id is per-import, not per-file: importing the same
-    // file twice is a legitimate thing to do and merge is idempotent regardless.
-    sourceId: `${prepared.archiveId}:${Date.now()}`,
-    contributor: null,
-    // Both exports come off this one phone, so a single consistent offset makes them merge.
-    // Cross-timezone merge is a documented limitation (`packages/core/CLAUDE.md`) and needs a
-    // per-source offset the UI does not yet collect.
-    tzOffsetMinutes: -new Date().getTimezoneOffset(),
-    ...(onProgress ? { onProgress } : {}),
-  });
+  let outcome: ImportOutcome;
+  try {
+    outcome = await runImport({
+      transcript: prepared.transcript,
+      parsed: prepared.parsed,
+      media: prepared.media,
+      storage,
+      crypto,
+      key,
+      archiveId: prepared.archiveId,
+      keyWrapping,
+      chatTitle: prepared.chatTitle,
+      // A source is one import event. The id is per-import, not per-file: importing the same
+      // file twice is a legitimate thing to do and merge is idempotent regardless.
+      sourceId: `${prepared.archiveId}:${Date.now()}`,
+      contributor: null,
+      // Both exports come off this one phone, so a single consistent offset makes them merge.
+      // Cross-timezone merge is a documented limitation (`packages/core/CLAUDE.md`) and needs a
+      // per-source offset the UI does not yet collect.
+      tzOffsetMinutes: -new Date().getTimezoneOffset(),
+      ...(onProgress ? { onProgress } : {}),
+    });
+  } finally {
+    // Close the export's file handle whether the import succeeded or not.
+    prepared.release();
+  }
 
+  // Previews while the photos are still on the phone — before a backup moves them to Drive.
+  // Never fails the import: a photo without a preview just shows the full image.
+  onProgress?.("previews");
+  try {
+    await new ArchiveWriter({
+      crypto,
+      storage,
+      archiveId: prepared.archiveId,
+      ...(key !== undefined ? { key } : {}),
+    }).addMissingThumbnails(makeThumbnail);
+    await markPreviewsDone(prepared.archiveId);
+  } catch {
+    // The background pass (`backupPending`) tries again.
+  }
+  // The chat is saved; the shared export is now just a second copy taking up the phone. Deleting
+  // it is part of the point of the app. (A failed import keeps it — `sweepOldShares` tidies up.)
+  try {
+    const source = new File(prepared.sourcePath);
+    if (source.exists) source.delete();
+  } catch {
+    // Not worth failing a successful import over; the sweep will get it.
+  }
   return { outcome, archiveId: prepared.archiveId };
 }
 
@@ -279,4 +322,26 @@ async function existingKeyMaterial(
   // and keeps the header it already has — re-wrapping would change the passphrase the user
   // has out from under them.
   return { key, keyWrapping: header.keyWrapping };
+}
+
+/** Files the share extension names `<UUID>.<ext>` in the App Group container. */
+const SHARED_COPY = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\.[A-Za-z0-9]+$/i;
+const SHARE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Delete exports left behind by imports that never finished (a successful import deletes its
+ * own). Only the extension's own `<UUID>.<ext>` copies, only a day old or more, never the one
+ * being imported now — each can be hundreds of megabytes the user never sees.
+ */
+function sweepOldShares(current: File): void {
+  try {
+    const now = Date.now();
+    for (const entry of current.parentDirectory.list()) {
+      if (!(entry instanceof File) || entry.uri === current.uri || !SHARED_COPY.test(entry.name)) continue;
+      const modified = entry.modificationTime ?? now;
+      if (now - modified > SHARE_MAX_AGE_MS) entry.delete();
+    }
+  } catch {
+    // Housekeeping; never a reason to fail an import.
+  }
 }

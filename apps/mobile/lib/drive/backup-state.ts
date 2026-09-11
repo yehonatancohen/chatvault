@@ -19,6 +19,8 @@ export interface BackupState {
   readonly backedUpAt?: number;
   /** The chat's folder in Drive, for "open in Drive" and for reading media back. */
   readonly folderId?: string;
+  /** When photo previews were last completed for this chat (compared with `updatedAt`). */
+  readonly previewsAt?: number;
 }
 
 const DIRECTORY = "drive-backup";
@@ -36,6 +38,7 @@ export async function readBackupState(archiveId: string): Promise<BackupState> {
       ledger: typeof parsed.ledger === "object" && parsed.ledger !== null ? parsed.ledger : {},
       ...(typeof parsed.backedUpAt === "number" ? { backedUpAt: parsed.backedUpAt } : {}),
       ...(typeof parsed.folderId === "string" ? { folderId: parsed.folderId } : {}),
+      ...(typeof parsed.previewsAt === "number" ? { previewsAt: parsed.previewsAt } : {}),
     };
   } catch {
     return { ledger: {} };
@@ -46,6 +49,11 @@ export function writeBackupState(archiveId: string, state: BackupState): void {
   const file = fileFor(archiveId);
   file.parentDirectory.create({ intermediates: true, idempotent: true });
   file.write(JSON.stringify(state));
+}
+
+/** Record that this chat's previews are complete as of now. */
+export async function markPreviewsDone(archiveId: string): Promise<void> {
+  writeBackupState(archiveId, { ...(await readBackupState(archiveId)), previewsAt: Date.now() });
 }
 
 /** Forget it when the archive leaves this phone. The copy in Drive is the user's and stays. */

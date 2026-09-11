@@ -235,6 +235,16 @@ export class ArchiveReader {
   }
 
   /**
+   * A photo's small preview, or `undefined` if the archive has none for it — a normal state
+   * (see `THUMBNAILS` in `format.ts`). Callers fall back to `readMedia`.
+   */
+  async readThumbnail(sha256: string): Promise<Uint8Array | undefined> {
+    const path = this.layout.thumb(sha256);
+    if (!(await this.storage.has(path))) return undefined;
+    return this.openAt(path);
+  }
+
+  /**
    * Media as an async iterable, for consumers that want to pipe rather than hold a buffer.
    *
    * It yields exactly one part today, and that is a property of the *format*, not of this

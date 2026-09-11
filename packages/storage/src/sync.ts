@@ -66,6 +66,10 @@ export type PushResult =
   | { readonly kind: "diverged" };
 
 const MEDIA_PREFIX = "media/";
+/** Photo previews: content-addressed like media, but small — never offloaded, always restored. */
+const THUMBS_PREFIX = "thumbs/";
+/** Written once and never changed, so present at the destination means done. */
+const isContentAddressed = (path: string) => path.startsWith(MEDIA_PREFIX) || path.startsWith(THUMBS_PREFIX);
 const MANIFESTS = [MANIFEST_PATH, PLAIN_MANIFEST_PATH];
 const INDEXES = [INDEX_PATH, PLAIN_INDEX_PATH];
 const TAIL = new Set([...INDEXES, TRANSCRIPT_PATH, HEADER_PATH, ...MANIFESTS]);
@@ -105,8 +109,8 @@ export async function pushArchive(
   // the Drive adapter answer every later "is this here?" without a request.
   const remotePaths = new Set(await remote.list(""));
   const ordered = pushOrder(localPaths);
-  const media = ordered.filter((path) => path.startsWith(MEDIA_PREFIX));
-  const rest = ordered.filter((path) => !path.startsWith(MEDIA_PREFIX));
+  const media = ordered.filter(isContentAddressed);
+  const rest = ordered.filter((path) => !isContentAddressed(path));
   const next: Record<string, string> = { ...ledger };
   let copied = 0;
   let unchanged = 0;
@@ -173,7 +177,7 @@ export async function pullArchive(
   );
   const ledger: Record<string, string> = {};
   for (const [i, path] of ordered.entries()) {
-    if (path.startsWith(MEDIA_PREFIX)) {
+    if (isContentAddressed(path)) {
       await copy(remote, local, path);
     } else {
       const bytes = await remote.get(path);
@@ -197,8 +201,8 @@ function pullOrder(paths: readonly string[]): string[] {
 }
 
 function order(paths: readonly string[], tail: readonly string[]): string[] {
-  const media = paths.filter((p) => p.startsWith(MEDIA_PREFIX)).sort();
-  const middle = paths.filter((p) => !p.startsWith(MEDIA_PREFIX) && !TAIL.has(p)).sort();
+  const media = paths.filter(isContentAddressed).sort();
+  const middle = paths.filter((p) => !isContentAddressed(p) && !TAIL.has(p)).sort();
   return [...media, ...middle, ...tail.filter((p) => paths.includes(p))];
 }
 

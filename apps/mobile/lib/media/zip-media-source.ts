@@ -1,65 +1,47 @@
 /**
- * A2 — `MediaSource` over a WhatsApp export zip.
+ * A2 — `MediaSource` over a WhatsApp export zip, read one entry at a time.
  *
  * `apps/mobile/CLAUDE.md`: `list()` must return media candidates only — `_chat.txt` and OS
  * debris are this app's job to filter, not core's. Mirrors `apps/web/lib/read-export.ts`,
  * which does the same filtering for the browser's `InMemoryMediaSource`.
  *
- * **Known limitation, not yet resolved**: `fflate.unzipSync` only operates on a zip already
- * fully in memory as one `Uint8Array`, and there is no pure-JS random-access zip reader that
- * can seek into a `File` on disk and inflate a single entry without first holding the whole
- * archive. That is exactly what `apps/mobile/CLAUDE.md` says not to do — "Stream media from
- * the export zip to storage; never read a whole zip into memory" — and it is the same
- * ~120 MB-class failure mode Step 0's `import.tsx` was built to avoid for the raw file. This
- * class does NOT yet satisfy that constraint: `ZipMediaSource.from` reads the entire file via
- * `file.bytes()` before anything else happens. It is fine for development against small
- * exports and unit tests, and wrong for a real with-media export at scale. Replacing it means
- * parsing the ZIP central directory from a `FileHandle` and inflating one entry at a time —
- * real work, deliberately not attempted here. `MAX_SAFE_ZIP_BYTES` exists so this fails loudly
- * on a large export rather than silently taking down the process.
- *
- * The list/read split each cost one central-directory scan, not one full decompression:
- * `unzipSync`'s `filter` callback runs for every entry before deciding whether to inflate it,
- * so `list()` (filter always returns `false`) never inflates anything, and `read()` inflates
- * only the one entry whose name matches.
+ * **No size limit.** This used to inflate from the whole zip held in memory, capped at 150 MB so
+ * the process was not killed. Now the zip's central directory is read once and each entry is
+ * read and inflated on its own from a `RandomAccess` (`zip-reader.ts`) — on the phone, a file
+ * handle over the shared export (`file-random-access.ts`). Memory is about one entry at a time,
+ * however large the export.
  */
 
-import { unzipSync } from "fflate";
 import { decodeUtf8, MediaNotFoundError, type MediaSource } from "@chatvault/core";
-
-/** Above this, refuse rather than risk the process being killed. See the class doc above. */
-export const MAX_SAFE_ZIP_BYTES = 150 * 1024 * 1024;
-
-export class ZipTooLargeError extends Error {
-  constructor(readonly byteLength: number) {
-    super(
-      `This export is ${(byteLength / (1024 * 1024)).toFixed(0)} MB, too large for ` +
-        "ZipMediaSource's in-memory reader. Needs the streaming replacement described in " +
-        "zip-media-source.ts before an export this size can be imported safely.",
-    );
-    this.name = "ZipTooLargeError";
-  }
-}
+import {
+  bytesRandomAccess,
+  readCentralDirectory,
+  readEntry,
+  type RandomAccess,
+  type ZipEntry,
+} from "./zip-reader";
 
 export class ZipMediaSource implements MediaSource {
-  private cachedNames: readonly string[] | null = null;
+  private constructor(
+    private readonly file: RandomAccess,
+    private readonly entries: ReadonlyMap<string, ZipEntry>,
+    private readonly names: readonly string[],
+  ) {}
 
-  constructor(private readonly zipBytes: Uint8Array) {
-    if (zipBytes.length > MAX_SAFE_ZIP_BYTES) throw new ZipTooLargeError(zipBytes.length);
+  /** Reads the central directory — the only part of the zip read up front. */
+  static async open(file: RandomAccess): Promise<ZipMediaSource> {
+    const entries = await readCentralDirectory(file);
+    const byName = new Map(entries.map((entry) => [entry.name, entry]));
+    return new ZipMediaSource(file, byName, entries.map((e) => e.name).filter((name) => !isJunk(name)));
+  }
+
+  /** For tests and small inputs already in memory. */
+  static fromBytes(bytes: Uint8Array): Promise<ZipMediaSource> {
+    return ZipMediaSource.open(bytesRandomAccess(bytes));
   }
 
   list(): Promise<readonly string[]> {
-    if (this.cachedNames) return Promise.resolve(this.cachedNames);
-
-    const names: string[] = [];
-    unzipSync(this.zipBytes, {
-      filter: (file) => {
-        if (!isJunk(file.name)) names.push(file.name);
-        return false;
-      },
-    });
-    this.cachedNames = names;
-    return Promise.resolve(names);
+    return Promise.resolve(this.names);
   }
 
   /**
@@ -71,27 +53,16 @@ export class ZipMediaSource implements MediaSource {
    * platforms, so the rule is "the first non-junk `.txt` entry", matching `isJunk`'s own test
    * and `apps/web/lib/read-export.ts`.
    */
-  readTranscript(): Promise<string> {
-    let name: string | undefined;
-    unzipSync(this.zipBytes, {
-      filter: (file) => {
-        if (name === undefined && isTranscript(file.name)) name = file.name;
-        return false;
-      },
-    });
-    if (name === undefined) return Promise.reject(new NoTranscriptError());
-
-    const found = unzipSync(this.zipBytes, { filter: (file) => file.name === name });
-    const bytes = found[name];
-    if (!bytes) return Promise.reject(new NoTranscriptError());
-    return Promise.resolve(decodeUtf8(bytes));
+  async readTranscript(): Promise<string> {
+    const entry = [...this.entries.values()].find((candidate) => isTranscript(candidate.name));
+    if (entry === undefined) throw new NoTranscriptError();
+    return decodeUtf8(await readEntry(this.file, entry));
   }
 
-  read(filename: string): Promise<Uint8Array> {
-    const found = unzipSync(this.zipBytes, { filter: (file) => file.name === filename });
-    const bytes = found[filename];
-    if (!bytes) return Promise.reject(new MediaNotFoundError(filename));
-    return Promise.resolve(Uint8Array.from(bytes));
+  async read(filename: string): Promise<Uint8Array> {
+    const entry = this.entries.get(filename);
+    if (entry === undefined || isJunk(filename)) throw new MediaNotFoundError(filename);
+    return readEntry(this.file, entry);
   }
 }
 

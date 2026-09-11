@@ -212,7 +212,20 @@ export interface ArchiveLayout {
   chunk(index: number): string;
   /** `filename` supplies the extension in plain archives; sealed ones ignore it. */
   media(sha256: string, filename?: string): string;
+  /** A photo's small preview (`thumbs/`) — see `THUMBNAILS` below. */
+  thumb(sha256: string): string;
 }
+
+/**
+ * **Previews (2026-09-11): optional, derived, never required.** An archive may hold a small JPEG
+ * preview of each photo at `layout.thumb(sha256)` — sealed like everything else in a protected
+ * archive. They exist so a gallery can draw without fetching full photos, which after
+ * `offloadMedia` live only in the user's Drive. A preview is always recomputable from its photo,
+ * so its absence is valid in every archive, old or new, and nothing may depend on one existing.
+ * That is why this is not a format version bump: an older reader simply never looks at
+ * `thumbs/`, and an archive without previews is exactly as correct as one with them.
+ */
+export const THUMBNAILS = "thumbs/";
 
 export const SEALED_LAYOUT: ArchiveLayout = {
   sealed: true,
@@ -221,6 +234,7 @@ export const SEALED_LAYOUT: ArchiveLayout = {
   index: INDEX_PATH,
   chunk: chunkPath,
   media: (sha256) => mediaPath(sha256),
+  thumb: (sha256) => `${THUMBNAILS}${sha256}.enc`,
 };
 
 export const PLAIN_LAYOUT: ArchiveLayout = {
@@ -230,6 +244,7 @@ export const PLAIN_LAYOUT: ArchiveLayout = {
   index: PLAIN_INDEX_PATH,
   chunk: (index) => `chunks/${index}.jsonl`,
   media: (sha256, filename) => `media/${sha256}${extensionOf(filename)}`,
+  thumb: (sha256) => `${THUMBNAILS}${sha256}.jpg`,
 };
 
 export function layoutFor(header: ArchiveHeader): ArchiveLayout {

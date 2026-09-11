@@ -309,6 +309,23 @@ describe("offloadMedia", () => {
 });
 
 describe("pullArchive", () => {
+  it("keeps previews on the phone through an offload, and brings them back on a light restore", async () => {
+    const local = new MemoryStorageAdapter();
+    await writer(local).write(content("s1", [text(0, "Dana", "hi")], [photo(9)]));
+    await writer(local).addMissingThumbnails(async (bytes) => bytes.slice(0, 16));
+    const { adapter } = drive();
+    await pushArchive(local, adapter(), {}, { sha256Hex });
+    await offloadMedia(local, adapter());
+
+    expect(await local.list("media/")).toEqual([]);
+    expect(await local.list("thumbs/")).toHaveLength(1);
+
+    const newPhone = new MemoryStorageAdapter();
+    await pullArchive(adapter(), newPhone, { sha256Hex, skipMedia: true });
+    expect(await newPhone.list("thumbs/")).toHaveLength(1);
+    expect(await newPhone.list("media/")).toEqual([]);
+  });
+
   it("can restore just the messages, leaving photos in Drive", async () => {
     const original = new MemoryStorageAdapter();
     await writer(original).write(content("s1", [text(0, "Dana", "hi")], [photo(4)]));

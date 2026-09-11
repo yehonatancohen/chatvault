@@ -184,3 +184,69 @@ describe("renderTranscript", () => {
     );
   });
 });
+
+describe("previews (thumbs/)", () => {
+  const preview = async (bytes: Uint8Array) => bytes.slice(0, 8);
+  const video = Uint8Array.from({ length: 64 }, (_, i) => 255 - i);
+
+  it("are added for photos only, readable back, and never added twice", async () => {
+    const storage = new MemoryStorageAdapter();
+    const manifest = await plainWriter(storage).write(
+      content({
+        media: [
+          { filename: "IMG-0001.jpg", read: async () => photo },
+          { filename: "VID-0001.mp4", read: async () => video },
+        ],
+      }),
+    );
+
+    expect(await plainWriter(storage).addMissingThumbnails(preview)).toBe(1);
+    expect(await plainWriter(storage).addMissingThumbnails(preview)).toBe(0);
+
+    const reader = await ArchiveReader.open({ crypto, storage, archiveId: "arch-1" });
+    const photoRef = manifest.media.find((m) => m.filenames[0] === "IMG-0001.jpg")!;
+    const videoRef = manifest.media.find((m) => m.filenames[0] === "VID-0001.mp4")!;
+    expect(await reader.readThumbnail(photoRef.sha256)).toEqual(photo.slice(0, 8));
+    expect(await reader.readThumbnail(videoRef.sha256)).toBeUndefined();
+    expect(await storage.has(`thumbs/${photoRef.sha256}.jpg`)).toBe(true);
+  });
+
+  it("are sealed in a protected archive", async () => {
+    const storage = new MemoryStorageAdapter();
+    const sealed = () =>
+      new ArchiveWriter({ crypto, storage, archiveId: "arch-1", key: testKey(), keyWrapping: testKeyWrapping });
+    const manifest = await sealed().write(content({ media: [{ filename: "IMG-0001.jpg", read: async () => photo }] }));
+    await sealed().addMissingThumbnails(preview);
+
+    const sha = manifest.media[0]!.sha256;
+    const stored = await storage.get(`thumbs/${sha}.enc`);
+    expect(stored).not.toEqual(photo.slice(0, 8));
+    const reader = await ArchiveReader.open({ crypto, storage, archiveId: "arch-1", key: testKey() });
+    expect(await reader.readThumbnail(sha)).toEqual(photo.slice(0, 8));
+  });
+
+  it("carry on past a photo that cannot be previewed", async () => {
+    const storage = new MemoryStorageAdapter();
+    const other = Uint8Array.from({ length: 64 }, (_, i) => (i * 7) & 0xff);
+    await plainWriter(storage).write(
+      content({
+        media: [
+          { filename: "broken.jpg", read: async () => photo },
+          { filename: "fine.jpg", read: async () => other },
+        ],
+      }),
+    );
+    const flaky = async (bytes: Uint8Array) => {
+      if (bytes[1] === photo[1]) throw new Error("cannot decode");
+      return bytes.slice(0, 4);
+    };
+    expect(await plainWriter(storage).addMissingThumbnails(flaky)).toBe(1);
+  });
+
+  it("are simply absent from an archive that has none", async () => {
+    const storage = new MemoryStorageAdapter();
+    const manifest = await plainWriter(storage).write(content({ media: [{ filename: "a.jpg", read: async () => photo }] }));
+    const reader = await ArchiveReader.open({ crypto, storage, archiveId: "arch-1" });
+    expect(await reader.readThumbnail(manifest.media[0]!.sha256)).toBeUndefined();
+  });
+});

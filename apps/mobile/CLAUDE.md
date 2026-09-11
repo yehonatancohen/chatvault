@@ -214,7 +214,7 @@ app's real risk lives.
 |---|---|---|
 | Typecheck | `pnpm typecheck` | The code compiles. Nothing more. |
 | Core logic | `pnpm --filter @chatvault/core test` | Parsing/merge/crypto are correct — but that is `core`, not this app |
-| This app's pure-JS logic | `pnpm test` | 87 tests: the **whole import pipeline** (`lib/import`, every port injected), the crypto provider against WebCrypto, key wrapping across both providers, `ZipMediaSource`, formatting. Real evidence — and none of it is about Hermes, the Keychain or the filesystem |
+| This app's pure-JS logic | `pnpm test` | 174 tests: the **whole import pipeline** (`lib/import`, every port injected), the crypto provider against WebCrypto, key wrapping across both providers, `ZipMediaSource`, formatting. Real evidence — and none of it is about Hermes, the Keychain or the filesystem |
 | Any device or simulator | the **device checks** screen (`app/dev-storage.tsx`) | Two suites `pnpm test` cannot reach: the storage contract against the real filesystem adapter, and the crypto + import pipeline against Hermes, native SHA-256 and a real directory — including that this phone's AES-GCM and PBKDF2 match the bytes a browser produces |
 | Device + network + a throwaway Google account | **Run against Google Drive** on the same screen, with a pasted `drive.file` token | The storage contract against real Drive through `expo/fetch` (`lib/drive/drive-storage.ts`) — in particular that the HTTP stack hands back Drive's `308 Resume Incomplete` during chunked uploads rather than treating it as a redirect. No other test can tell you that |
 | Android device | `pnpm build:dev:android` | The import pipeline end to end — cheap, no Apple account |
@@ -325,6 +325,14 @@ Before adding a sentence to a screen, put it in Help instead.
   phone no longer has, with a small in-memory cache. Imports still write to the phone only
   (`storageFor`). A photo Drive cannot deliver shows a calm "couldn't load"; only one that fails
   its content-address check is called damaged.
+- **Exports are read in place, with no size limit** (`lib/media/zip-reader.ts` over
+  `file-random-access.ts`): the central directory once, then one entry at a time. The shared
+  export is deleted after a successful import — otherwise every import left a second full copy
+  of the chat on the phone — and `sweepOldShares` removes day-old leftovers of failed ones.
+- **Photo previews** (`lib/media/thumbnailer.ts`, `expo-image-manipulator`) are made right after
+  an import saves ("Making previews…"), and for older chats by the background pass before their
+  backup. They stay on the phone when photos move to Drive, so galleries, avatars and bubbles
+  draw instantly and offline (`lib/ui/media-uri.ts`); the lightbox swaps in the full photo.
 - **Drive folders are named after the chat** (plain chats; protected ones get a neutral name).
   "✓ In your Google Drive" opens that folder.
 - **Every screen below the tabs has a Home button** (`HomeButton` in `app/_layout.tsx`,

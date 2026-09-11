@@ -85,6 +85,7 @@ export {
   PLAIN_MANIFEST_PATH,
   SEALED_FORMAT_VERSION,
   SEALED_LAYOUT,
+  THUMBNAILS,
   TRANSCRIPT_PATH,
   UnsupportedFormatError,
   type ArchiveHeader,
@@ -106,6 +107,7 @@ export {
   type ArchiveParticipant,
   type ArchiveWriterOptions,
   type MediaBlob,
+  type Thumbnailer,
 } from "./archive/writer.js";
 export {
   ArchiveIntegrityError,
