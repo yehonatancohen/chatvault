@@ -1,6 +1,6 @@
 # Accounts, subscriptions and cloud storage — plan
 
-Status: **planning, nothing built** (except the chat icon, at the bottom). Written 2026-09-11
+Status: **Phase 1 in progress** — Google Drive storage, sign-in, backup and restore are built (see "Done" at the bottom); accounts and Standard mode are next. Written 2026-09-11
 after the product direction changed: Boydem gets real accounts and a subscription, and chats are
 stored in the user's own cloud storage. Supersedes Track C in `ROADMAP.md`. Root `CLAUDE.md`
 invariant 2 has been rewritten to match.
@@ -174,24 +174,27 @@ a phone) still comes first — everything below syncs what that pipeline produce
   duplicate names, removals go to the Drive trash. Passes the full storage contract (including
   streaming) against `FakeDrive` in CI, plus 15 Drive-specific tests. Mobile wiring over
   `expo/fetch` in `apps/mobile/lib/drive/drive-storage.ts`.
-  **Not yet run against real Google Drive** — see "Next" below.
+  **Passed the real-Drive contract on a physical iPhone** through `expo/fetch` (2026-09-11).
+- **Google sign-in (2026-09-11).** `@react-native-google-signin/google-signin`, iOS client in the
+  Google Cloud project, `drive.file` scope only. Account tab: connect / disconnect (revokes).
+  Verified on device.
+- **Backup and restore (2026-09-11).** `packages/storage/src/sync.ts` — `pushArchive` /
+  `pullArchive`, key-free, tested against real archives over `FakeDrive`. On the phone: backup
+  starts by itself on Verify after every import, "Back up now" in chat info, "Back up all" and
+  "Download them" (restore) on the Account tab. A restored chat shows locked until its
+  passphrase is entered. Copy that said "nothing is uploaded" / "no copy anywhere else" now
+  says what stays true: nothing goes to *our* servers, and the Drive copy is the user's.
+  **Not yet exercised on a device.**
 
-### Next — Phase 1, second half
+### Next — Phase 1, remaining
 
-1. **Real-Drive contract run** (no app setup needed): get a `drive.file` token from the OAuth
-   Playground with a throwaway Google account, then `GOOGLE_DRIVE_TEST_TOKEN=… pnpm --filter
-   @chatvault/storage test` on a laptop, and the "Run against Google Drive" button on the
-   phone's dev screen.
-2. **Google Cloud project** (owner's action): create a project, enable the Drive API, set up
-   the OAuth consent screen (app name, support email, `drive.file` scope), and create OAuth
-   client IDs — one iOS (bundle id `app.chatvault.mobile`), one Android, one Web.
-3. **Sign in with Google in the app** — recommended library
-   `@react-native-google-signin/google-signin`: one native sign-in gives both a Google ID token
-   (for the Supabase account) and a Drive access token (for the adapter), with refresh handled.
-   Needs the iOS client ID for its URL scheme, so it waits on step 2. Native dependency: follow
-   `apps/mobile/CLAUDE.md` → "Dependency pinning is load-bearing" and rebuild the dev client.
-4. **Sync**: after an import writes locally, copy the archive to Drive; on a new device, list
-   `Boydem/` and pull.
+1. **Device check of backup and restore**: import a chat with Drive connected, watch Verify
+   back it up, then remove it from the phone and restore it from the Account tab.
+2. **Two phones on one Drive** is detected (`diverged`) but not resolved. Resolving it means
+   pulling the other device's changes into a temporary copy and merging with `core` — needs the
+   key, so it belongs with the unlock flow.
+3. **Supabase account** — needs a Supabase project and a *Web* OAuth client ID (owner's
+   action). Then Standard mode (format v2, server-held wrapping key) and the free-tier limit.
 
 - **Chat icon (2026-09-11).** The library used to show the *smallest image in the chat* as its
   icon — usually a sticker — in the place people expect the real chat photo, which a WhatsApp

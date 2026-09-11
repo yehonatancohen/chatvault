@@ -26,6 +26,7 @@ import { fromBase64, toBase64 } from "../crypto/base64";
 import { getCryptoProvider } from "../crypto/expo-crypto-provider";
 import { unwrapArchiveKey } from "../crypto/key-wrapping";
 import { deletePreferences } from "./preferences";
+import { deleteBackupState } from "../drive/backup-state";
 import type { Language } from "../settings/settings";
 
 const ARCHIVES_DIRECTORY = "archives";
@@ -41,14 +42,15 @@ export function archivesRoot(): Directory {
  * "Where is my chat saved?" is a fair question with a genuinely reassuring answer, and until
  * now the app never gave it. The specifics that matter to a user are: it is a file on this
  * phone, inside this app, encrypted; it is in their iPhone backup so a lost phone does not
- * lose it; and no copy exists anywhere else.
+ * lose it. Whether a copy is also in their Google Drive is said beside it, by `DriveBackup`,
+ * from the backup state rather than from copy.
  */
 export function archiveLocationSummary(language: Language = "en"): string {
   return language === "he"
     ? "בתיקייה הפרטית של האפליקציה באייפון הזה, בתוך ספריית המסמכים שלכם — תיקייה מוצפנת אחת " +
-        "לכל צ׳אט. שום אפליקציה אחרת לא יכולה לקרוא אותה, ואין עותק בשום מקום אחר."
+        "לכל צ׳אט. שום אפליקציה אחרת לא יכולה לקרוא אותה."
     : "In this app's own folder on this iPhone, inside your Documents directory — one encrypted " +
-        "folder per chat. No other app can read it, and there is no copy anywhere else.";
+        "folder per chat. No other app can read it.";
 }
 
 export function newArchiveId(): string {
@@ -141,6 +143,14 @@ export async function deleteArchive(archiveId: string): Promise<void> {
     await deletePreferences(archiveId);
   } catch {
     // Cosmetic; see `lib/archive/preferences.ts`.
+  }
+
+  try {
+    // This phone's record of what it backed up. The copy in the user's Drive is theirs and is
+    // not touched — removing from this phone means this phone.
+    deleteBackupState(archiveId);
+  } catch {
+    // Disposable by design; see `lib/drive/backup-state.ts`.
   }
 }
 

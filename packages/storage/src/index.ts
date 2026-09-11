@@ -26,6 +26,14 @@ export {
 } from "./google-drive/folders.js";
 export { runLiveDriveContract } from "./google-drive/live-contract.js";
 export {
+  pullArchive,
+  pushArchive,
+  type PushResult,
+  type SyncLedger,
+  type SyncOptions,
+  type SyncProgress,
+} from "./sync.js";
+export {
   runStorageContract,
   storageContract,
   isContractSkip,

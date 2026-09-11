@@ -10,6 +10,7 @@ import { MediaGrid } from "../../../components/archive/MediaGrid";
 import { Lightbox, type LightboxSubject } from "../../../components/archive/Lightbox";
 import { RemoveArchiveSheet } from "../../../components/archive/RemoveArchiveSheet";
 import { ChatAvatar } from "../../../components/archive/ChatAvatar";
+import { DriveBackup } from "../../../components/archive/DriveBackup";
 import { useChatPhoto } from "../../../components/archive/useChatPhoto";
 import { createStyles, useApp } from "../../../components/app/providers";
 import { Callout, CalloutText, LinkRow, Row, Section } from "../../../components/app/ui";
@@ -286,6 +287,7 @@ export default function ArchiveInfoScreen() {
 
       <Section title={t("info.saved.title")}>
         <Text style={styles.body}>{archiveLocationSummary(language)}</Text>
+        <DriveBackup archiveId={archiveId} />
         <Text style={styles.hint}>{t("info.saved.noAccount")}</Text>
         <Text style={styles.hint}>{t("info.saved.backup")}</Text>
         <View style={styles.pathBox}>

@@ -10,6 +10,7 @@ import {
   restoreGoogleConnection,
   type GoogleConnection,
 } from "../../lib/drive/google-auth";
+import { backupAll, listRestorable, restoreArchive } from "../../lib/drive/device-sync";
 import { formatCount } from "../../lib/ui/format";
 import { space } from "../../lib/ui/theme";
 
@@ -34,7 +35,7 @@ import { space } from "../../lib/ui/theme";
  * as the same kind of statement.
  */
 export default function AccountScreen() {
-  const { t } = useApp();
+  const { t, tp } = useApp();
   const styles = useStyles();
   const [archiveCount, setArchiveCount] = useState(0);
   const [google, setGoogle] = useState<GoogleConnection | null>(null);
@@ -68,6 +69,68 @@ export default function AccountScreen() {
   }, []);
 
   const connect = useCallback(() => run(connectGoogleDrive), [run]);
+
+  // What the user's Drive holds that this phone does not — a new phone's way back to its chats.
+  const [restorable, setRestorable] = useState<string[] | undefined>(undefined);
+  const [restore, setRestore] = useState<{ kind: "idle" } | { kind: "running"; n: number } | { kind: "done" }>({
+    kind: "idle",
+  });
+  const [backupSummary, setBackupSummary] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!google?.hasDrive) {
+      setRestorable(undefined);
+      return;
+    }
+    let stale = false;
+    listRestorable()
+      .then((ids) => {
+        if (!stale) setRestorable(ids);
+      })
+      .catch((error: unknown) => {
+        if (!stale) setProblem(error instanceof Error ? error.message : String(error));
+      });
+    return () => {
+      stale = true;
+    };
+  }, [google]);
+
+  const backUpAll = useCallback(async () => {
+    setBusy(true);
+    setBackupSummary(undefined);
+    try {
+      const { ok, failed } = await backupAll();
+      setBackupSummary(
+        failed === 0
+          ? t("account.drive.backupAllDone", { ok: formatCount(ok) })
+          : t("account.drive.backupAllFailed", { ok: formatCount(ok), failed: formatCount(failed) }),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [t]);
+
+  /** One at a time: each is a full download, and a phone on mobile data should not fan out. */
+  const restoreAll = useCallback(async () => {
+    if (restorable === undefined) return;
+    setBusy(true);
+    setProblem(undefined);
+    try {
+      for (const [i, archiveId] of restorable.entries()) {
+        setRestore({ kind: "running", n: i + 1 });
+        await restoreArchive(archiveId);
+      }
+      setRestore({ kind: "done" });
+      setArchiveCount(listArchiveIds().length);
+      setRestorable([]);
+    } catch (error) {
+      setRestore({ kind: "idle" });
+      setProblem(error instanceof Error ? error.message : String(error));
+      setRestorable(await listRestorable().catch(() => restorable));
+    } finally {
+      setBusy(false);
+    }
+  }, [restorable]);
   const disconnect = useCallback(
     () =>
       run(async () => {
@@ -99,7 +162,10 @@ export default function AccountScreen() {
           label={t("account.status.drive")}
           value={google?.hasDrive ? google.email : t("account.status.driveNone")}
         />
-        <Row label={t("account.status.storage")} value={t("account.status.storageValue")} />
+        <Row
+          label={t("account.status.storage")}
+          value={t(google?.hasDrive ? "account.status.storageDrive" : "account.status.storageValue")}
+        />
         <Row label={t("account.status.uploaded")} value={t("account.status.uploadedValue")} />
         <Row label={t("account.status.archives")} value={formatCount(archiveCount)} />
       </Section>
@@ -121,6 +187,36 @@ export default function AccountScreen() {
               {t("account.drive.connected", { email: google.email })}
             </Text>
             <Text style={styles.sectionBody}>{t("account.drive.next")}</Text>
+            <Button
+              label={t("account.drive.backupAll")}
+              onPress={() => void backUpAll()}
+              disabled={busy || archiveCount === 0}
+            />
+            {backupSummary !== undefined && <Text style={styles.sectionBody}>{backupSummary}</Text>}
+
+            {restorable !== undefined &&
+              (restore.kind === "running" ? (
+                <Text style={styles.sectionBody}>
+                  {t("account.drive.restoring", {
+                    n: formatCount(restore.n),
+                    count: formatCount(restorable.length),
+                  })}
+                </Text>
+              ) : restore.kind === "done" ? (
+                <Text style={styles.connected}>{t("account.drive.restored")}</Text>
+              ) : restorable.length === 0 ? (
+                <Text style={styles.sectionBody}>{t("account.drive.restoreNone")}</Text>
+              ) : (
+                <>
+                  <Text style={styles.sectionBody}>
+                    {t("account.drive.restoreFound", {
+                      count: tp("common.archives", restorable.length),
+                    })}
+                  </Text>
+                  <Button label={t("account.drive.restore")} onPress={() => void restoreAll()} disabled={busy} />
+                </>
+              ))}
+
             <Button
               label={t("account.drive.disconnect")}
               tone="quiet"

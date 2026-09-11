@@ -5,9 +5,12 @@ import type { ImportSource } from "../types.js";
 /**
  * The `.cvault` archive format.
  *
- * Append-only and content-addressed, so that merging is a set union and media deduplication
- * is a consequence of the layout rather than a step in the code. Chunks are never rewritten;
- * a new import adds chunks and replaces the manifest.
+ * Content-addressed media, so that media deduplication is a consequence of the layout rather
+ * than a step in the code: a `media/` object is written once and never again. **Chunks are not
+ * immutable** — `ArchiveWriter.commit` re-seals a chunk whose messages changed (a new export can
+ * fill in an omitted attachment or add a source), reusing only byte-identical ones — and the
+ * manifest and index are rewritten on every import. Anything that copies archives between
+ * storages must re-send changed chunks, not just missing ones (`@chatvault/storage` → `sync.ts`).
  *
  * ```
  * header.json            CLEARTEXT: format version, archive id, KDF params, wrapped key

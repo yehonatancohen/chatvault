@@ -16,7 +16,8 @@
  * - **Nothing may claim the app deletes anything from WhatsApp or frees storage** (root
  *   CLAUDE.md, invariant 1). The Hebrew says מוחקים בעצמכם / "you delete it yourselves"
  *   wherever the English says the app guides rather than acts.
- * - **Nothing may imply anything is uploaded.** "on this phone" / "בטלפון הזה" is load-bearing
+ * - **Nothing may imply anything is sent to our servers**, and a copy in the user's Google Drive
+ *   is always named as *their* Drive. "on this phone" / "בטלפון הזה" is still load-bearing
  *   copy, not reassurance boilerplate.
  *
  * The media-gap wording is *not* here: it is computed from counts in `lib/ui/media-explanation.ts`,
@@ -91,7 +92,7 @@ const en = {
   "add.step.5": "In the share sheet that opens, pick {app}.",
   "add.waiting.title": "Then come back here",
   "add.waiting.body":
-    "The import screen opens by itself when the export arrives. Nothing is uploaded — parsing, encrypting and writing all happen on this phone.",
+    "The import screen opens by itself when the export arrives. Parsing, encrypting and writing all happen on this phone, and nothing is sent to our servers.",
   "add.limits.title": "Two things worth knowing first",
   "add.limits.cap":
     "WhatsApp caps an export at about 40,000 messages, or 10,000 if you include media, counting back from the most recent. Archiving again later picks up where this one stops — and so does anyone else in the group who archives their own copy.",
@@ -105,12 +106,24 @@ const en = {
   "account.title": "Account",
   "account.none.title": "You do not have one, and you do not need one",
   "account.none.body":
-    "{app} has no sign-up, no login and no server. Your archives are encrypted on this phone with a passphrase only you hold, and nothing has ever been uploaded.",
+    "{app} has no sign-up yet, and nothing you archive is ever sent to our servers. Your archives are encrypted on this phone with a passphrase only you hold — and if you connect Google Drive, the same encrypted files are copied to your own Drive, not ours.",
   "account.why.title": "So what would an account be for?",
   "account.why.body":
     "One thing only: saving archives somewhere other than this phone. Google Drive, iCloud or a link you send to someone else in the chat — each needs somewhere to sign in, and that is when an account starts to exist.",
   "account.why.promise":
     "It will not change where the encryption happens. The key is derived on your device and the server is built so it cannot hold one — a share link carries the key in the part of the URL a browser never sends.",
+  "backup.section": "Copy in Google Drive",
+  "backup.notConnected":
+    "Only on this phone. Connect Google Drive on the Account tab to keep an encrypted copy in your own Drive.",
+  "backup.running": "Backing up to your Google Drive…",
+  "backup.progress": "{done} of {total}",
+  "backup.done": "Backed up to your Google Drive · {when}",
+  "backup.never": "Not in your Google Drive yet.",
+  "backup.now": "Back up now",
+  "backup.retry": "Try again",
+  "backup.diverged":
+    "The copy in your Drive was changed from another phone since this one last backed it up, so it was left as it is.",
+  "backup.failed": "The backup didn't finish ({message}). Trying again picks up where it stopped.",
   "account.drive.title": "Google Drive",
   "account.drive.body":
     "Connect your Google account and {app} can keep your chats in your own Drive, in a folder called {app}. It can only see the files it creates — nothing else in your Drive — and nothing passes through our servers.",
@@ -119,20 +132,29 @@ const en = {
   "account.drive.noScope":
     "You signed in, but Drive access wasn't allowed. Connect again and tick Google Drive on Google's screen.",
   "account.drive.disconnect": "Disconnect",
-  "account.drive.next": "Copying chats to your Drive comes next — connecting uploads nothing yet.",
+  "account.drive.next": "New chats are backed up to your Drive right after you import them.",
+  "account.drive.backupAll": "Back up all chats now",
+  "account.drive.backupAllDone": "{ok} backed up",
+  "account.drive.backupAllFailed": "{ok} backed up, {failed} not — open a chat to see why",
+  "account.drive.restoreFound": "In your Drive but not on this phone: {count}",
+  "account.drive.restoreNone": "Every chat in your Drive is already on this phone.",
+  "account.drive.restore": "Download them",
+  "account.drive.restoring": "Downloading {n} of {count}…",
+  "account.drive.restored": "Downloaded. They are in your chats, locked — open each one with its passphrase.",
   "account.drive.error": "Couldn't connect: {message}",
   "account.status.drive": "Google Drive",
   "account.status.driveNone": "Not connected",
   "account.status.title": "Today",
   "account.status.storage": "Storage",
   "account.status.storageValue": "This phone only",
-  "account.status.uploaded": "Uploaded",
+  "account.status.storageDrive": "This phone and your Google Drive",
+  "account.status.uploaded": "Sent to our servers",
   "account.status.uploadedValue": "Nothing, ever",
   "account.status.signedIn": "Signed in as",
   "account.status.signedInValue": "No one",
   "account.status.archives": "Archives on this phone",
   "account.footnote":
-    "When cloud destinations arrive, this screen is where you will connect one. Until then there is genuinely nothing here — which is the point.",
+    "Your Drive holds the same encrypted files as this phone. Anyone who opens them there — Google included — sees nothing without your passphrase.",
 
   // ── Settings tab ────────────────────────────────────────────────────────────────────────
   "settings.title": "Settings",
@@ -153,7 +175,7 @@ const en = {
   "settings.about.version": "Version",
   "settings.about.format": "Archive format",
   "settings.about.body":
-    "{app} turns a WhatsApp export into an encrypted archive you own, then shows you how to delete the original yourself. It cannot delete anything from WhatsApp, and it never uploads anything.",
+    "{app} turns a WhatsApp export into an encrypted archive you own, then shows you how to delete the original yourself. It cannot delete anything from WhatsApp, and it never sends your chats to our servers — the only copy outside this phone is the one you choose to keep in your own Google Drive.",
   "settings.dev.title": "Developer",
   "settings.dev.checks": "Run the device checks",
   "settings.dev.checksNote":
@@ -171,8 +193,8 @@ const en = {
   "import.note.writing": "Encrypting every file on this phone — a large export can take a while.",
   "import.note.deriving":
     "Deliberately slow, so a stolen archive cannot be guessed at. Takes a moment.",
-  "import.note.local": "Everything happens here; nothing is uploaded.",
-  "import.onThisPhone": "Everything happens on this phone. Nothing is uploaded.",
+  "import.note.local": "Everything happens here; nothing is sent to our servers.",
+  "import.onThisPhone": "Everything happens on this phone. Nothing is sent to our servers.",
   "import.choose.heading": "Choose a passphrase",
   "import.unlock.heading": "Unlock {chat}",
   "import.choose.body":
@@ -319,7 +341,7 @@ const en = {
   "info.sources.platform": "{contributor} · {platform} export",
   "info.saved.title": "Where this is saved",
   "info.saved.noAccount":
-    "Nothing has ever been uploaded — there is no account and no server involved. The archive is encrypted before it is written, so even the files themselves give nothing away without your passphrase.",
+    "Nothing is ever sent to our servers. The archive is encrypted before it is written, so the files give nothing away without your passphrase — on this phone and in your Google Drive alike.",
   "info.saved.backup":
     "It is included in your iPhone backup, which is what lets it survive a lost phone. The key is not: the Keychain entry stays on this device, so after restoring to a new phone the archive opens with your passphrase, and only with your passphrase.",
   "info.archive.title": "Archive",
@@ -346,10 +368,10 @@ const en = {
   "remove.broken.body":
     "This archive does not open, so there is nothing in it to lose by removing it. Its folder and its key are deleted from this phone.",
   "remove.locked.body":
-    "This archive is locked and this phone does not hold its key. If you still know the passphrase, unlocking it is worth trying before removing it — once it is gone from this phone there is no copy anywhere else.",
+    "This archive is locked and this phone does not hold its key. If you still know the passphrase, unlocking it is worth trying before removing it — once it is gone from this phone, the only copy left is one in your Google Drive, if you backed it up.",
   "remove.ready.body":
-    "This deletes {messages} and {files} from this phone. There is no copy on any server and no way to undo it. If you have already deleted this chat in WhatsApp, this is the only copy that exists.",
-  "remove.ready.confirm": "I understand this is permanent and there is no other copy",
+    "This deletes {messages} and {files} from this phone, and it cannot be undone. A copy in your own Google Drive, if you backed this chat up, is not touched. Otherwise — if you have already deleted this chat in WhatsApp — this is the only copy that exists.",
+  "remove.ready.confirm": "I understand this is permanent on this phone",
   "remove.cta": "Remove from this phone",
   "remove.working": "Removing...",
   "remove.failed": "Could not remove this archive: {error}",
@@ -427,7 +449,7 @@ const he: Record<StringKey, string> = {
   "add.step.5": "בתפריט השיתוף שנפתח, בחרו את {app}.",
   "add.waiting.title": "ואז חזרו לכאן",
   "add.waiting.body":
-    "מסך הייבוא נפתח מעצמו ברגע שהייצוא מגיע. שום דבר לא מועלה לשום מקום — הפענוח, ההצפנה והכתיבה קורים כולם בטלפון הזה.",
+    "מסך הייבוא נפתח מעצמו ברגע שהייצוא מגיע. הפענוח, ההצפנה והכתיבה קורים כולם בטלפון הזה, ושום דבר לא נשלח לשרתים שלנו.",
   "add.limits.title": "שני דברים שכדאי לדעת מראש",
   "add.limits.cap":
     "וואטסאפ מגבילה ייצוא לכ־40,000 הודעות, או 10,000 אם צירפתם מדיה, לאחור מההודעה האחרונה. ארכוב נוסף בהמשך ימשיך מהמקום שבו הייצוא הזה נעצר — וכך גם כל אחד אחר בקבוצה שמארכב את העותק שלו.",
@@ -441,12 +463,24 @@ const he: Record<StringKey, string> = {
   "account.title": "חשבון",
   "account.none.title": "אין לכם, ולא צריך",
   "account.none.body":
-    "ל{app} אין הרשמה, אין התחברות ואין שרת. הארכיונים שלכם מוצפנים בטלפון הזה בסיסמת מעבר שרק אתם מחזיקים, ושום דבר מעולם לא הועלה לשום מקום.",
+    "ל{app} עדיין אין הרשמה, ושום דבר שאתם מארכבים לא נשלח אף פעם לשרתים שלנו. הארכיונים מוצפנים בטלפון הזה בסיסמת מעבר שרק אתם מחזיקים — ואם תחברו את Google Drive, אותם קבצים מוצפנים יועתקו ל-Drive שלכם, לא שלנו.",
   "account.why.title": "אז בשביל מה בכלל חשבון?",
   "account.why.body":
     "בשביל דבר אחד: לשמור ארכיונים במקום נוסף מלבד הטלפון הזה. גוגל דרייב, אייקלאוד, או קישור שאתם שולחים למישהו אחר בצ׳אט — לכל אחד מהם צריך להתחבר איפשהו, ורק אז מתחיל להיות חשבון.",
   "account.why.promise":
     "זה לא ישנה איפה מתבצעת ההצפנה. המפתח נגזר במכשיר שלכם, והשרת בנוי כך שאינו יכול להחזיק מפתח — קישור שיתוף נושא את המפתח בחלק של הכתובת שדפדפן לעולם לא שולח.",
+  "backup.section": "עותק ב-Google Drive",
+  "backup.notConnected":
+    "נמצא רק בטלפון הזה. חברו את Google Drive בלשונית החשבון כדי לשמור עותק מוצפן ב-Drive שלכם.",
+  "backup.running": "מגבה ל-Google Drive שלכם…",
+  "backup.progress": "{done} מתוך {total}",
+  "backup.done": "מגובה ב-Google Drive שלכם · {when}",
+  "backup.never": "עדיין לא נמצא ב-Google Drive שלכם.",
+  "backup.now": "גיבוי עכשיו",
+  "backup.retry": "ניסיון נוסף",
+  "backup.diverged":
+    "העותק ב-Drive שלכם שונה מטלפון אחר מאז שהטלפון הזה גיבה אותו לאחרונה, ולכן הוא נשאר כמו שהוא.",
+  "backup.failed": "הגיבוי לא הושלם ({message}). ניסיון נוסף ימשיך מהמקום שבו נעצר.",
   "account.drive.title": "Google Drive",
   "account.drive.body":
     "חברו את חשבון הגוגל שלכם ו{app} תוכל לשמור את הצ׳אטים ב-Drive שלכם, בתיקייה בשם {app}. היא רואה רק את הקבצים שהיא יצרה — שום דבר אחר ב-Drive — ושום דבר לא עובר דרך השרתים שלנו.",
@@ -455,20 +489,29 @@ const he: Record<StringKey, string> = {
   "account.drive.noScope":
     "נכנסתם, אבל לא אישרתם גישה ל-Drive. התחברו שוב וסמנו את Google Drive במסך של גוגל.",
   "account.drive.disconnect": "ניתוק",
-  "account.drive.next": "העתקת צ׳אטים ל-Drive מגיעה בשלב הבא — החיבור עצמו לא מעלה עדיין כלום.",
+  "account.drive.next": "צ׳אטים חדשים מגובים ל-Drive שלכם מיד אחרי הייבוא.",
+  "account.drive.backupAll": "גיבוי כל הצ׳אטים עכשיו",
+  "account.drive.backupAllDone": "{ok} גובו",
+  "account.drive.backupAllFailed": "{ok} גובו, {failed} לא — פתחו צ׳אט כדי לראות למה",
+  "account.drive.restoreFound": "ב-Drive שלכם אבל לא בטלפון הזה: {count}",
+  "account.drive.restoreNone": "כל הצ׳אטים ב-Drive שלכם כבר נמצאים בטלפון הזה.",
+  "account.drive.restore": "הורדה",
+  "account.drive.restoring": "מוריד {n} מתוך {count}…",
+  "account.drive.restored": "הורד. הצ׳אטים נמצאים ברשימה, נעולים — פתחו כל אחד עם סיסמת המעבר שלו.",
   "account.drive.error": "החיבור נכשל: {message}",
   "account.status.drive": "Google Drive",
   "account.status.driveNone": "לא מחובר",
   "account.status.title": "נכון להיום",
   "account.status.storage": "אחסון",
   "account.status.storageValue": "הטלפון הזה בלבד",
-  "account.status.uploaded": "הועלה",
+  "account.status.storageDrive": "הטלפון הזה וה-Google Drive שלכם",
+  "account.status.uploaded": "נשלח לשרתים שלנו",
   "account.status.uploadedValue": "כלום, אף פעם",
   "account.status.signedIn": "מחוברים בתור",
   "account.status.signedInValue": "אף אחד",
   "account.status.archives": "ארכיונים בטלפון הזה",
   "account.footnote":
-    "כשיגיעו יעדי אחסון בענן, המסך הזה הוא המקום שבו תחברו אחד. עד אז באמת אין כאן כלום — וזו בדיוק הנקודה.",
+    "ב-Drive שלכם נמצאים אותם קבצים מוצפנים כמו בטלפון הזה. מי שיפתח אותם שם — כולל גוגל — לא יראה כלום בלי סיסמת המעבר שלכם.",
 
   // ── Settings tab ────────────────────────────────────────────────────────────────────────
   "settings.title": "הגדרות",
@@ -489,7 +532,7 @@ const he: Record<StringKey, string> = {
   "settings.about.version": "גרסה",
   "settings.about.format": "פורמט הארכיון",
   "settings.about.body":
-    "{app} הופכת ייצוא מוואטסאפ לארכיון מוצפן שהוא שלכם, ואז מראה לכם איך למחוק את המקור בעצמכם. היא לא יכולה למחוק שום דבר מוואטסאפ, והיא לא מעלה שום דבר לשום מקום.",
+    "{app} הופכת ייצוא מוואטסאפ לארכיון מוצפן שהוא שלכם, ואז מראה לכם איך למחוק את המקור בעצמכם. היא לא יכולה למחוק שום דבר מוואטסאפ, והיא אף פעם לא שולחת את הצ׳אטים שלכם לשרתים שלנו — העותק היחיד מחוץ לטלפון הוא זה שתבחרו לשמור ב-Google Drive שלכם.",
   "settings.dev.title": "פיתוח",
   "settings.dev.checks": "הרצת בדיקות המכשיר",
   "settings.dev.checksNote":
@@ -506,8 +549,8 @@ const he: Record<StringKey, string> = {
   "import.note.counts": "{messages}, {size} של ייצוא.",
   "import.note.writing": "מצפינים כל קובץ בטלפון הזה — ייצוא גדול יכול לקחת זמן.",
   "import.note.deriving": "איטי בכוונה, כדי שלא יהיה אפשר לנחש ארכיון גנוב. לוקח רגע.",
-  "import.note.local": "הכול קורה כאן; שום דבר לא מועלה לשום מקום.",
-  "import.onThisPhone": "הכול קורה בטלפון הזה. שום דבר לא מועלה לשום מקום.",
+  "import.note.local": "הכול קורה כאן; שום דבר לא נשלח לשרתים שלנו.",
+  "import.onThisPhone": "הכול קורה בטלפון הזה. שום דבר לא נשלח לשרתים שלנו.",
   "import.choose.heading": "בחרו סיסמת מעבר",
   "import.unlock.heading": "פתיחת {chat}",
   "import.choose.body":
@@ -652,7 +695,7 @@ const he: Record<StringKey, string> = {
   "info.sources.platform": "{contributor} · ייצוא מ־{platform}",
   "info.saved.title": "איפה זה נשמר",
   "info.saved.noAccount":
-    "שום דבר מעולם לא הועלה לשום מקום — אין כאן חשבון ואין שרת. הארכיון מוצפן לפני שהוא נכתב, כך שגם הקבצים עצמם לא מסגירים דבר בלי סיסמת המעבר שלכם.",
+    "שום דבר לא נשלח אף פעם לשרתים שלנו. הארכיון מוצפן לפני שהוא נכתב, כך שהקבצים לא מסגירים דבר בלי סיסמת המעבר שלכם — בטלפון הזה וב-Google Drive שלכם כאחד.",
   "info.saved.backup":
     "הוא כלול בגיבוי של האייפון, וזה מה שמאפשר לו לשרוד טלפון אבוד. המפתח לא: הרשומה במחזיק המפתחות נשארת במכשיר הזה, ולכן אחרי שחזור לטלפון חדש הארכיון נפתח עם סיסמת המעבר שלכם, ורק איתה.",
   "info.archive.title": "ארכיון",
@@ -679,10 +722,10 @@ const he: Record<StringKey, string> = {
   "remove.broken.body":
     "הארכיון הזה לא נפתח, ולכן אין בו שום דבר להפסיד בהסרה. התיקייה שלו והמפתח שלו יימחקו מהטלפון הזה.",
   "remove.locked.body":
-    "הארכיון הזה נעול והטלפון הזה לא מחזיק את המפתח שלו. אם אתם עדיין זוכרים את סיסמת המעבר, כדאי לנסות לפתוח אותו לפני שמסירים — ברגע שהוא נעלם מהטלפון הזה אין עותק בשום מקום אחר.",
+    "הארכיון הזה נעול והטלפון הזה לא מחזיק את המפתח שלו. אם אתם עדיין זוכרים את סיסמת המעבר, כדאי לנסות לפתוח אותו לפני שמסירים — ברגע שהוא נעלם מהטלפון הזה, העותק היחיד שנשאר הוא זה שב-Google Drive שלכם, אם גיביתם אותו.",
   "remove.ready.body":
-    "הפעולה הזו מוחקת {messages} ו{files} מהטלפון הזה. אין עותק באף שרת ואין שום דרך לבטל. אם כבר מחקתם את הצ׳אט הזה בוואטסאפ, זה העותק היחיד שקיים.",
-  "remove.ready.confirm": "אני מבין שזה לצמיתות ושאין שום עותק אחר",
+    "הפעולה הזו מוחקת {messages} ו{files} מהטלפון הזה, ואין דרך לבטל אותה. עותק ב-Google Drive שלכם, אם גיביתם את הצ׳אט, לא נפגע. אחרת — אם כבר מחקתם את הצ׳אט בוואטסאפ — זה העותק היחיד שקיים.",
+  "remove.ready.confirm": "אני מבין שזה לצמיתות בטלפון הזה",
   "remove.cta": "הסרה מהטלפון הזה",
   "remove.working": "מסירים...",
   "remove.failed": "לא הצלחנו להסיר את הארכיון הזה: {error}",

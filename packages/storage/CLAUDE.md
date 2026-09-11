@@ -89,6 +89,14 @@ anything reaches this layer.
     overlapping or gapped ranges, which is what keeps that honest.
   - No `URLSearchParams`, no `TextEncoder`: Hermes support for both is partial. Request JSON is
     ASCII-escaped (`asciiJson`) so it becomes bytes without an encoder.
+- **Sync (`src/sync.ts`) copies archives between storages without the key.** `pushArchive`
+  (phone → Drive) and `pullArchive` (Drive → a new phone). Media is write-once, so present means
+  done; everything else can be rewritten, so a ledger of ciphertext hashes decides what to
+  re-send. Push writes the manifest last; pull writes the header last (the app lists an archive
+  only once its header exists). A Drive copy changed by another device is reported as
+  `diverged` and never overwritten. Tested against real core archives over `FakeDrive`
+  (`sync.test.ts`) — including an append that rewrites a chunk, which is the case a
+  "copy what's missing" sync gets silently wrong.
 - **Streaming matters for media.** `put`/`get` take a whole `Uint8Array`; a 40 MB video
   buffered whole is how a mobile process gets killed. Implement `putStream`/`getStream` and set
   `capabilities().streaming` for any adapter that will carry media.

@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { takeImportSession, type ImportSession } from "../lib/import/session";
 import { createStyles, useApp } from "../components/app/providers";
 import { Button, Callout, CalloutText, Row, Section, Step } from "../components/app/ui";
+import { DriveBackup } from "../components/archive/DriveBackup";
 import { formatBytes, formatCount, formatRange } from "../lib/ui/format";
 import { explainMedia } from "../lib/ui/media-explanation";
 import { summarizeParticipants } from "../lib/ui/participants";
@@ -161,6 +162,14 @@ export default function VerifyScreen() {
 
       <Section title={t("verify.check.title")}>
         <Text style={styles.body}>{t("verify.check.body")}</Text>
+      </Section>
+
+      {/*
+        Starts a backup by itself when Drive is connected: the minute after archiving is when a
+        second copy matters most, and the next button offers to help delete the original.
+      */}
+      <Section title={t("backup.section")}>
+        <DriveBackup archiveId={session.archiveId} autoStart />
       </Section>
 
       <Button
