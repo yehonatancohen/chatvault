@@ -24,6 +24,9 @@ const IDENTICAL_BY_DESIGN = new Set<StringKey>([
   "settings.language.en",
   // Placeholders and a separator, with no words in it to translate.
   "info.media.facts",
+  // A product name, which Google itself leaves in English in its Hebrew UI.
+  "account.drive.title",
+  "account.status.drive",
 ]);
 
 function placeholdersIn(template: string): Set<string> {

@@ -146,14 +146,17 @@ export class DriveClient {
 
       if (response.status === 401) {
         if (refreshed) {
-          throw new DriveAuthError("Google Drive rejected the access token after a refresh");
+          throw new DriveAuthError(
+            `Google Drive rejected the access token after a refresh: ${await errorMessage(response)}`,
+          );
         }
         refreshed = true;
         attempt -= 1; // a token refresh is not a failed attempt
         continue;
       }
 
-      const reason = await errorReason(response);
+      const body = await response.text().catch(() => "");
+      const reason = errorReason(body);
       const retryable =
         RETRYABLE_STATUS.has(response.status) ||
         (response.status === 403 && reason !== undefined && RATE_LIMIT_REASONS.has(reason));
@@ -165,7 +168,8 @@ export class DriveClient {
       throw new DriveError(
         response.status,
         reason,
-        `Google Drive ${init.method} ${redact(url)} failed: ${response.status}${reason ? ` (${reason})` : ""}`,
+        `Google Drive ${init.method} ${redact(url)} failed: ${response.status}` +
+          `${reason ? ` (${reason})` : ""}${messageOf(body) ? ` — ${messageOf(body)}` : ""}`,
       );
     }
   }
@@ -262,15 +266,31 @@ export function queryString(params: Readonly<Record<string, string>>): string {
   return new URLSearchParamsLite(params).toString();
 }
 
-async function errorReason(response: DriveResponse): Promise<string | undefined> {
+interface GoogleErrorBody {
+  error?: { errors?: { reason?: string }[]; status?: string; message?: string };
+}
+
+function parseError(body: string): GoogleErrorBody {
   try {
-    const body = JSON.parse(await response.text()) as {
-      error?: { errors?: { reason?: string }[]; status?: string };
-    };
-    return body.error?.errors?.[0]?.reason ?? body.error?.status;
+    return JSON.parse(body) as GoogleErrorBody;
   } catch {
-    return undefined;
+    return {};
   }
+}
+
+function errorReason(body: string): string | undefined {
+  const parsed = parseError(body);
+  return parsed.error?.errors?.[0]?.reason ?? parsed.error?.status;
+}
+
+/** Google's own sentence about what went wrong — the part that says *which* auth problem it is. */
+function messageOf(body: string): string | undefined {
+  return parseError(body).error?.message;
+}
+
+async function errorMessage(response: DriveResponse): Promise<string> {
+  const body = await response.text().catch(() => "");
+  return messageOf(body) ?? errorReason(body) ?? `HTTP ${response.status}`;
 }
 
 /** Drop the query string from a URL before it goes into an error message or a log. */

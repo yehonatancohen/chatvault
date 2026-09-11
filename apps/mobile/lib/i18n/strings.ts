@@ -111,6 +111,18 @@ const en = {
     "One thing only: saving archives somewhere other than this phone. Google Drive, iCloud or a link you send to someone else in the chat — each needs somewhere to sign in, and that is when an account starts to exist.",
   "account.why.promise":
     "It will not change where the encryption happens. The key is derived on your device and the server is built so it cannot hold one — a share link carries the key in the part of the URL a browser never sends.",
+  "account.drive.title": "Google Drive",
+  "account.drive.body":
+    "Connect your Google account and {app} can keep your chats in your own Drive, in a folder called {app}. It can only see the files it creates — nothing else in your Drive — and nothing passes through our servers.",
+  "account.drive.connect": "Connect Google Drive",
+  "account.drive.connected": "Connected as {email}",
+  "account.drive.noScope":
+    "You signed in, but Drive access wasn't allowed. Connect again and tick Google Drive on Google's screen.",
+  "account.drive.disconnect": "Disconnect",
+  "account.drive.next": "Copying chats to your Drive comes next — connecting uploads nothing yet.",
+  "account.drive.error": "Couldn't connect: {message}",
+  "account.status.drive": "Google Drive",
+  "account.status.driveNone": "Not connected",
   "account.status.title": "Today",
   "account.status.storage": "Storage",
   "account.status.storageValue": "This phone only",
@@ -435,6 +447,18 @@ const he: Record<StringKey, string> = {
     "בשביל דבר אחד: לשמור ארכיונים במקום נוסף מלבד הטלפון הזה. גוגל דרייב, אייקלאוד, או קישור שאתם שולחים למישהו אחר בצ׳אט — לכל אחד מהם צריך להתחבר איפשהו, ורק אז מתחיל להיות חשבון.",
   "account.why.promise":
     "זה לא ישנה איפה מתבצעת ההצפנה. המפתח נגזר במכשיר שלכם, והשרת בנוי כך שאינו יכול להחזיק מפתח — קישור שיתוף נושא את המפתח בחלק של הכתובת שדפדפן לעולם לא שולח.",
+  "account.drive.title": "Google Drive",
+  "account.drive.body":
+    "חברו את חשבון הגוגל שלכם ו{app} תוכל לשמור את הצ׳אטים ב-Drive שלכם, בתיקייה בשם {app}. היא רואה רק את הקבצים שהיא יצרה — שום דבר אחר ב-Drive — ושום דבר לא עובר דרך השרתים שלנו.",
+  "account.drive.connect": "חיבור Google Drive",
+  "account.drive.connected": "מחובר בתור {email}",
+  "account.drive.noScope":
+    "נכנסתם, אבל לא אישרתם גישה ל-Drive. התחברו שוב וסמנו את Google Drive במסך של גוגל.",
+  "account.drive.disconnect": "ניתוק",
+  "account.drive.next": "העתקת צ׳אטים ל-Drive מגיעה בשלב הבא — החיבור עצמו לא מעלה עדיין כלום.",
+  "account.drive.error": "החיבור נכשל: {message}",
+  "account.status.drive": "Google Drive",
+  "account.status.driveNone": "לא מחובר",
   "account.status.title": "נכון להיום",
   "account.status.storage": "אחסון",
   "account.status.storageValue": "הטלפון הזה בלבד",

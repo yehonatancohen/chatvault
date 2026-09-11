@@ -14,7 +14,8 @@ import {
   runStorageContract,
   type ContractResult,
 } from "@chatvault/storage";
-import { createDriveClient } from "../lib/drive/drive-storage";
+import { createDriveClient, type AccessTokenProvider } from "../lib/drive/drive-storage";
+import { googleAccessToken, restoreGoogleConnection } from "../lib/drive/google-auth";
 import { ExpoFileSystemStorageAdapter } from "../lib/storage/expo-file-system-adapter";
 import { runPipelineChecks } from "../lib/dev/pipeline-check";
 import { createStyles } from "../components/app/providers";
@@ -110,16 +111,26 @@ export default function DevStorageScreen() {
    * Separate from the button above because it needs a token and a network, and because it is
    * checking something different: not this phone's filesystem but how this phone's HTTP stack
    * talks to Drive — in particular whether it hands back Drive's `308 Resume Incomplete` during
-   * a chunked upload instead of treating it as a redirect. Until Google sign-in exists, the
-   * token is pasted from https://developers.google.com/oauthplayground (scope `drive.file`,
-   * **a throwaway account**). It is held in memory for this screen only.
+   * a chunked upload instead of treating it as a redirect. The token is the Google account
+   * connected on the Account tab, or one pasted from https://developers.google.com/oauthplayground
+   * (scope `drive.file`). Either way, **use a throwaway account**. A pasted token is held in
+   * memory for this screen only.
    */
   const startDrive = useCallback(async (): Promise<void> => {
     const token = driveToken.trim();
-    if (token === "") return;
     setRun({ status: "running" });
     try {
-      const client = createDriveClient(() => Promise.resolve(token));
+      // A pasted token wins; otherwise the Google account connected on the Account tab — which
+      // should be a throwaway one for this run, since it writes and trashes test folders.
+      let getToken: AccessTokenProvider = () => Promise.resolve(token);
+      if (token === "") {
+        const connection = await restoreGoogleConnection();
+        if (connection === null || !connection.hasDrive) {
+          throw new Error("No token pasted and no Google Drive connected on the Account tab.");
+        }
+        getToken = googleAccessToken;
+      }
+      const client = createDriveClient(getToken);
       const results = await runLiveDriveContract(client);
       setRun({ status: "done", suites: [{ title: "Storage contract — Google Drive", results }] });
     } catch (error) {
@@ -160,7 +171,7 @@ export default function DevStorageScreen() {
       <TextInput
         value={driveToken}
         onChangeText={setDriveToken}
-        placeholder="Paste a drive.file access token"
+        placeholder="Optional: paste a drive.file access token"
         placeholderTextColor="#999"
         autoCapitalize="none"
         autoCorrect={false}
@@ -170,14 +181,16 @@ export default function DevStorageScreen() {
       <Pressable
         onPress={() => void startDrive()}
         accessibilityRole="button"
-        disabled={run.status === "running" || driveToken.trim() === ""}
+        disabled={run.status === "running"}
         style={({ pressed }) => [
           styles.button,
           styles.buttonTight,
-          (pressed || run.status === "running" || driveToken.trim() === "") && styles.buttonPressed,
+          (pressed || run.status === "running") && styles.buttonPressed,
         ]}
       >
-        <Text style={styles.buttonLabel}>Run against Google Drive</Text>
+        <Text style={styles.buttonLabel}>
+          {driveToken.trim() === "" ? "Run against the connected Drive" : "Run with pasted token"}
+        </Text>
       </Pressable>
 
       {run.status === "running" && (
