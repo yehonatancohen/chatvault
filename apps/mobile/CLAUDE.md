@@ -79,6 +79,17 @@ pnpm ios --device              # or hit Run in Xcode
 pnpm start                     # Metro, once the app is installed
 ```
 
+**If `pnpm ios --device` builds and then sits on `Connecting to: iPhone` indefinitely**, the
+build is fine and the phone probably is too — Expo's own installer is what hangs (seen on
+iOS 26 for 20+ minutes). Ctrl-C and install with Apple's tool instead; it takes seconds:
+
+```bash
+xcrun devicectl list devices        # the phone should show "connected"
+xcrun devicectl device install app --device "iPhone" \
+  ~/Library/Developer/Xcode/DerivedData/ChatVault-*/Build/Products/Debug-iphoneos/ChatVault.app
+pnpm start                          # Metro, if the Ctrl-C took it down
+```
+
 Both targets need a team and the App Group `group.app.chatvault.mobile`. The extension is a
 separate target and Xcode will not sign it for you. After install, trust the developer profile
 on the phone under Settings > General > VPN & Device Management.
