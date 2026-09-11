@@ -150,31 +150,38 @@ The lesson both times: **an expo-modules signature describes the JS wrapper, not
 contract.** When a call crosses into Swift, the device checks are the only thing that will tell
 you the truth — which is the argument for keeping them exhaustive.
 
-### After `pod install`: the Debug build links against *release* React Native
+### After `pod install`: run `scripts/fix-prebuilt-flavors.sh` before building
 
-Found when adding Google sign-in. The Debug build failed to link with
-`Undefined symbols for architecture arm64` — `facebook::react::Sealable`, `ShadowNode`,
-`RCTPackagerConnection` — referenced from gesture-handler, Reanimated, screens and the dev
-launcher alike. (Expo's output truncates the symbol list; the `SwiftUICore` line printed beside
-it is a harmless warning, not the cause.)
+**Every prebuilt iOS framework comes in a debug and a release flavour** — React Native core
+(`RCT_USE_PREBUILT_RNCORE`), its dependencies bundle, Hermes, and Expo's prebuilt modules
+(`ExpoModulesCore`, `ExpoFileSystem`, `ExpoFont`, `ExpoModulesWorklets`). A build phase per
+framework swaps flavours, remembering the last one in a `.last_build_configuration` marker.
+**`pod install` can leave the release flavours in place with those markers missing or saying
+"debug"**, and the swap phases trust the markers and skip. A Debug build then mixes debug code
+compiled from source with release frameworks. Found on 2026-09-11 after adding Google sign-in,
+in two stages:
 
-The app uses React Native's **prebuilt core** (`RCT_USE_PREBUILT_RNCORE`, `Pods/React-Core-
-prebuilt/React.xcframework`), which exists in a debug and a release flavour. Those symbols are
-debug-only. A build phase (`[RNCore] Replace React Native Core for the right configuration`)
-swaps flavours, remembering the last one in `Pods/React-Core-prebuilt/.last_build_configuration`.
-`pod install` recreates that directory **without** the marker file, and when the file is absent
-the script assumes the framework is already debug and skips the swap — so a Debug build links
-the release framework left in place. The tell: the device slice's binary is ~12 MB instead of
-~68 MB. The fix, from `apps/mobile/ios/Pods`:
+1. **Link error**: `Undefined symbols for architecture arm64` — `facebook::react::Sealable`,
+   `ShadowNode::getDebugName`, `RCTPackagerConnection` — referenced from gesture-handler,
+   Reanimated, screens and the dev launcher alike. These exist only in debug React Native.
+   (Expo's output truncates the symbol list; the `SwiftUICore` line beside it is a harmless
+   warning.)
+2. **Instant crash at launch** once only React core was swapped: `EXC_BAD_ACCESS` in
+   `facebook::react::Props::Props()` called from `ExpoModulesCore` while registering native
+   views. Debug and release disagree on the size of `Props`, so a debug React writing into an
+   object laid out by release `ExpoModulesCore` corrupts memory. Crash reports:
+   `xcrun devicectl device info files --device <id> --domain-type systemCrashLogs`.
+
+The fix is one script, which claims the opposite flavour in each marker and then runs that
+framework's own swap script:
 
 ```bash
-printf Release > React-Core-prebuilt/.last_build_configuration
-node "$(cd ../.. && node -p "require('path').dirname(require.resolve('react-native/package.json'))")/scripts/replace-rncore-version.js" \
-  -c Debug -r 0.86.2 -p "$PWD"
+apps/mobile/scripts/fix-prebuilt-flavors.sh          # Debug (default) — or pass Release
 ```
 
-Check `nm -gU React-Core-prebuilt/React.xcframework/ios-arm64/React.framework/React | grep
-Sealable` is non-empty, then build again. Re-check after every `pod install`.
+**Run it after every `pod install`, then build.** To check a framework by hand, compare its
+`ios-arm64` binary with the one inside its `*-debug.tar.gz` in `Pods/*-artifacts/` or
+`Pods/<Module>/artifacts/`; the release React core is ~12 MB, the debug one ~68 MB.
 
 ### Debugging a launch crash: use the simulator, even though it cannot test this app
 
