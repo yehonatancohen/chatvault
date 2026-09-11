@@ -19,9 +19,16 @@ which reaches further back than any single export can.
 1. **We never delete anything from WhatsApp.** There is no API for it and we must never imply
    otherwise, in code, copy, or telemetry. The app archives and then *guides*. Any UI string
    claiming we free storage directly is a bug.
-2. **Plaintext never leaves the device.** Parsing and encryption happen client-side. The
-   backend is structurally incapable of decrypting: it never receives a key, and share links
-   carry the key in the URL fragment, which browsers do not transmit.
+2. **Chats never live on our servers.** Parsing and encryption happen on the device. Messages
+   and media are stored only on the device and in storage the user owns (Google Drive, Dropbox,
+   iCloud) — never on Boydem's servers, not even encrypted. The backend holds accounts,
+   subscriptions and sharing records, plus, for **Standard** archives, a per-archive wrapping
+   key it releases only to that archive's members and link holders; the device unwraps the
+   archive key itself. The backend never receives chat content, an archive key or a passphrase,
+   and never fetches, proxies or caches a user's storage. **Private** archives are end-to-end:
+   the backend holds no key for them, and their share links carry the key in the URL fragment,
+   which browsers do not transmit. Copy must never call a Standard archive end-to-end.
+   (Decided 2026-09-11; see `ACCOUNTS-AND-CLOUD.md`.)
 3. **`packages/core` is isomorphic.** No `node:*` imports, no React Native modules, no DOM
    globals. Platform capabilities (crypto, filesystem, zip) enter through injected ports
    defined in `core`. It runs identically in Node tests, Hermes, and the browser.
@@ -35,7 +42,8 @@ which reaches further back than any single export can.
 7. **We only ever consume WhatsApp's own official export.** Never automate the WhatsApp app,
    never read its databases, never scrape. That line is what keeps this legitimate.
 
-Current state and what to build next: **`ROADMAP.md`**.
+Current state and what to build next: **`ROADMAP.md`**. Accounts, subscription and cloud
+storage: **`ACCOUNTS-AND-CLOUD.md`**.
 
 ## Layout
 
@@ -45,7 +53,7 @@ Current state and what to build next: **`ROADMAP.md`**.
 | `packages/storage` | `StorageAdapter` interface + per-destination adapters |
 | `apps/mobile` | Expo React Native, iOS + Android. Owns the Share Extension — the app's only entry point. |
 | `apps/web` | Next.js on Vercel. Read-only viewer + client-side append-and-merge. |
-| `apps/api` | Vercel Functions. A stub in v1 by design. Never sees plaintext. |
+| `apps/api` | Vercel Functions + Supabase. Accounts, subscriptions, sharing, Standard-mode key release. Never stores or proxies chat content. |
 
 ## Conventions
 

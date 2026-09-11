@@ -188,6 +188,10 @@ contains the key or any archive content.*
 
 ## Track C — Cloud destinations
 
+> **Superseded (2026-09-11) by [`ACCOUNTS-AND-CLOUD.md`](ACCOUNTS-AND-CLOUD.md)**: accounts and
+> a paid subscription, with chats stored only in the user's own Drive/Dropbox/iCloud — never on
+> our servers. The notes below are kept for their reasoning about each destination.
+
 - **C1. Google Drive adapter** — the only destination reachable from mobile, web and Android
   alike. Do this one first regardless of what users say they want.
 - **C2. iCloud (iOS-only), Dropbox, OneDrive.** Set `capabilities().webReadable` honestly and
