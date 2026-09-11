@@ -16,12 +16,19 @@
  */
 
 import { File } from "expo-file-system";
-import { parseExport, InMemoryMediaSource, type MediaSource, type ParseResult } from "@chatvault/core";
+import {
+  parseExport,
+  InMemoryMediaSource,
+  isPlainHeader,
+  type KeyWrapping,
+  type MediaSource,
+  type ParseResult,
+} from "@chatvault/core";
 import { getCryptoProvider } from "../crypto/expo-crypto-provider";
 import { createArchiveKey, wrapArchiveKey } from "../crypto/key-wrapping";
 import {
+  keyForArchive,
   listArchiveIds,
-  loadArchiveKey,
   newArchiveId,
   readArchiveHeader,
   saveArchiveKey,
@@ -62,11 +69,14 @@ export class ShareFileMissingError extends Error {
 
 /** What the UI must ask for before `completeImport` can run. */
 export type ImportRequirement =
-  /** A brand-new archive: the user picks the passphrase that will always open it. */
-  | "new-passphrase"
-  /** An existing archive whose key is not on this device — a restore, or someone else's. */
+  /**
+   * A brand-new chat. Nothing is required — it is saved plain unless the user chooses to protect
+   * it with a passphrase, which is the one question the import screen asks.
+   */
+  | "new"
+  /** An existing protected chat whose key is not on this device — a restore, or someone else's. */
   | "unlock"
-  /** Everything needed is already here. */
+  /** Everything needed is already here: an existing plain chat, or a protected one with its key. */
   | "ready";
 
 export interface PreparedImport {
@@ -125,7 +135,7 @@ export async function prepareImport(params: {
 
   if (target.kind === "append" && target.archiveId !== undefined) {
     const archiveId = target.archiveId;
-    const hasKey = (await loadArchiveKey(archiveId)) !== null;
+    const hasKey = (await keyForArchive(archiveId)) !== null;
     return {
       parsed,
       transcript,
@@ -148,7 +158,7 @@ export async function prepareImport(params: {
     chatTitle: chatTitleFromFilename(params.fileName),
     creating: true,
     hadMedia: isZip,
-    requirement: "new-passphrase",
+    requirement: "new",
     overlap: 0,
     byteLength,
   };
@@ -157,7 +167,8 @@ export async function prepareImport(params: {
 /**
  * Every archive this device can actually match against.
  *
- * A locked archive (no key in the Keychain) is skipped rather than unlocked: matching would
+ * Plain archives always qualify. A locked one (protected, no key in the Keychain) is skipped
+ * rather than unlocked: matching would
  * mean prompting for a passphrase for every archive on the phone before we can even say
  * whether this export is related to any of them. The cost of skipping is a duplicate archive
  * in a rare case, which merge can still reconcile later; the cost of prompting is an
@@ -167,9 +178,9 @@ async function readCandidates(): Promise<ArchiveCandidate[]> {
   const candidates: ArchiveCandidate[] = [];
 
   for (const archiveId of listArchiveIds()) {
-    const key = await loadArchiveKey(archiveId);
-    if (key === null) continue;
     try {
+      const key = await keyForArchive(archiveId);
+      if (key === null) continue;
       candidates.push({
         archiveId,
         messageIds: await readArchiveMessageIds({
@@ -230,12 +241,16 @@ export async function completeImport(
   return { outcome, archiveId: prepared.archiveId };
 }
 
+/**
+ * A new chat is plain unless the user gave a passphrase — then it is protected, and the key goes
+ * into the Keychain before anything is written.
+ */
 async function createKeyMaterial(
   archiveId: string,
   passphrase: string | undefined,
   crypto: ReturnType<typeof getCryptoProvider>,
-) {
-  if (passphrase === undefined) throw new Error("A new archive needs a passphrase.");
+): Promise<{ key?: Uint8Array; keyWrapping?: KeyWrapping }> {
+  if (passphrase === undefined || passphrase === "") return {};
   const key = createArchiveKey(crypto);
   const keyWrapping = await wrapArchiveKey(key, passphrase, crypto);
   // Saved before the write: an interrupted first import must not leave an archive on disk
@@ -250,10 +265,12 @@ async function existingKeyMaterial(
   archiveId: string,
   passphrase: string | undefined,
   crypto: ReturnType<typeof getCryptoProvider>,
-) {
+): Promise<{ key?: Uint8Array; keyWrapping?: KeyWrapping }> {
   const header = await readArchiveHeader(archiveId);
-  const stored = await loadArchiveKey(archiveId);
-  if (stored !== null) return { key: stored, keyWrapping: header.keyWrapping };
+  // A plain chat stays plain: the writer follows its header, and there is nothing to unlock.
+  if (isPlainHeader(header)) return {};
+  const stored = await keyForArchive(archiveId);
+  if (stored) return { key: stored, keyWrapping: header.keyWrapping };
 
   if (passphrase === undefined) throw new Error("This archive needs its passphrase.");
   const key = await unwrapArchiveKey(header.keyWrapping, passphrase, crypto);

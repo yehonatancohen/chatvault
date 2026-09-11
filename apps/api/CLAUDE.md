@@ -29,11 +29,7 @@ Every endpoint added here is a chance to quietly break that.
 
 - Accounts, subscription state (RevenueCat webhook), archive records, memberships and roles,
   share-link tokens. Never the content.
-- **Standard-mode wrapping keys** — one per archive, encrypted under a master key kept outside
-  the database, released only to members and valid link holders. The device unwraps the archive
-  key with it; the server never sees the archive key. This is the most sensitive thing we store:
-  every release is authorized per request and logged by account and archive id, never content.
-- Public keys for Private-mode sharing. Private archives have no key here at all.
+- Public keys for sharing protected chats between accounts. No archive key is ever held here.
 - Anonymous, aggregate telemetry — counts, never content, never per-chat identifiers.
 
 If a feature seems to require the server to see chat content, the feature is wrong, not the
@@ -49,9 +45,8 @@ pnpm dev          # vercel dev, then curl the endpoint
 Because of what this service is *not* allowed to do, the most valuable test is a review
 question rather than an assertion. For every endpoint you add, answer in the PR:
 
-1. What is the most sensitive thing this endpoint can receive or return? If it receives chat
-   content, an archive key, a passphrase or a full archive URL, the design is wrong. If it
-   returns a Standard wrapping key, show the authorization check.
+1. What is the most sensitive thing this endpoint can receive or return? If it touches chat
+   content, an archive key, a passphrase or a full archive URL, the design is wrong.
 2. What does it log? Request URLs must never be logged for archive routes — the fragment
    carries the key, so a URL is a secret.
 3. Could a caller enumerate archives with it?

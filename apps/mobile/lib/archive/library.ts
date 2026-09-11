@@ -17,7 +17,7 @@ import { ArchiveReader, type Manifest } from "@chatvault/core";
 import { getCryptoProvider } from "../crypto/expo-crypto-provider";
 import { buildMediaIndex, findChatPhoto, type MediaItem } from "../ui/media-index";
 import { readPreferences } from "./preferences";
-import { listArchiveIds, loadArchiveKey, storageFor } from "./vault";
+import { keyForArchive, listArchiveIds, storageFor } from "./vault";
 import { translate } from "../i18n/translate";
 import type { Language } from "../settings/settings";
 
@@ -44,13 +44,14 @@ export async function readLibrary(
   const entries: LibraryEntry[] = [];
 
   for (const archiveId of listArchiveIds()) {
-    const key = await loadArchiveKey(archiveId);
-    if (key === null) {
-      entries.push({ archiveId, status: "locked" });
-      continue;
-    }
-
     try {
+      // `undefined`: a plain chat, no key needed. `null`: protected, and the key is not here.
+      const key = await keyForArchive(archiveId);
+      if (key === null) {
+        entries.push({ archiveId, status: "locked" });
+        continue;
+      }
+
       const reader = await ArchiveReader.open({
         crypto: getCryptoProvider(),
         storage: storageFor(archiveId),

@@ -10,8 +10,8 @@ import type { ImportStage } from "../lib/import/run-import";
 import { setImportSession } from "../lib/import/session";
 import { WrongPassphraseError } from "../lib/crypto/key-wrapping";
 import { createStyles, useApp } from "../components/app/providers";
-import { Button, Callout, CalloutText, Row } from "../components/app/ui";
-import { formatBytes, formatCount } from "../lib/ui/format";
+import { Button, SwitchRow } from "../components/app/ui";
+import { formatBytes } from "../lib/ui/format";
 import { radius, space } from "../lib/ui/theme";
 import type { StringKey } from "../lib/i18n/strings";
 
@@ -19,9 +19,10 @@ import type { StringKey } from "../lib/i18n/strings";
  * A4 — import. The screen a share lands on.
  *
  * Two phases, because the question worth asking depends on what the file turns out to be
- * (`device-import.ts`). Phase one reads and parses and matches, and writes nothing; only then
- * does this screen know whether to ask for a new passphrase, ask for an existing one, or get
- * on with it.
+ * (`device-import.ts`). Phase one reads and parses and matches, and writes nothing. Then: a new
+ * chat gets a one-tap Save (with an optional "Protect with a passphrase" switch — encryption is
+ * opt-in); a protected chat whose key isn't here asks for its passphrase; anything else just
+ * saves.
  *
  * The copy here is careful about one thing throughout: nothing has happened to the chat in
  * WhatsApp, and nothing ever will (root CLAUDE.md, invariant 1). Every failure message says so
@@ -62,8 +63,6 @@ export default function ImportScreen() {
   const styles = useStyles();
 
   const [phase, setPhase] = useState<Phase>({ kind: "reading" });
-  const [passphrase, setPassphrase] = useState("");
-  const [confirmation, setConfirmation] = useState("");
   const cancelled = useRef(false);
 
   useEffect(() => {
@@ -86,7 +85,7 @@ export default function ImportScreen() {
           outcome,
           archiveId,
           chatTitle: prepared.chatTitle,
-          passphraseSet: prepared.creating,
+          passphraseSet: prepared.creating && secret !== undefined && secret !== "",
           hadMedia: prepared.hadMedia,
         });
         router.replace("/verify");
@@ -98,8 +97,7 @@ export default function ImportScreen() {
             error instanceof WrongPassphraseError
               ? t("import.error.wrongPassphrase")
               : t("import.error.unfinished"),
-          // The stage is included because "it failed" is not a usable report and this is the
-          // one screen where a failure is expensive to reproduce.
+          // Kept, small: "it failed" is not a usable report, and this is expensive to reproduce.
           detail: `${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}`,
         });
       }
@@ -120,7 +118,7 @@ export default function ImportScreen() {
         });
         if (stale || cancelled.current) return;
 
-        // Nothing to ask: an archive this phone already holds the key for.
+        // Adding to a chat already here: nothing to ask.
         if (prepared.requirement === "ready") {
           void write(prepared, undefined);
           return;
@@ -149,50 +147,26 @@ export default function ImportScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      {phase.kind === "reading" && (
-        <Working
-          label={t("import.reading")}
-          {...noteProp(fileNote(params.fileName, params.size))}
-        />
-      )}
+      {phase.kind === "reading" && <Working label={t("import.reading")} />}
 
-      {phase.kind === "writing" && (
-        <Working
-          label={t(stageKey(phase.stage))}
-          note={
-            `${t("import.note.counts", {
-              messages: formatCount(phase.prepared.parsed.messages.length),
-              size: formatBytes(phase.prepared.byteLength),
-            })} ` +
-            (phase.stage === "writing"
-              ? t("import.note.writing")
-              : phase.stage === "deriving-key"
-                ? t("import.note.deriving")
-                : t("import.note.local"))
-          }
-        />
-      )}
+      {phase.kind === "writing" && <Working label={t(stageKey(phase.stage))} />}
 
-      {phase.kind === "asking" && (
-        <PassphrasePrompt
-          prepared={phase.prepared}
-          passphrase={passphrase}
-          confirmation={confirmation}
-          onPassphrase={setPassphrase}
-          onConfirmation={setConfirmation}
-          onSubmit={() => void write(phase.prepared, passphrase)}
-        />
-      )}
+      {phase.kind === "asking" &&
+        (phase.prepared.requirement === "unlock" ? (
+          <UnlockForm prepared={phase.prepared} onSubmit={(secret) => void write(phase.prepared, secret)} />
+        ) : (
+          <SaveForm prepared={phase.prepared} onSubmit={(secret) => void write(phase.prepared, secret)} />
+        ))}
 
       {phase.kind === "error" && (
         <View style={styles.block}>
           <Text style={styles.errorHeading}>{phase.message}</Text>
+          <Text style={styles.body}>{t("import.error.reassurance")}</Text>
           {phase.detail !== undefined && (
             <Text style={styles.errorDetail} selectable>
               {phase.detail}
             </Text>
           )}
-          <Text style={styles.reassurance}>{t("import.error.reassurance")}</Text>
           <Button label={t("common.backToLibrary")} onPress={goBack} />
         </View>
       )}
@@ -200,143 +174,108 @@ export default function ImportScreen() {
   );
 }
 
-function PassphrasePrompt({
+/**
+ * A new chat: its name, its size, and one switch. Saved plain unless the switch is on — then
+ * a passphrase (twice) is asked for. The switch starts where Settings says.
+ */
+function SaveForm({
   prepared,
-  passphrase,
-  confirmation,
-  onPassphrase,
-  onConfirmation,
   onSubmit,
 }: {
   prepared: PreparedImport;
-  passphrase: string;
-  confirmation: string;
-  onPassphrase: (value: string) => void;
-  onConfirmation: (value: string) => void;
-  onSubmit: () => void;
+  onSubmit: (passphrase: string | undefined) => void;
 }) {
-  const { t, theme } = useApp();
+  const { t, tp, settings } = useApp();
   const styles = useStyles();
+  const [protect, setProtect] = useState(settings.protectNewChats);
+  const [passphrase, setPassphrase] = useState("");
+  const [confirmation, setConfirmation] = useState("");
 
-  const creating = prepared.creating;
   const tooShort = passphrase.length > 0 && passphrase.length < 8;
-  const mismatch = creating && confirmation.length > 0 && confirmation !== passphrase;
-  const ready = creating
-    ? passphrase.length >= 8 && confirmation === passphrase
-    : passphrase.length > 0;
+  const mismatch = confirmation.length > 0 && confirmation !== passphrase;
+  const ready = !protect || (passphrase.length >= 8 && confirmation === passphrase);
 
   return (
     <View style={styles.block}>
-      <Text style={styles.heading}>
-        {creating
-          ? t("import.choose.heading")
-          : t("import.unlock.heading", { chat: prepared.chatTitle })}
+      <Text style={styles.heading}>{prepared.chatTitle}</Text>
+      <Text style={styles.muted}>
+        {tp("common.messages", prepared.parsed.messages.length)} · {formatBytes(prepared.byteLength)}
       </Text>
 
-      <Text style={styles.body}>
-        {creating ? t("import.choose.body") : t("import.unlock.body")}
-      </Text>
+      <SwitchRow label={t("import.protect")} value={protect} onChange={setProtect} />
 
-      {creating && (
-        <Callout tone="caution">
-          <CalloutText>{t("import.choose.warning")}</CalloutText>
-        </Callout>
-      )}
-
-      <Text style={styles.label}>{t("import.field.passphrase")}</Text>
-      <TextInput
-        value={passphrase}
-        onChangeText={onPassphrase}
-        secureTextEntry
-        autoCapitalize="none"
-        autoCorrect={false}
-        style={styles.input}
-        placeholder={t("import.field.placeholder")}
-        placeholderTextColor={theme.muted}
-        // Without this the system keyboard stays light behind a dark app, which is the single
-        // most obvious way a "supports dark mode" claim falls apart.
-        keyboardAppearance={theme.dark ? "dark" : "light"}
-        accessibilityLabel={t("import.field.passphrase")}
-      />
-      {tooShort && <Text style={styles.fieldError}>{t("import.field.tooShort")}</Text>}
-
-      {creating && (
+      {protect && (
         <>
-          <Text style={styles.label}>{t("import.field.again")}</Text>
-          <TextInput
-            value={confirmation}
-            onChangeText={onConfirmation}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            style={styles.input}
-            keyboardAppearance={theme.dark ? "dark" : "light"}
-            accessibilityLabel={t("import.field.confirm")}
-          />
+          <PassphraseField value={passphrase} onChange={setPassphrase} placeholder={t("import.field.passphrase")} />
+          {tooShort && <Text style={styles.fieldError}>{t("import.field.tooShort")}</Text>}
+          <PassphraseField value={confirmation} onChange={setConfirmation} placeholder={t("import.field.again")} />
           {mismatch && <Text style={styles.fieldError}>{t("import.field.mismatch")}</Text>}
+          <Text style={styles.muted}>{t("import.protect.warning")}</Text>
         </>
       )}
 
-      <Summary prepared={prepared} />
-
-      <Button
-        label={creating ? t("import.submit.create") : t("import.submit.merge")}
-        onPress={onSubmit}
-        disabled={!ready}
-      />
+      <Button label={t("import.save")} onPress={() => onSubmit(protect ? passphrase : undefined)} disabled={!ready} />
     </View>
   );
 }
 
-function Summary({ prepared }: { prepared: PreparedImport }) {
-  const { t, tp } = useApp();
-  const styles = useStyles();
-
-  return (
-    <View style={styles.summary}>
-      <Row label={t("import.summary.chat")} value={prepared.chatTitle} />
-      <Row
-        label={t("import.summary.inExport")}
-        value={tp("common.messages", prepared.parsed.messages.length)}
-      />
-      <Row label={t("import.summary.file")} value={formatBytes(prepared.byteLength)} />
-      {!prepared.creating && (
-        <Row
-          label={t("import.summary.alreadyArchived")}
-          value={t("import.summary.alreadyArchivedValue", {
-            count: formatCount(prepared.overlap),
-          })}
-        />
-      )}
-    </View>
-  );
-}
-
-function Working({ label, note }: { label: string; note?: string }) {
+/** Adding to a protected chat whose key isn't on this phone: its passphrase, and nothing else. */
+function UnlockForm({
+  prepared,
+  onSubmit,
+}: {
+  prepared: PreparedImport;
+  onSubmit: (passphrase: string) => void;
+}) {
   const { t } = useApp();
   const styles = useStyles();
+  const [passphrase, setPassphrase] = useState("");
 
   return (
     <View style={styles.block}>
-      <View style={styles.workingRow}>
-        <ActivityIndicator />
-        <Text style={styles.heading}>{label}</Text>
-      </View>
-      {note !== undefined && <Text style={styles.body}>{note}</Text>}
-      <Text style={styles.reassurance}>{t("import.onThisPhone")}</Text>
+      <Text style={styles.heading}>{t("import.unlock.heading", { chat: prepared.chatTitle })}</Text>
+      <PassphraseField value={passphrase} onChange={setPassphrase} placeholder={t("import.field.passphrase")} />
+      <Button label={t("import.submit.merge")} onPress={() => onSubmit(passphrase)} disabled={passphrase.length === 0} />
     </View>
   );
 }
 
-/** `exactOptionalPropertyTypes` draws a real distinction between "absent" and "undefined". */
-function noteProp(note: string | undefined): { note?: string } {
-  return note === undefined ? {} : { note };
+function PassphraseField({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  const { theme } = useApp();
+  const styles = useStyles();
+  return (
+    <TextInput
+      value={value}
+      onChangeText={onChange}
+      secureTextEntry
+      autoCapitalize="none"
+      autoCorrect={false}
+      style={styles.input}
+      placeholder={placeholder}
+      placeholderTextColor={theme.muted}
+      // Without this the system keyboard stays light behind a dark app.
+      keyboardAppearance={theme.dark ? "dark" : "light"}
+      accessibilityLabel={placeholder}
+    />
+  );
 }
 
-function fileNote(fileName?: string, size?: string): string | undefined {
-  const bytes = Number(size ?? 0);
-  if (!fileName) return undefined;
-  return bytes > 0 ? `${fileName} — ${formatBytes(bytes)}` : fileName;
+function Working({ label }: { label: string }) {
+  const styles = useStyles();
+  return (
+    <View style={styles.workingRow}>
+      <ActivityIndicator />
+      <Text style={styles.body}>{label}</Text>
+    </View>
+  );
 }
 
 const useStyles = createStyles((t) => ({
@@ -392,6 +331,7 @@ const useStyles = createStyles((t) => ({
     gap: space.md,
     paddingVertical: space.sm,
   },
-  errorHeading: { fontSize: 20, fontWeight: "700", color: t.bad, writingDirection: "auto" },
+  errorHeading: { fontSize: 20, fontWeight: "700", color: t.ink, writingDirection: "auto" },
+  muted: { fontSize: 14, lineHeight: 20, color: t.muted, writingDirection: "auto" },
   errorDetail: { fontSize: 14, lineHeight: 21, color: t.body },
 }));

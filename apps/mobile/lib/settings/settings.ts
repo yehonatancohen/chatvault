@@ -26,6 +26,13 @@ export type Appearance = "system" | "light" | "dark";
 export interface Settings {
   readonly language: Language;
   readonly appearance: Appearance;
+  /** Whether the import screen's "Protect with a passphrase" switch starts on. Off: opt-in. */
+  readonly protectNewChats: boolean;
+  /**
+   * The user tapped "Don't remind me" on the unsaved-media note. Media WhatsApp didn't include
+   * is normal — the note is a one-line heads-up, and someone who has read it once may hide it.
+   */
+  readonly hideMediaNote: boolean;
 }
 
 /**
@@ -36,7 +43,12 @@ export interface Settings {
  * users have. Anyone who wants English finds it in Settings, which is a smaller cost than a
  * Hebrew speaker landing in English.
  */
-export const DEFAULT_SETTINGS: Settings = { language: "he", appearance: "system" };
+export const DEFAULT_SETTINGS: Settings = {
+  language: "he",
+  appearance: "system",
+  protectNewChats: false,
+  hideMediaNote: false,
+};
 
 const DIRECTORY = "settings";
 const FILE_NAME = "app.json";
@@ -47,8 +59,10 @@ function settingsFile(): File {
 
 function coerce(raw: unknown): Settings {
   if (typeof raw !== "object" || raw === null) return DEFAULT_SETTINGS;
-  const { language, appearance } = raw as Record<string, unknown>;
+  const { language, appearance, protectNewChats, hideMediaNote } = raw as Record<string, unknown>;
   return {
+    protectNewChats: protectNewChats === true,
+    hideMediaNote: hideMediaNote === true,
     language: language === "en" || language === "he" ? language : DEFAULT_SETTINGS.language,
     appearance:
       appearance === "light" || appearance === "dark" || appearance === "system"

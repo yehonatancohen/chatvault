@@ -27,6 +27,7 @@ import {
   ArchiveWriter,
   mediaStats,
   MANIFEST_PATH,
+  PLAIN_MANIFEST_PATH,
   parseExport,
   type ArchiveStoragePort,
   type CryptoProvider,
@@ -88,10 +89,14 @@ export interface ImportRequest {
   readonly media: MediaSource;
   readonly storage: ArchiveStoragePort;
   readonly crypto: CryptoProvider;
-  readonly key: Uint8Array;
+  /**
+   * Only for a protected archive. Omit both `key` and `keyWrapping` to create a plain one — the
+   * default. When appending, the archive's own header decides, not these.
+   */
+  readonly key?: Uint8Array | undefined;
   readonly archiveId: string;
   /** Ignored when appending: the passphrase that opens an archive is fixed at creation. */
-  readonly keyWrapping: KeyWrapping;
+  readonly keyWrapping?: KeyWrapping | undefined;
   readonly chatTitle: string;
   readonly sourceId: string;
   readonly contributor: string | null;
@@ -147,9 +152,12 @@ export async function runImport(request: ImportRequest): Promise<ImportOutcome> 
   const writer = new ArchiveWriter({
     crypto: request.crypto,
     storage: request.storage,
-    key: request.key,
     archiveId: request.archiveId,
-    keyWrapping: request.keyWrapping,
+    ...(request.key !== undefined && request.keyWrapping !== undefined
+      ? { key: request.key, keyWrapping: request.keyWrapping }
+      : request.key !== undefined
+        ? { key: request.key }
+        : {}),
     ...(request.now ? { now: request.now } : {}),
     ...(request.messagesPerChunk ? { messagesPerChunk: request.messagesPerChunk } : {}),
   });
@@ -162,7 +170,8 @@ export async function runImport(request: ImportRequest): Promise<ImportOutcome> 
     media: built.media,
   };
 
-  const appending = await request.storage.has(MANIFEST_PATH);
+  const appending =
+    (await request.storage.has(MANIFEST_PATH)) || (await request.storage.has(PLAIN_MANIFEST_PATH));
   const before = appending ? await countExisting(request) : 0;
 
   // Sealing. On a phone this is pure-JS AES-GCM over every byte of media, and it is where a
@@ -215,7 +224,7 @@ async function countExisting(request: ImportRequest): Promise<number> {
 export async function readArchiveMessageIds(options: {
   readonly crypto: CryptoProvider;
   readonly storage: ArchiveStoragePort;
-  readonly key: Uint8Array;
+  readonly key?: Uint8Array | undefined;
   readonly archiveId: string;
 }): Promise<ReadonlySet<string>> {
   const reader = await ArchiveReader.open(options);

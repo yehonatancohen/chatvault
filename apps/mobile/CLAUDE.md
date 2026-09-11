@@ -305,11 +305,20 @@ all three are tested. Keep it that way. Logic that migrates into a screen become
   out. Use `updatePreferences`, which merges; a whole-object write from one screen erases the
   other's choice.
 
-**The Verify screen is the trust moment** and deserves more care than anything else in the UI.
-Before we suggest deleting anything, we show what was captured: message count, date range,
-media count and total size, and a readable preview of the oldest and newest messages. A user
-who does not believe this screen will never delete a chat, and the product's entire value
-depends on them doing so.
+**Minimal text is a product rule (owner, 2026-09-11).** Screens carry actions and the facts
+needed to act; every explanation lives in Settings → Help (`app/help.tsx`, `help.*` strings).
+Before adding a sentence to a screen, put it in Help instead.
+
+- **Encryption is opt-in.** A new chat is saved plain unless "Protect with a passphrase" is on at
+  import (default from Settings). `keyForArchive` returns `undefined` (plain, no key needed),
+  a key, or `null` (protected, key not here → "locked").
+- **Each chat has one status** (`lib/ui/chat-status.ts`, tested): On this phone → Uploading
+  (progress bar) → Safe to delete → Deleted. "Safe" requires Drive to hold the *latest* version;
+  "Deleted" is only ever the user's own confirmation on the delete guide. Opening the chat list
+  backs up whatever is behind (`backupPending`).
+- **Media not in the export is one neutral sentence** (`MediaNote`) with "Learn more" and
+  "Don't remind me" — never a red warning. The count is always the real `notArchivedCount`.
+- **The Verify numbers are still read back out of the archive**, not remembered from the write.
 
 **Guided delete never touches WhatsApp.** We cannot delete anything — no API exists (root
 CLAUDE.md, invariant 1). The screen shows the user the steps and lets them confirm they did it.

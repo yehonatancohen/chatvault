@@ -110,6 +110,24 @@ describe("runImport", () => {
     storage = new MemoryStorageAdapter();
   });
 
+  it("saves a plain chat by default, and a later export of it merges without any key", async () => {
+    // The default since encryption became opt-in: no key, no wrapping, nothing to ask for.
+    const plain = { key: undefined, keyWrapping: undefined };
+    const created = await runImport(request({ storage, ...plain }));
+    expect(created.mode).toBe("created");
+    expect(await storage.has("manifest.json")).toBe(true);
+    expect(await storage.has(MANIFEST_PATH)).toBe(false);
+    expect(new TextDecoder().decode(await storage.get("chat.txt"))).toContain("נדבר מחר");
+
+    const again = await runImport(
+      request({ storage, ...plain, transcript: WITHOUT_MEDIA, media: new InMemoryMediaSource(), sourceId: "s2" }),
+    );
+    expect(again.mode).toBe("appended");
+    expect(again.messageCount).toBe(6);
+    expect(again.addedCount).toBe(0);
+    expect(await readArchiveMessageIds({ crypto, storage, archiveId: "archive-1" })).toHaveProperty("size", 6);
+  });
+
   it("creates an archive from a with-media export", async () => {
     const outcome = await runImport(request({ storage }));
 

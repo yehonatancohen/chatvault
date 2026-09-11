@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArchiveReader, type Manifest, type MergedMessage } from "@chatvault/core";
 import { getCryptoProvider } from "../../lib/crypto/expo-crypto-provider";
 import { WrongPassphraseError } from "../../lib/crypto/key-wrapping";
-import { loadArchiveKey, storageFor, unlockWithPassphrase } from "../../lib/archive/vault";
+import { keyForArchive, storageFor, unlockWithPassphrase } from "../../lib/archive/vault";
 
 /**
  * Opening an archive, for the three screens that read one.
@@ -37,7 +37,7 @@ export function useArchive(archiveId: string): {
   const [state, setState] = useState<ArchiveState>({ kind: "loading" });
 
   const openWith = useCallback(
-    async (key: Uint8Array): Promise<void> => {
+    async (key: Uint8Array | undefined): Promise<void> => {
       const reader = await ArchiveReader.open({
         crypto: getCryptoProvider(),
         storage: storageFor(archiveId),
@@ -54,7 +54,8 @@ export function useArchive(archiveId: string): {
     let stale = false;
     void (async () => {
       try {
-        const key = await loadArchiveKey(archiveId);
+        // `undefined` for a plain chat (no key needed); `null` for a protected one without its key.
+        const key = await keyForArchive(archiveId);
         if (stale) return;
         if (key === null) {
           setState({ kind: "locked" });

@@ -11,8 +11,8 @@
  */
 
 import type { ReactNode } from "react";
-import { Pressable, Text, View } from "react-native";
-import { createStyles } from "./providers";
+import { Pressable, Switch, Text, View } from "react-native";
+import { createStyles, useTheme } from "./providers";
 import { radius, space } from "../../lib/ui/theme";
 
 /** A titled group of rows on a card. The iOS grouped-list convention. */
@@ -218,6 +218,35 @@ export function CheckRow({
         {checked && <Text style={styles.checkboxMark}>✓</Text>}
       </View>
       <Text style={styles.checkLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** A label and an on/off switch. The whole row toggles, not just the switch. */
+export function SwitchRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  const styles = useStyles();
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={() => onChange(!value)}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+      style={styles.checkRow}
+    >
+      <Text style={styles.checkLabel}>{label}</Text>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ true: theme.accent, false: theme.hairline }}
+      />
     </Pressable>
   );
 }

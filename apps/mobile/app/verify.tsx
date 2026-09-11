@@ -1,44 +1,35 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { takeImportSession, type ImportSession } from "../lib/import/session";
 import { createStyles, useApp } from "../components/app/providers";
-import { Button, Callout, CalloutText, Row, Section, Step } from "../components/app/ui";
+import { Button } from "../components/app/ui";
 import { DriveBackup } from "../components/archive/DriveBackup";
+import { MediaNote } from "../components/archive/MediaNote";
 import { formatBytes, formatCount, formatRange } from "../lib/ui/format";
 import { explainMedia } from "../lib/ui/media-explanation";
-import { summarizeParticipants } from "../lib/ui/participants";
-import { radius, space } from "../lib/ui/theme";
+import { space } from "../lib/ui/theme";
 
 /**
- * A5 — Verify. The trust moment, and the screen this whole product is really about.
+ * A5 — Verify: the chat is saved, here is what's in it.
  *
- * Everything downstream of here is irreversible and done by the user's own hands in WhatsApp.
- * So this screen has exactly one job: be believed, by being true. Three rules follow, and each
- * of them is a rule because the opposite is tempting.
+ * Kept to what a user needs in the moment: that it saved, how much, whether it's in their
+ * Drive yet (a progress bar — the backup starts by itself), and what to do next. Two rules still
+ * hold, both because the opposite is tempting:
  *
- * 1. **`notArchivedCount` is shown as prominently as the good news.** It is the media that
- *    disappears when they delete the chat — messages WhatsApp itself omitted from the export,
- *    plus files the export named but did not contain. `mediaStats`'s own doc comment says it
- *    "must never be rounded away, softened, or omitted from the UI". A product that hides it
- *    would work better in a demo and betray the user exactly once, permanently.
- * 2. **The numbers were read back out of the archive**, not remembered from the write
- *    (`run-import.ts`). What this screen reports is what came out of the file.
- * 3. **Nothing here claims to free storage or to have deleted anything.** Invariant 1. The
- *    next screen guides; it does not act.
+ * 1. **The numbers were read back out of the archive**, not remembered from the write
+ *    (`run-import.ts`), so they describe the file.
+ * 2. **Media the export didn't include is still said** — as one quiet sentence with "Learn
+ *    more" (`MediaNote`), because it is normal, not alarming. The full explanation is computed
+ *    in `explainMedia`, where it is tested, and is also in Settings → Help.
  *
- * A user who does not believe this screen will never delete a chat, and the product's entire
- * value depends on them doing so — but the answer to that is a screen that earns it, never one
- * that overstates.
+ * Nothing here claims to free storage or delete anything (root CLAUDE.md, invariant 1).
  */
-
 export default function VerifyScreen() {
   const router = useRouter();
   const { t, tp, language } = useApp();
   const styles = useStyles();
-
   const [session, setSession] = useState<ImportSession | undefined>(undefined);
-  const [showEveryone, setShowEveryone] = useState(false);
 
   useEffect(() => {
     // Read once, on mount. A cold start onto this route has no session — see the fallback.
@@ -47,207 +38,86 @@ export default function VerifyScreen() {
 
   if (!session) {
     return (
-      <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.container}>
         <Text style={styles.heading}>{t("verify.nothing.heading")}</Text>
-        <Text style={styles.body}>{t("verify.nothing.body")}</Text>
         <Button label={t("common.backToLibrary")} onPress={() => router.replace("/")} />
-      </ScrollView>
+      </View>
     );
   }
 
   const { outcome } = session;
   const { stats } = outcome;
   const media = explainMedia(stats, session.hadMedia, language);
-  const people = summarizeParticipants(outcome.participants, undefined, language);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.check}>✓</Text>
       <Text style={styles.eyebrow}>
-        {outcome.mode === "created" ? t("verify.eyebrow.created") : t("verify.eyebrow.merged")}
+        {outcome.mode === "created" || outcome.addedCount > 0
+          ? t("verify.saved")
+          : t("verify.nothingNew")}
       </Text>
       <Text style={styles.heading}>{session.chatTitle}</Text>
 
-      <Text style={styles.lede}>
-        {outcome.mode === "created"
-          ? t("verify.lede.created", { messages: tp("common.messages", outcome.messageCount) })
-          : outcome.addedCount > 0
-            ? t("verify.lede.added", {
-                added: formatCount(outcome.addedCount),
-                total: formatCount(outcome.messageCount),
-              })
-            : t("verify.lede.nothingNew", { total: formatCount(outcome.messageCount) })}
-      </Text>
-
-      <Section title={t("verify.holds")}>
-        <Row label={t("verify.row.messages")} value={formatCount(outcome.messageCount)} strong />
-        <Row
-          label={t("verify.row.dateRange")}
-          value={formatRange(outcome.firstTs, outcome.lastTs)}
-        />
-        {/*
-          A family group has sixty participants and this is the screen someone reads to decide
-          whether to delete a chat — it must not become a scroll past a wall of names.
-        */}
-        <Row
-          label={
-            outcome.participants.length > 2
-              ? t("verify.row.peopleCount", { count: formatCount(outcome.participants.length) })
-              : t("verify.row.people")
-          }
-          value={showEveryone ? outcome.participants.join(", ") : people.label}
-        />
-        {people.collapsible && (
-          <Pressable
-            onPress={() => setShowEveryone((value) => !value)}
-            accessibilityRole="button"
-            style={({ pressed }) => [styles.disclosure, pressed && styles.pressed]}
-          >
-            <Text style={styles.disclosureLabel}>
-              {showEveryone
-                ? t("common.showFewer")
-                : t("common.showAll", { count: formatCount(outcome.participants.length) })}
-            </Text>
-          </Pressable>
-        )}
-        <Row label={t("verify.row.mediaFiles")} value={formatCount(stats.uniqueBlobCount)} />
-        <Row label={t("verify.row.mediaSize")} value={formatBytes(stats.totalBytes)} />
-        {stats.dedupSavedBytes > 0 && (
-          <Row label={t("verify.row.dedup")} value={formatBytes(stats.dedupSavedBytes)} />
-        )}
-      </Section>
-
-      {/*
-        The honest half, and the most carefully worded thing in the app. Rendered whether or
-        not there is anything to report: an explicit "all of it" is itself information, and a
-        section that only appears when there is bad news teaches users to skim past it when it
-        does. The wording is computed in `explainMedia`, where it can be tested.
-      */}
-      {media.severity === "none" ? (
-        <Callout tone="good" title={media.headline}>
-          <CalloutText>{media.saved}</CalloutText>
-        </Callout>
-      ) : (
-        <Callout tone="bad" title={media.headline}>
-          <CalloutText>{media.saved}</CalloutText>
-
-          {media.causes.map((cause) => (
-            <View key={cause.what} style={styles.cause}>
-              <Text style={styles.causeWhat}>{cause.what}</Text>
-              <Text style={styles.causeWhy}>{cause.why}</Text>
-            </View>
-          ))}
-
-          {media.stillSaved !== undefined && (
-            <View style={styles.stillSaved}>
-              <Text style={styles.stillSavedText}>{media.stillSaved}</Text>
-            </View>
-          )}
-
-          <Text style={styles.nextStepsTitle}>{t("verify.nextSteps")}</Text>
-          <View style={styles.steps}>
-            {media.nextSteps.map((step, index) => (
-              <Step key={step} index={index + 1} text={step} />
-            ))}
-          </View>
-        </Callout>
-      )}
-
-      {outcome.issues.length > 0 && (
-        <Section title={t("verify.issues.title")}>
-          <Text style={styles.body}>
-            {t("verify.issues.body", { count: formatCount(outcome.issues.length) })}
+      <View style={styles.facts}>
+        <Text style={styles.fact}>
+          {tp("common.messages", outcome.messageCount)}
+          {outcome.mode === "appended" && outcome.addedCount > 0
+            ? ` (${t("verify.added", { count: formatCount(outcome.addedCount) })})`
+            : ""}
+        </Text>
+        <Text style={styles.fact}>{formatRange(outcome.firstTs, outcome.lastTs)}</Text>
+        {stats.uniqueBlobCount > 0 && (
+          <Text style={styles.fact}>
+            {tp("common.files", stats.uniqueBlobCount)} · {formatBytes(stats.totalBytes)}
           </Text>
-        </Section>
+        )}
+      </View>
+
+      <MediaNote explanation={media} missing={stats.notArchivedCount} />
+      {outcome.issues.length > 0 && (
+        <Text style={styles.muted}>{t("verify.issues", { count: formatCount(outcome.issues.length) })}</Text>
       )}
 
-      <Section title={t("verify.check.title")}>
-        <Text style={styles.body}>{t("verify.check.body")}</Text>
-      </Section>
+      <View style={styles.drive}>
+        <DriveBackup archiveId={session.archiveId} updatedAt={outcome.manifest.updatedAt} autoStart />
+      </View>
 
-      {/*
-        Starts a backup by itself when Drive is connected: the minute after archiving is when a
-        second copy matters most, and the next button offers to help delete the original.
-      */}
-      <Section title={t("backup.section")}>
-        <DriveBackup archiveId={session.archiveId} autoStart />
-      </Section>
-
-      <Button
-        label={t("verify.cta.read")}
-        onPress={() =>
-          router.push({ pathname: "/archive/[id]", params: { id: session.archiveId } })
-        }
-      />
-      <Button
-        label={t("verify.cta.delete")}
-        onPress={() =>
-          router.push({ pathname: "/delete-guide", params: { title: session.chatTitle } })
-        }
-        tone="quiet"
-      />
-      <Button label={t("common.backToLibrary")} onPress={() => router.replace("/")} tone="quiet" />
-
-      <Text style={styles.footnote}>{t("verify.footnote")}</Text>
+      <View style={styles.buttons}>
+        <Button
+          label={t("verify.cta.read")}
+          onPress={() => router.push({ pathname: "/archive/[id]", params: { id: session.archiveId } })}
+        />
+        <Button
+          label={t("verify.cta.delete")}
+          tone="quiet"
+          onPress={() =>
+            router.push({
+              pathname: "/delete-guide",
+              params: { id: session.archiveId, title: session.chatTitle },
+            })
+          }
+        />
+        <Button label={t("common.done")} tone="quiet" onPress={() => router.replace("/")} />
+      </View>
     </ScrollView>
   );
 }
 
 const useStyles = createStyles((t) => ({
   container: { padding: space.xl, paddingBottom: 48, gap: space.sm },
-  eyebrow: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: t.good,
-    letterSpacing: 0.3,
-    writingDirection: "auto",
-  },
+  check: { fontSize: 40, color: t.good, textAlign: "center", marginTop: space.lg },
+  eyebrow: { fontSize: 14, fontWeight: "700", color: t.good, textAlign: "center" },
   heading: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "700",
     color: t.ink,
-    letterSpacing: -0.5,
+    textAlign: "center",
     writingDirection: "auto",
   },
-  lede: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: t.body,
-    marginTop: space.xs,
-    marginBottom: space.sm,
-    writingDirection: "auto",
-  },
-  body: { fontSize: 14, lineHeight: 21, color: t.body, writingDirection: "auto" },
-  cause: { marginTop: space.sm + 2, gap: 3 },
-  causeWhat: { fontSize: 14, fontWeight: "700", color: t.ink, writingDirection: "auto" },
-  causeWhy: { fontSize: 14, lineHeight: 21, color: t.body, writingDirection: "auto" },
-  stillSaved: {
-    marginTop: space.md,
-    padding: space.md,
-    borderRadius: radius.chip,
-    backgroundColor: t.goodWash,
-  },
-  stillSavedText: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: t.dark ? t.body : "#1f5138",
-    writingDirection: "auto",
-  },
-  nextStepsTitle: {
-    marginTop: space.lg,
-    fontSize: 13,
-    fontWeight: "700",
-    color: t.muted,
-    writingDirection: "auto",
-  },
-  steps: { gap: space.md, marginTop: space.sm },
-  disclosure: { paddingVertical: space.sm },
-  disclosureLabel: { fontSize: 13, fontWeight: "700", color: t.accent },
-  pressed: { opacity: 0.65 },
-  footnote: {
-    marginTop: space.xl,
-    fontSize: 13,
-    lineHeight: 20,
-    color: t.muted,
-    writingDirection: "auto",
-  },
+  facts: { alignItems: "center", gap: 2, marginVertical: space.sm },
+  fact: { fontSize: 15, color: t.body, writingDirection: "auto" },
+  muted: { fontSize: 13, color: t.muted, writingDirection: "auto" },
+  drive: { marginTop: space.md, marginBottom: space.md },
+  buttons: { gap: space.xs },
 }));

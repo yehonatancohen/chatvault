@@ -20,37 +20,19 @@
 import { Directory, File, Paths } from "expo-file-system";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
-import { HEADER_PATH, readHeader, type ArchiveHeader } from "@chatvault/core";
+import { HEADER_PATH, isPlainHeader, readHeader, type ArchiveHeader } from "@chatvault/core";
 import { ExpoFileSystemStorageAdapter } from "../storage/expo-file-system-adapter";
 import { fromBase64, toBase64 } from "../crypto/base64";
 import { getCryptoProvider } from "../crypto/expo-crypto-provider";
 import { unwrapArchiveKey } from "../crypto/key-wrapping";
 import { deletePreferences } from "./preferences";
 import { deleteBackupState } from "../drive/backup-state";
-import type { Language } from "../settings/settings";
 
 const ARCHIVES_DIRECTORY = "archives";
 const KEY_PREFIX = "chatvault.archiveKey.";
 
 export function archivesRoot(): Directory {
   return new Directory(Paths.document, ARCHIVES_DIRECTORY);
-}
-
-/**
- * Where archives live, in a sentence a person can act on.
- *
- * "Where is my chat saved?" is a fair question with a genuinely reassuring answer, and until
- * now the app never gave it. The specifics that matter to a user are: it is a file on this
- * phone, inside this app, encrypted; it is in their iPhone backup so a lost phone does not
- * lose it. Whether a copy is also in their Google Drive is said beside it, by `DriveBackup`,
- * from the backup state rather than from copy.
- */
-export function archiveLocationSummary(language: Language = "en"): string {
-  return language === "he"
-    ? "בתיקייה הפרטית של האפליקציה באייפון הזה, בתוך ספריית המסמכים שלכם — תיקייה מוצפנת אחת " +
-        "לכל צ׳אט. שום אפליקציה אחרת לא יכולה לקרוא אותה."
-    : "In this app's own folder on this iPhone, inside your Documents directory — one encrypted " +
-        "folder per chat. No other app can read it.";
 }
 
 export function newArchiveId(): string {
@@ -154,12 +136,28 @@ export async function deleteArchive(archiveId: string): Promise<void> {
   }
 }
 
+/** Whether this archive was saved with a passphrase. Most are not — encryption is opt-in. */
+export async function isArchiveProtected(archiveId: string): Promise<boolean> {
+  return !isPlainHeader(await readArchiveHeader(archiveId));
+}
+
+/**
+ * The key to open an archive with: `undefined` for a plain one (none needed), the Keychain's
+ * copy for a protected one, or `null` when a protected archive's key is not on this phone —
+ * the "locked" state, opened by its passphrase.
+ */
+export async function keyForArchive(archiveId: string): Promise<Uint8Array | undefined | null> {
+  if (!(await isArchiveProtected(archiveId))) return undefined;
+  return loadArchiveKey(archiveId);
+}
+
 /** Re-derive the key from the passphrase and put it back in the keychain. */
 export async function unlockWithPassphrase(
   archiveId: string,
   passphrase: string,
 ): Promise<Uint8Array> {
   const header = await readArchiveHeader(archiveId);
+  if (isPlainHeader(header)) throw new Error("This chat has no passphrase.");
   const key = await unwrapArchiveKey(header.keyWrapping, passphrase, getCryptoProvider());
   await saveArchiveKey(archiveId, key);
   return key;

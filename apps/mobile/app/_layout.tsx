@@ -101,6 +101,7 @@ function Navigation() {
           options={{ title: t("verify.title"), gestureEnabled: false }}
         />
         <Stack.Screen name="delete-guide" options={{ title: t("deleteGuide.title") }} />
+        <Stack.Screen name="help" options={{ title: t("help.title") }} />
         {/* Titles come from the archive's own manifest — see each screen's `Stack.Screen`. */}
         <Stack.Screen name="archive/[id]/index" options={{ title: t("reader.title") }} />
         <Stack.Screen name="archive/[id]/info" options={{ title: t("info.title") }} />

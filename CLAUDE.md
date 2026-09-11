@@ -1,7 +1,7 @@
 # ChatVault — root guidance
 
-Monorepo for an app that turns a WhatsApp chat export into a verified, encrypted, portable
-archive the user owns — so that deleting the original chat becomes a safe act.
+Monorepo for an app that turns a WhatsApp chat export into a verified, portable archive the
+user owns (encrypted when they choose) — so that deleting the original chat becomes a safe act.
 
 Read this file before working anywhere in the repo. Each subproject has its own `CLAUDE.md`
 with stack-specific detail; this one holds the rules that apply everywhere.
@@ -9,7 +9,7 @@ with stack-specific detail; this one holds the rules that apply everywhere.
 ## The product in one paragraph
 
 The user exports a chat from WhatsApp and shares it into our app. We parse it, verify it,
-encrypt it on-device, and write it to a destination the user chooses. We then *prove* what
+(if they asked) encrypt it on-device, and save it on the phone and in their own Drive. We then *prove* what
 we captured and walk the user through deleting the chat in WhatsApp themselves. Group members
 can later append their own exports of the same chat; the archive is the union of everyone's,
 which reaches further back than any single export can.
@@ -19,16 +19,16 @@ which reaches further back than any single export can.
 1. **We never delete anything from WhatsApp.** There is no API for it and we must never imply
    otherwise, in code, copy, or telemetry. The app archives and then *guides*. Any UI string
    claiming we free storage directly is a bug.
-2. **Chats never live on our servers.** Parsing and encryption happen on the device. Messages
-   and media are stored only on the device and in storage the user owns (Google Drive, Dropbox,
-   iCloud) — never on Boydem's servers, not even encrypted. The backend holds accounts,
-   subscriptions and sharing records, plus, for **Standard** archives, a per-archive wrapping
-   key it releases only to that archive's members and link holders; the device unwraps the
-   archive key itself. The backend never receives chat content, an archive key or a passphrase,
-   and never fetches, proxies or caches a user's storage. **Private** archives are end-to-end:
-   the backend holds no key for them, and their share links carry the key in the URL fragment,
-   which browsers do not transmit. Copy must never call a Standard archive end-to-end.
-   (Decided 2026-09-11; see `ACCOUNTS-AND-CLOUD.md`.)
+2. **Chats never live on our servers.** Parsing happens on the device. Messages and media are
+   stored only on the device and in storage the user owns (Google Drive, Dropbox, iCloud) —
+   never on Boydem's servers, in any form. The backend holds accounts, subscriptions and
+   sharing records, and **no archive keys**: it never receives chat content, a key or a
+   passphrase, and never fetches, proxies or caches a user's storage.
+   **Encryption is opt-in.** By default a chat is saved as plain, readable files (format v2) on
+   the phone and in the user's Drive. A chat the user protects with a passphrase is sealed
+   end-to-end (format v1) and opens only with that passphrase; its share links carry the key in
+   the URL fragment, which browsers do not transmit. Copy must never call an unprotected chat
+   encrypted. (Decided 2026-09-11; see `ACCOUNTS-AND-CLOUD.md`.)
 3. **`packages/core` is isomorphic.** No `node:*` imports, no React Native modules, no DOM
    globals. Platform capabilities (crypto, filesystem, zip) enter through injected ports
    defined in `core`. It runs identically in Node tests, Hermes, and the browser.
@@ -53,7 +53,7 @@ storage: **`ACCOUNTS-AND-CLOUD.md`**.
 | `packages/storage` | `StorageAdapter` interface + per-destination adapters |
 | `apps/mobile` | Expo React Native, iOS + Android. Owns the Share Extension — the app's only entry point. |
 | `apps/web` | Next.js on Vercel. Read-only viewer + client-side append-and-merge. |
-| `apps/api` | Vercel Functions + Supabase. Accounts, subscriptions, sharing, Standard-mode key release. Never stores or proxies chat content. |
+| `apps/api` | Vercel Functions + Supabase. Accounts, subscriptions, sharing records. Never stores or proxies chat content, and holds no keys. |
 
 ## Conventions
 

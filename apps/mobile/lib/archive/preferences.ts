@@ -28,6 +28,11 @@ export interface ArchivePreferences {
   readonly selfParticipantId?: string;
   /** `MediaRef.sha256` of the image the user chose to stand for this chat. */
   readonly chatPhotoSha256?: string;
+  /**
+   * Epoch ms when the user confirmed, on the delete guide, that they deleted this chat in
+   * WhatsApp. Their word — the app cannot see WhatsApp. Drives the "Deleted" status.
+   */
+  readonly deletedInWhatsAppAt?: number;
 }
 
 const DIRECTORY = "preferences";
@@ -42,10 +47,11 @@ export async function readPreferences(archiveId: string): Promise<ArchivePrefere
   try {
     const parsed: unknown = JSON.parse(await file.text());
     if (typeof parsed !== "object" || parsed === null) return {};
-    const { selfParticipantId, chatPhotoSha256 } = parsed as Record<string, unknown>;
+    const { selfParticipantId, chatPhotoSha256, deletedInWhatsAppAt } = parsed as Record<string, unknown>;
     return {
       ...(typeof selfParticipantId === "string" ? { selfParticipantId } : {}),
       ...(typeof chatPhotoSha256 === "string" ? { chatPhotoSha256 } : {}),
+      ...(typeof deletedInWhatsAppAt === "number" ? { deletedInWhatsAppAt } : {}),
     };
   } catch {
     // A corrupt preferences file is a cosmetic problem; the archive is untouched by it, and
@@ -73,7 +79,7 @@ export async function updatePreferences(
   archiveId: string,
   patch: { readonly [K in keyof ArchivePreferences]?: ArchivePreferences[K] | undefined },
 ): Promise<ArchivePreferences> {
-  const merged: Record<string, string> = {};
+  const merged: Record<string, string | number> = {};
   for (const [key, value] of Object.entries({ ...(await readPreferences(archiveId)), ...patch })) {
     if (value !== undefined) merged[key] = value;
   }

@@ -125,6 +125,31 @@ export function backupArchive(archiveId: string): Promise<BackupStatus> {
   return run;
 }
 
+let pendingRun: Promise<void> | undefined;
+
+/**
+ * Back up, one at a time, every chat whose latest version is not in Drive yet. Called when the
+ * chat list opens, so statuses move from "On this phone" to "Safe to delete" without the user
+ * pressing anything. A second call while one is running joins it.
+ */
+export function backupPending(
+  chats: readonly { readonly archiveId: string; readonly updatedAt: number }[],
+): Promise<void> {
+  pendingRun ??= (async () => {
+    try {
+      if (!(await isDriveConnected())) return;
+      for (const chat of chats) {
+        const { backedUpAt } = await readBackupState(chat.archiveId);
+        if (backedUpAt !== undefined && backedUpAt >= chat.updatedAt) continue;
+        await backupArchive(chat.archiveId);
+      }
+    } finally {
+      pendingRun = undefined;
+    }
+  })();
+  return pendingRun;
+}
+
 /** Back up every archive on this phone, one after another. */
 export async function backupAll(): Promise<{ ok: number; failed: number }> {
   let ok = 0;

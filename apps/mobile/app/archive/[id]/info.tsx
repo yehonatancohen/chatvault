@@ -3,7 +3,6 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { mediaStats } from "@chatvault/core";
 import { readPreferences, updatePreferences } from "../../../lib/archive/preferences";
-import { archiveLocationSummary } from "../../../lib/archive/vault";
 import { readLibrary, type LibraryEntry } from "../../../lib/archive/library";
 import { useArchive } from "../../../components/archive/useArchive";
 import { MediaGrid } from "../../../components/archive/MediaGrid";
@@ -11,11 +10,14 @@ import { Lightbox, type LightboxSubject } from "../../../components/archive/Ligh
 import { RemoveArchiveSheet } from "../../../components/archive/RemoveArchiveSheet";
 import { ChatAvatar } from "../../../components/archive/ChatAvatar";
 import { DriveBackup } from "../../../components/archive/DriveBackup";
+import { MediaNote } from "../../../components/archive/MediaNote";
+import { StatusPill } from "../../../components/archive/StatusPill";
+import { useChatStatus } from "../../../components/archive/useChatStatus";
 import { useChatPhoto } from "../../../components/archive/useChatPhoto";
 import { createStyles, useApp } from "../../../components/app/providers";
-import { Callout, CalloutText, LinkRow, Row, Section } from "../../../components/app/ui";
+import { LinkRow, Row, Section } from "../../../components/app/ui";
 import { buildMediaIndex, findChatPhoto, imagesOnly } from "../../../lib/ui/media-index";
-import { formatBytes, formatCount, formatDateTime, formatRange } from "../../../lib/ui/format";
+import { formatCount, formatRange } from "../../../lib/ui/format";
 import { colorForParticipant } from "../../../lib/ui/participants";
 import { explainMedia } from "../../../lib/ui/media-explanation";
 import { radius, space } from "../../../lib/ui/theme";
@@ -99,6 +101,7 @@ export default function ArchiveInfoScreen() {
   );
   const images = useMemo(() => imagesOnly(media), [media]);
   const chatPhoto = useMemo(() => findChatPhoto(media, chatPhotoSha256), [media, chatPhotoSha256]);
+  const status = useChatStatus(archiveId, state.kind === "ready" ? state.manifest.updatedAt : 0);
 
   if (state.kind !== "ready") {
     return (
@@ -128,6 +131,7 @@ export default function ArchiveInfoScreen() {
   // gives the right answer.
   const explanation = explainMedia(stats, stats.attachedCount > 0, language);
 
+
   const people = manifest.participants;
   const visiblePeople = showAllPeople ? people : people.slice(0, VISIBLE_PARTICIPANTS);
   const hiddenPeople = people.length - visiblePeople.length;
@@ -137,13 +141,8 @@ export default function ArchiveInfoScreen() {
       <Stack.Screen options={{ title: t("info.title") }} />
 
       <View style={styles.hero}>
-        <ChatAvatar
-          title={manifest.chatTitle}
-          reader={state.reader}
-          thumbnail={chatPhoto}
-          size={88}
-        />
-        {chatPhoto !== undefined ? (
+        <ChatAvatar title={manifest.chatTitle} reader={state.reader} thumbnail={chatPhoto} size={88} />
+        {chatPhoto !== undefined && (
           <Pressable
             onPress={() => void setChatPhoto(undefined)}
             accessibilityRole="button"
@@ -152,15 +151,25 @@ export default function ArchiveInfoScreen() {
           >
             <Text style={styles.photoLink}>{t("chatPhoto.remove")}</Text>
           </Pressable>
-        ) : (
-          images.length > 0 && <Text style={styles.photoHint}>{t("chatPhoto.hint")}</Text>
         )}
         <Text style={styles.title}>{manifest.chatTitle}</Text>
         <Text style={styles.subtitle}>
-          {tp("common.people", people.length)} · {tp("common.messages", manifest.messageCount)}
+          {tp("common.messages", manifest.messageCount)} · {formatRange(manifest.firstTs, manifest.lastTs)}
         </Text>
-        <Text style={styles.subtitle}>{formatRange(manifest.firstTs, manifest.lastTs)}</Text>
+        <StatusPill status={status} />
       </View>
+
+      <Section title={t("info.drive")}>
+        <DriveBackup archiveId={archiveId} updatedAt={manifest.updatedAt} />
+        {(status.kind === "safe" || status.kind === "deleted") && (
+          <LinkRow
+            label={t("verify.cta.delete")}
+            onPress={() =>
+              router.push({ pathname: "/delete-guide", params: { id: archiveId, title: manifest.chatTitle } })
+            }
+          />
+        )}
+      </Section>
 
       <Section
         title={t("info.media.title", { count: formatCount(images.length) })}
@@ -168,156 +177,66 @@ export default function ArchiveInfoScreen() {
           images.length > PREVIEW_TILES
             ? {
                 label: t("info.media.seeAll"),
-                onPress: () =>
-                  router.push({ pathname: "/archive/[id]/media", params: { id: archiveId } }),
+                onPress: () => router.push({ pathname: "/archive/[id]/media", params: { id: archiveId } }),
               }
             : undefined
         }
       >
-        <MediaGrid
-          items={images.slice(0, PREVIEW_TILES)}
-          reader={state.reader}
-          onOpen={setLightbox}
-        />
-        <View style={styles.mediaFacts}>
-          <Text style={styles.mediaFactsText}>
-            {t("info.media.facts", {
-              files: tp("common.files", stats.uniqueBlobCount),
-              size: formatBytes(stats.totalBytes),
-            })}
-            {media.length > images.length
-              ? ` · ${t("info.media.notPlayable", {
-                  count: formatCount(media.length - images.length),
-                })}`
-              : ""}
-          </Text>
-        </View>
-
-        {explanation.severity !== "none" && (
-          <View style={styles.gap}>
-            <Text style={styles.gapHeading}>{explanation.headline}</Text>
-            {explanation.causes.map((cause) => (
-              <Text key={cause.what} style={styles.gapBody}>
-                {cause.what}. {cause.why}
-              </Text>
-            ))}
-            <Text style={styles.gapBody}>{explanation.stillSaved}</Text>
-          </View>
+        <MediaGrid items={images.slice(0, PREVIEW_TILES)} reader={state.reader} onOpen={setLightbox} />
+        {images.length > 0 && images.length <= PREVIEW_TILES && chatPhoto === undefined && (
+          <Text style={styles.hint}>{t("chatPhoto.hint")}</Text>
         )}
+        <MediaNote explanation={explanation} missing={stats.notArchivedCount} />
       </Section>
 
       <Section title={tp("info.people", people.length)}>
         <Text style={styles.hint}>{t("info.people.hint")}</Text>
-
         {visiblePeople.map((participant) => {
           const isSelf = selfId === participant.id;
-          const otherNames = participant.aliases.filter((a) => a !== participant.displayName);
           return (
             <Pressable
               key={participant.id}
               onPress={() => void chooseSelf(participant.id)}
               accessibilityRole="button"
               accessibilityState={{ selected: isSelf }}
-              style={({ pressed }) => [
-                styles.person,
-                isSelf && styles.personSelf,
-                pressed && styles.pressed,
-              ]}
+              style={({ pressed }) => [styles.person, isSelf && styles.personSelf, pressed && styles.pressed]}
             >
-              <View
-                style={[
-                  styles.avatar,
-                  { backgroundColor: colorForParticipant(participant.displayName) },
-                ]}
-              >
-                <Text style={styles.avatarLetter}>
-                  {[...participant.displayName][0]?.toUpperCase() ?? "?"}
-                </Text>
+              <View style={[styles.avatar, { backgroundColor: colorForParticipant(participant.displayName) }]}>
+                <Text style={styles.avatarLetter}>{[...participant.displayName][0]?.toUpperCase() ?? "?"}</Text>
               </View>
-              <View style={styles.personText}>
-                <Text style={styles.personName} numberOfLines={1}>
-                  {participant.displayName}
-                </Text>
-                {otherNames.length > 0 && (
-                  <Text style={styles.personAliases} numberOfLines={1}>
-                    {t("info.people.alsoSeenAs", { names: otherNames.join(", ") })}
-                  </Text>
-                )}
-              </View>
+              <Text style={styles.personName} numberOfLines={1}>
+                {participant.displayName}
+              </Text>
               {isSelf && <Text style={styles.youBadge}>{t("info.people.you")}</Text>}
             </Pressable>
           );
         })}
-
-        {/* The group-screen pattern: a row at the bottom that opens the rest in place. */}
         {(hiddenPeople > 0 || showAllPeople) && (
           <Pressable
             onPress={() => setShowAllPeople((value) => !value)}
             accessibilityRole="button"
             style={({ pressed }) => [styles.moreRow, pressed && styles.pressed]}
           >
-            <View style={styles.moreChevron}>
-              <Text style={styles.moreChevronText}>{showAllPeople ? "▲" : "▼"}</Text>
-            </View>
             <Text style={styles.moreLabel}>
-              {showAllPeople
-                ? t("common.showFewer")
-                : t("common.viewAll", { count: formatCount(people.length) })}
+              {showAllPeople ? t("common.showFewer") : t("common.viewAll", { count: formatCount(people.length) })}
             </Text>
           </Pressable>
         )}
       </Section>
 
-      <Section title={tp("info.sources", manifest.sources.length)}>
-        <Text style={styles.hint}>{t("info.sources.hint")}</Text>
-        {[...manifest.sources]
-          .sort((a, b) => b.importedAt - a.importedAt)
-          .map((source) => (
-            <View key={source.id} style={styles.source}>
-              <Text style={styles.sourceWhen}>{formatDateTime(source.importedAt)}</Text>
-              <Text style={styles.sourceWhat}>
-                {t("info.sources.platform", {
-                  contributor: source.contributor ?? t("info.sources.thisPhone"),
-                  platform: source.dialect.platform,
-                })}
-              </Text>
-            </View>
-          ))}
-      </Section>
-
-      <Section title={t("info.saved.title")}>
-        <Text style={styles.body}>{archiveLocationSummary(language)}</Text>
-        <DriveBackup archiveId={archiveId} />
-        <Text style={styles.hint}>{t("info.saved.noAccount")}</Text>
-        <Text style={styles.hint}>{t("info.saved.backup")}</Text>
-        <View style={styles.pathBox}>
-          <Text style={styles.pathText} selectable>
-            Documents/archives/{archiveId}
-          </Text>
-        </View>
-      </Section>
-
-      <Section title={t("info.archive.title")}>
-        <Row label={t("info.archive.created")} value={formatDateTime(manifest.createdAt)} />
-        <Row label={t("info.archive.updated")} value={formatDateTime(manifest.updatedAt)} />
-        <Row label={t("info.archive.chunks")} value={formatCount(manifest.chunks.length)} />
-        <Row label={t("info.archive.format")} value={String(manifest.formatVersion)} />
-      </Section>
-
-      <Section title={t("info.danger.title")} footnote={t("remove.noteWhatsApp")}>
+      <Section>
+        <Row
+          label={t("info.passphrase")}
+          value={state.reader.encrypted ? t("info.passphrase.on") : t("info.passphrase.off")}
+        />
         <LinkRow label={t("remove.cta")} tone="danger" onPress={() => void openRemove()} />
       </Section>
 
-      <Lightbox
-        subject={lightbox}
-        onClose={() => setLightbox(undefined)}
-        action={lightboxAction(lightbox)}
-      />
+      <Lightbox subject={lightbox} onClose={() => setLightbox(undefined)} action={lightboxAction(lightbox)} />
       <RemoveArchiveSheet
         entry={removing}
         onClose={() => setRemoving(undefined)}
-        // The archive this screen is reading no longer exists, so there is nothing to return
-        // to: go to the list rather than back to a reader that would fail to open.
+        // The archive this screen is reading no longer exists, so go to the list.
         onRemoved={() => {
           setRemoving(undefined);
           router.replace("/");
