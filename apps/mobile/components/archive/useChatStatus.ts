@@ -3,7 +3,7 @@ import { useFocusEffect } from "expo-router";
 import { readPreferences } from "../../lib/archive/preferences";
 import { readBackupState } from "../../lib/drive/backup-state";
 import { watchBackup, type BackupStatus } from "../../lib/drive/device-sync";
-import { chatStatus, type ChatStatus } from "../../lib/ui/chat-status";
+import { chatStatus, progressFraction, type ChatStatus } from "../../lib/ui/chat-status";
 
 /**
  * One chat's status, live: backup progress as it happens, the last completed backup from disk,
@@ -32,9 +32,6 @@ export function useChatStatus(archiveId: string, updatedAt: number): ChatStatus 
     updatedAt,
     backedUpAt,
     deletedAt,
-    uploading:
-      backup.kind === "running"
-        ? (backup.progress ?? { done: 0, total: 1 })
-        : undefined,
+    uploading: backup.kind === "running" ? { fraction: progressFraction(backup.progress) } : undefined,
   });
 }

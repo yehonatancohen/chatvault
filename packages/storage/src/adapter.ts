@@ -16,6 +16,19 @@ export interface StorageCapabilities {
   readonly webReadable: boolean;
 }
 
+/** A file on this device's disk, as a platform's native uploader needs it. */
+export interface LocalFile {
+  readonly uri: string;
+  readonly size: number;
+}
+
+export interface PutFileOptions {
+  /** Called once the transfer has been handed to the platform — before it finishes. */
+  onQueued?(): void;
+  /** Bytes sent so far, as the platform reports them. */
+  onProgress?(bytesSent: number): void;
+}
+
 export class ObjectNotFoundError extends Error {
   constructor(readonly path: string) {
     super(`No object at ${path}`);
@@ -51,4 +64,17 @@ export interface StorageAdapter {
    * when the destination reports the same size for it.
    */
   sizeOf?(path: string): Promise<number | undefined>;
+
+  /**
+   * On-device storage only: the file behind `path`, so a native uploader can send it straight
+   * from disk. `undefined` when the object is not a plain file here.
+   */
+  localFile?(path: string): Promise<LocalFile | undefined>;
+
+  /**
+   * Upload a local file with the platform's native uploader — on iOS a background URLSession,
+   * which runs at full speed outside JS and keeps going while the app is in the background.
+   * Present only when the adapter was given such an uploader.
+   */
+  putFile?(path: string, file: LocalFile, options?: PutFileOptions): Promise<void>;
 }

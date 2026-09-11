@@ -259,6 +259,76 @@ describe("speed", () => {
   });
 });
 
+describe("native uploads (background URLSession on iOS)", () => {
+  /** A phone: storage whose objects are also "files" a native uploader can send. */
+  class PhoneStorage extends MemoryStorageAdapter {
+    async localFile(path: string) {
+      const size = await this.sizeOf(path);
+      return size === undefined ? undefined : { uri: `file:///archive/${path}`, size };
+    }
+  }
+
+  function nativeDrive(local: PhoneStorage, options: { hold?: boolean; failName?: string } = {}) {
+    const fake = new FakeDrive();
+    const folder = fake.createFolder(ARCHIVE_ID);
+    const queued: string[] = [];
+    const held: (() => void)[] = [];
+    const client = new DriveClient({
+      fetch: fake.fetch,
+      getAccessToken: () => Promise.resolve(fake.validToken),
+      sleep: () => Promise.resolve(),
+      async uploadFile(url, uri, headers, onProgress) {
+        const path = uri.replace("file:///archive/", "");
+        queued.push(path);
+        if (options.hold) await new Promise<void>((release) => held.push(release));
+        if (options.failName !== undefined && path.includes(options.failName)) return { status: 503, body: "" };
+        const body = await local.get(path);
+        onProgress?.(body.byteLength);
+        const response = await fake.fetch(url, { method: "PUT", headers, body });
+        return { status: response.status, body: await response.text() };
+      },
+    });
+    const adapter = () => new GoogleDriveStorageAdapter({ client, rootFolderId: folder });
+    return { fake, adapter, queued, releaseAll: () => held.splice(0).forEach((r) => r()) };
+  }
+
+  it("hands every photo to the platform before waiting for any of them", async () => {
+    const local = new PhoneStorage();
+    await writer(local).write(content("s1", [text(0, "Dana", "hi")], [photo(1), photo(2), photo(3), photo(4)]));
+    const { adapter, queued, releaseAll } = nativeDrive(local, { hold: true });
+
+    const push = pushArchive(local, adapter(), {}, { sha256Hex });
+    // Let the session-opening requests run; the uploads themselves are all held.
+    for (let i = 0; i < 50 && queued.length < 4; i += 1) await new Promise((r) => setTimeout(r, 1));
+    expect(queued).toHaveLength(4);
+    releaseAll();
+
+    expect((await push).kind).toBe("pushed");
+    expect((await open(adapter())).manifest.media).toHaveLength(4);
+  });
+
+  it("reports progress in bytes, reaching the total", async () => {
+    const local = new PhoneStorage();
+    await writer(local).write(content("s1", [text(0, "Dana", "hi")], [photo(1, 1_000), photo(2, 500_000)]));
+    const { adapter } = nativeDrive(local);
+    const seen: { bytesDone?: number; bytesTotal?: number }[] = [];
+    await pushArchive(local, adapter(), {}, { sha256Hex, onProgress: (p) => seen.push(p) });
+
+    const last = seen.at(-1)!;
+    expect(last.bytesTotal).toBeGreaterThan(500_000);
+    expect(last.bytesDone).toBe(last.bytesTotal);
+  });
+
+  it("does not write the manifest when an upload fails, and finishes on the next run", async () => {
+    const local = new PhoneStorage();
+    await writer(local).write(content("s1", [text(0, "Dana", "hi")], [photo(1), photo(2)]));
+    const [firstMedia] = await local.list("media/");
+    const failing = nativeDrive(local, { failName: firstMedia!.slice(6, 20) });
+    await expect(pushArchive(local, failing.adapter(), {}, { sha256Hex })).rejects.toThrow(/503/);
+    expect(await failing.adapter().has(MANIFEST_PATH)).toBe(false);
+  });
+});
+
 describe("offloadMedia", () => {
   it("removes photos from the phone only once Drive holds them at the same size", async () => {
     const local = new MemoryStorageAdapter();

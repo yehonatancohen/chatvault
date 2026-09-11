@@ -9,6 +9,7 @@ import {
   type BackupStatus,
 } from "../../lib/drive/device-sync";
 import { readBackupState } from "../../lib/drive/backup-state";
+import { progressFraction } from "../../lib/ui/chat-status";
 import { space } from "../../lib/ui/theme";
 import { createStyles, useApp } from "../app/providers";
 import { ProgressBar } from "../app/ProgressBar";
@@ -71,10 +72,7 @@ export function DriveBackup({
   }
 
   if (status.kind === "running") {
-    const fraction =
-      status.progress !== undefined && status.progress.total > 0
-        ? status.progress.done / status.progress.total
-        : 0;
+    const fraction = progressFraction(status.progress);
     return (
       <View style={styles.stack}>
         <Text style={styles.muted}>

@@ -51,6 +51,12 @@ export interface SyncProgress {
   readonly total: number;
   /** The path just copied, for a progress line that shows something moving. */
   readonly path: string;
+  /**
+   * Bytes of this sync's uploads sent so far, and in all. A progress bar should use these: a
+   * chat is a few big videos and many small files, and counting files misleads badly.
+   */
+  readonly bytesDone?: number;
+  readonly bytesTotal?: number;
 }
 
 export interface SyncOptions {
@@ -115,22 +121,64 @@ export async function pushArchive(
   let copied = 0;
   let unchanged = 0;
   let done = 0;
+
+  // Byte progress, over everything this sync will actually send.
+  const toSend = new Map<string, number>();
+  for (const path of media) {
+    if (!remotePaths.has(path) || (await sizesDiffer(local, remote, path))) {
+      toSend.set(path, (await local.sizeOf?.(path)) ?? 0);
+    }
+  }
+  const bytesTotal = [...toSend.values()].reduce((sum, n) => sum + n, 0);
+  const sent = new Map<string, number>();
+  const bytesDone = () => [...sent.values()].reduce((sum, n) => sum + n, 0);
+  const report = (path: string) =>
+    options.onProgress?.({ done, total: ordered.length, path, bytesDone: bytesDone(), bytesTotal });
   const tick = (path: string) => {
     done += 1;
-    options.onProgress?.({ done, total: ordered.length, path });
+    report(path);
   };
 
-  // Media first, several at a time: it is almost all of the bytes, each file is independent,
-  // and nothing names a new photo until the manifest lands last.
+  // Media first, and all of it queued at once when the destination has a native uploader: each
+  // file is handed to the platform (a background URLSession on iOS) and this loop moves on
+  // without waiting for it to finish, so every transfer is in the system's hands — running at
+  // full speed, and continuing if the app goes to the background. Only opening the upload
+  // sessions is rate-limited. Nothing names a new photo until the manifest lands last.
+  const transfers: Promise<void>[] = [];
   await forEachLimit(media, UPLOAD_PARALLELISM, async (path) => {
-    if (remotePaths.has(path) && !(await sizesDiffer(local, remote, path))) {
+    if (!toSend.has(path)) {
       unchanged += 1;
+      tick(path);
+      return;
+    }
+    const file = remote.putFile !== undefined ? await local.localFile?.(path) : undefined;
+    if (file !== undefined && remote.putFile !== undefined) {
+      await new Promise<void>((queued) => {
+        const transfer = remote.putFile!(path, file, {
+          onQueued: queued,
+          onProgress: (bytes) => {
+            sent.set(path, bytes);
+            report(path);
+          },
+        }).then(() => {
+          sent.set(path, file.size);
+          copied += 1;
+          tick(path);
+        });
+        transfer.catch(() => queued());
+        transfers.push(transfer);
+      });
     } else {
       await copy(local, remote, path);
+      sent.set(path, toSend.get(path) ?? 0);
       copied += 1;
+      tick(path);
     }
-    tick(path);
   });
+  // Every transfer settles before the manifest is written; the first failure is reported after
+  // the rest have had their chance, so one bad file does not strand the others.
+  const failures = (await Promise.allSettled(transfers)).filter((r) => r.status === "rejected");
+  if (failures.length > 0) throw (failures[0] as PromiseRejectedResult).reason;
 
   // Everything else strictly in order, the manifest last.
   for (const path of rest) {
@@ -244,8 +292,11 @@ async function sizesDiffer(local: StorageAdapter, remote: StorageAdapter, path: 
   return here !== undefined && there !== undefined && here !== there;
 }
 
-/** How many media uploads run at once. Enough to hide latency, few enough for a phone. */
-const UPLOAD_PARALLELISM = 4;
+/**
+ * How many media uploads run at once through `fetch`, or — with a native uploader — how many
+ * upload sessions are opened at once (the transfers themselves are all queued to the platform).
+ */
+const UPLOAD_PARALLELISM = 6;
 /** Above this a file is streamed; below it, sent whole in one request. */
 const STREAM_ABOVE_BYTES = 5 * 1024 * 1024;
 

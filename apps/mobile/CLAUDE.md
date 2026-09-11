@@ -329,6 +329,13 @@ Before adding a sentence to a screen, put it in Help instead.
   `file-random-access.ts`): the central directory once, then one entry at a time. The shared
   export is deleted after a successful import — otherwise every import left a second full copy
   of the chat on the phone — and `sweepOldShares` removes day-old leftovers of failed ones.
+- **Backups upload in the background, natively** (`uploadFile` in `lib/drive/drive-storage.ts`,
+  `expo-file-system/legacy`'s `createUploadTask` with `sessionType: BACKGROUND`). Photos go from
+  disk to Drive without passing through JS, at the connection's speed, and keep going when the
+  user leaves the app; a task that finishes while JS is suspended resolves when the app returns,
+  and the backup then writes the manifest. If iOS kills the app, the transfers still complete
+  and the next backup pass finds them in Drive and finishes. The legacy module is inside the
+  prebuilt `ExpoFileSystem` framework already — no extra native dependency.
 - **Photo previews** (`lib/media/thumbnailer.ts`, `expo-image-manipulator`) are made right after
   an import saves ("Making previews…"), and for older chats by the background pass before their
   backup. They stay on the phone when photos move to Drive, so galleries, avatars and bubbles

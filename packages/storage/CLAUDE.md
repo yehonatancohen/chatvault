@@ -107,6 +107,14 @@ anything reaches this layer.
   verifiably holds — listed there and reported at exactly the same size. Nothing is ever removed
   from Drive, messages never leave the phone, and a copy Drive holds at the wrong size is
   re-uploaded (`sizesDiffer`) rather than trusted. Tested in `sync.test.ts`.
+- **Media goes up through the platform's native uploader when there is one** (`putFile`, from a
+  `FileUploader` given to `DriveClient`; on iOS a background URLSession). Streaming photos
+  through JS and `fetch` capped a 150 MB chat at ~0.2 MB/s on a good connection and stopped the
+  moment the app was backgrounded. Now sync opens a resumable session per file and hands every
+  file to the platform at once (`onQueued`), then waits for all of them before the manifest.
+  Progress is reported in bytes (`bytesDone`/`bytesTotal`). A resumable session URL needs no
+  bearer token — which is what lets a background upload outlive the app's token — and
+  `FakeDrive` behaves the same way. Tested in `sync.test.ts` → "native uploads".
 - **Backups are request-light on purpose.** One listing up front lets the Drive adapter answer
   every "is it there?" from memory (`completeDirs`); files up to 5 MB go whole in one request;
   media uploads run four at a time. `sync.test.ts` → "speed" pins the request count down.

@@ -50,8 +50,22 @@ export interface DriveFile {
   readonly appProperties?: Readonly<Record<string, string>>;
 }
 
+/**
+ * Sends a local file as the whole body of one request, natively. On iOS, a background
+ * URLSession upload task: the bytes never pass through JS, and the transfer continues while the
+ * app is suspended. Resolves with the final response once the upload completes.
+ */
+export type FileUploader = (
+  url: string,
+  fileUri: string,
+  headers: Readonly<Record<string, string>>,
+  onProgress?: (bytesSent: number) => void,
+) => Promise<{ readonly status: number; readonly body: string }>;
+
 export interface DriveClientOptions {
   readonly fetch: DriveFetch;
+  /** Optional native file uploader; without it, uploads stream through `fetch`. */
+  readonly uploadFile?: FileUploader;
   /**
    * A current OAuth access token carrying `DRIVE_SCOPE`. Called before every request, so it
    * should return a cached token cheaply; called with `forceRefresh: true` after a 401, when the
@@ -101,9 +115,11 @@ export class DriveClient {
   private readonly maxAttempts: number;
   private readonly baseDelayMs: number;
   private readonly sleep: (ms: number) => Promise<void>;
+  readonly uploadFile: FileUploader | undefined;
 
   constructor(options: DriveClientOptions) {
     this.fetchImpl = options.fetch;
+    this.uploadFile = options.uploadFile;
     this.getAccessToken = options.getAccessToken;
     this.maxAttempts = options.maxAttempts ?? 5;
     this.baseDelayMs = options.baseDelayMs ?? 500;

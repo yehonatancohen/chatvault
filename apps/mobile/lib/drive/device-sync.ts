@@ -103,6 +103,7 @@ export function backupArchive(archiveId: string): Promise<BackupStatus> {
 
   const run = (async (): Promise<BackupStatus> => {
     publish(archiveId, { kind: "running" });
+    let lastPublished = 0;
     try {
       const state = await readBackupState(archiveId);
       const { storage: remote, folderId } = await driveStorageFor(
@@ -115,7 +116,15 @@ export function backupArchive(archiveId: string): Promise<BackupStatus> {
         sha256Hex,
         // Saved as it goes, so a backup cut off by the app being closed resumes where it was.
         onLedger: async (ledger) => writeBackupState(archiveId, { ...state, ledger }),
-        onProgress: (progress) => publish(archiveId, { kind: "running", progress }),
+        // Native uploads report progress many times a second; four updates a second is plenty
+        // for a progress bar and keeps every visible chat row from re-rendering constantly.
+        onProgress: (progress) => {
+          const now = Date.now();
+          const finished = progress.done === progress.total;
+          if (!finished && now - lastPublished < 250) return;
+          lastPublished = now;
+          publish(archiveId, { kind: "running", progress });
+        },
       });
       if (result.kind === "diverged") return { kind: "diverged" };
 

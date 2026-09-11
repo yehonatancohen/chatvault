@@ -65,6 +65,12 @@ export class ExpoFileSystemStorageAdapter implements StorageAdapter {
     if (file.exists) file.delete();
   }
 
+  /** The file behind `path`, for the native uploader — photos go to Drive straight from disk. */
+  async localFile(path: string): Promise<{ uri: string; size: number } | undefined> {
+    const file = this.fileFor(path);
+    return file.exists ? { uri: file.uri, size: file.size ?? 0 } : undefined;
+  }
+
   async sizeOf(path: string): Promise<number | undefined> {
     const file = this.fileFor(path);
     return file.exists ? (file.size ?? undefined) : undefined;

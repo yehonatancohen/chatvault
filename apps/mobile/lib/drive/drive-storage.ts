@@ -15,12 +15,18 @@
 
 import { fetch as expoFetch } from "expo/fetch";
 import {
+  createUploadTask,
+  FileSystemSessionType,
+  FileSystemUploadType,
+} from "expo-file-system/legacy";
+import {
   DriveClient,
   ensureAppFolder,
   ensureArchiveFolder,
   GoogleDriveStorageAdapter,
   type DriveClientOptions,
   type DriveFetch,
+  type FileUploader,
 } from "@chatvault/storage";
 
 export type AccessTokenProvider = DriveClientOptions["getAccessToken"];
@@ -32,8 +38,34 @@ const driveFetch: DriveFetch = (url, init) =>
     ...(init.body !== undefined ? { body: init.body } : {}),
   });
 
+/**
+ * Uploads a file straight from disk with a **background URLSession** (iOS) — `expo-file-system`'s
+ * legacy upload task, which is the part of it that exposes one.
+ *
+ * This is what makes backups fast and hands-off: the bytes never pass through JS (reading a
+ * photo into JS, copying it and bridging it to `fetch` was what capped uploads at a fraction of
+ * the connection), and the system keeps transferring while the app is in the background — or
+ * after iOS suspends it. A task that completes while JS is suspended resolves when the app next
+ * comes to the foreground; the backup then finishes with the manifest.
+ */
+const uploadFile: FileUploader = async (url, fileUri, headers, onProgress) => {
+  const task = createUploadTask(
+    url,
+    fileUri,
+    {
+      httpMethod: "PUT",
+      headers: { ...headers },
+      uploadType: FileSystemUploadType.BINARY_CONTENT,
+      sessionType: FileSystemSessionType.BACKGROUND,
+    },
+    onProgress !== undefined ? (progress) => onProgress(progress.totalBytesSent) : undefined,
+  );
+  const result = await task.uploadAsync();
+  return { status: result?.status ?? 0, body: result?.body ?? "" };
+};
+
 export function createDriveClient(getAccessToken: AccessTokenProvider): DriveClient {
-  return new DriveClient({ fetch: driveFetch, getAccessToken });
+  return new DriveClient({ fetch: driveFetch, getAccessToken, uploadFile });
 }
 
 /**

@@ -1,4 +1,10 @@
-import { ObjectNotFoundError, type StorageAdapter, type StorageCapabilities } from "../adapter.js";
+import {
+  ObjectNotFoundError,
+  type LocalFile,
+  type PutFileOptions,
+  type StorageAdapter,
+  type StorageCapabilities,
+} from "../adapter.js";
 import {
   asciiBytes,
   asciiJson,
@@ -71,7 +77,13 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
    */
   private readonly completeDirs = new Set<string>();
 
+  /** Present only when the client has a native uploader — see `uploadNative`. */
+  readonly putFile?: (path: string, file: LocalFile, options?: PutFileOptions) => Promise<void>;
+
   constructor(options: GoogleDriveAdapterOptions) {
+    if (options.client.uploadFile !== undefined) {
+      this.putFile = (path, file, putOptions) => this.uploadNative(path, file, putOptions);
+    }
     this.client = options.client;
     this.rootFolderId = options.rootFolderId;
     this.uploadChunkBytes = options.uploadChunkBytes ?? 32 * UPLOAD_GRANULE;
@@ -196,30 +208,7 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
    * the session is asked how much it received and the upload resumes from there.
    */
   async putStream(path: string, data: AsyncIterable<Uint8Array>): Promise<void> {
-    const { dir, name } = split(path);
-    const existing = await this.findFile(path);
-
-    const json = { "Content-Type": "application/json; charset=UTF-8" };
-    let session =
-      existing === undefined
-        ? undefined
-        : await this.client.request(
-            `${DRIVE_UPLOAD_API}/files/${existing}?uploadType=resumable&fields=id`,
-            { method: "PATCH", headers: json, body: asciiJson({ mimeType: mimeTypeOf(name) }) },
-            [200, 404],
-          );
-    if (session === undefined || session.status === 404) {
-      this.fileIds.delete(path);
-      session = await this.client.request(`${DRIVE_UPLOAD_API}/files?uploadType=resumable&fields=id`, {
-        method: "POST",
-        headers: json,
-        body: asciiJson({ name, parents: [(await this.folderId(dir, true))!], mimeType: mimeTypeOf(name) }),
-      });
-    }
-    const sessionUrl = session.headers.get("Location") ?? session.headers.get("location");
-    if (sessionUrl === null) {
-      throw new DriveError(session.status, undefined, "Drive did not return a resumable upload session");
-    }
+    const sessionUrl = await this.openUploadSession(path);
 
     // Parts are copied on arrival (a producer may reuse its buffer after yielding) and joined
     // only when a whole chunk is ready — joining on every part would copy each byte once per
@@ -245,6 +234,27 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
     const created = JSON.parse(await finished.text()) as DriveFile;
     this.fileIds.set(path, created.id);
     this.sizes.set(path, sent + last.byteLength);
+  }
+
+  /**
+   * Upload a file straight from disk with the client's native uploader: one request to open a
+   * resumable session, then the platform sends the whole file to it — on iOS in a background
+   * URLSession, so it runs at network speed and survives the app being backgrounded. Without an
+   * uploader, falls back to streaming through `fetch`.
+   */
+  private async uploadNative(path: string, file: LocalFile, options?: PutFileOptions): Promise<void> {
+    const uploader = this.client.uploadFile!;
+    const { name } = split(path);
+    const sessionUrl = await this.openUploadSession(path);
+    const pending = uploader(sessionUrl, file.uri, { "Content-Type": mimeTypeOf(name) }, options?.onProgress);
+    options?.onQueued?.();
+    const result = await pending;
+    if (result.status !== 200 && result.status !== 201) {
+      throw new DriveError(result.status, undefined, `Uploading ${name} to Google Drive failed: ${result.status}`);
+    }
+    const created = JSON.parse(result.body) as DriveFile;
+    this.fileIds.set(path, created.id);
+    this.sizes.set(path, file.size);
   }
 
   async sizeOf(path: string): Promise<number | undefined> {
@@ -284,6 +294,34 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
   }
 
   // ── internals ────────────────────────────────────────────────────────────────────────────
+
+  /** A resumable upload session for `path` — updating the existing file, or creating one. */
+  private async openUploadSession(path: string): Promise<string> {
+    const { dir, name } = split(path);
+    const existing = await this.findFile(path);
+    const json = { "Content-Type": "application/json; charset=UTF-8" };
+    let session =
+      existing === undefined
+        ? undefined
+        : await this.client.request(
+            `${DRIVE_UPLOAD_API}/files/${existing}?uploadType=resumable&fields=id`,
+            { method: "PATCH", headers: json, body: asciiJson({ mimeType: mimeTypeOf(name) }) },
+            [200, 404],
+          );
+    if (session === undefined || session.status === 404) {
+      this.fileIds.delete(path);
+      session = await this.client.request(`${DRIVE_UPLOAD_API}/files?uploadType=resumable&fields=id`, {
+        method: "POST",
+        headers: json,
+        body: asciiJson({ name, parents: [(await this.folderId(dir, true))!], mimeType: mimeTypeOf(name) }),
+      });
+    }
+    const sessionUrl = session.headers.get("Location") ?? session.headers.get("location");
+    if (sessionUrl === null) {
+      throw new DriveError(session.status, undefined, "Drive did not return a resumable upload session");
+    }
+    return sessionUrl;
+  }
 
   /**
    * One chunk of a resumable upload. `total` is known only for the final chunk; before that

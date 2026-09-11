@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chatStatus } from "./chat-status";
+import { chatStatus, progressFraction } from "./chat-status";
 
 describe("chatStatus", () => {
   it("is on the phone until Drive has it", () => {
@@ -7,13 +7,9 @@ describe("chatStatus", () => {
   });
 
   it("shows upload progress while a backup runs", () => {
-    expect(chatStatus({ updatedAt: 100, uploading: { done: 3, total: 12 } })).toEqual({
+    expect(chatStatus({ updatedAt: 100, uploading: { fraction: 0.25 } })).toEqual({
       kind: "uploading",
       fraction: 0.25,
-    });
-    expect(chatStatus({ updatedAt: 100, uploading: { done: 0, total: 0 } })).toEqual({
-      kind: "uploading",
-      fraction: 0,
     });
   });
 
@@ -30,5 +26,17 @@ describe("chatStatus", () => {
     expect(chatStatus({ updatedAt: 100, backedUpAt: 150, deletedAt: 160 })).toEqual({ kind: "deleted" });
     // Deleted in WhatsApp but never backed up: the phone copy is the only one, and says so.
     expect(chatStatus({ updatedAt: 100, deletedAt: 160 })).toEqual({ kind: "device" });
+  });
+});
+
+describe("progressFraction", () => {
+  it("follows bytes, not files: one big video dominates", () => {
+    // 9 of 10 files done, but the one left is most of the bytes.
+    expect(progressFraction({ done: 9, total: 10, bytesDone: 10, bytesTotal: 1000 })).toBe(0.01);
+  });
+
+  it("counts files when nothing is being uploaded", () => {
+    expect(progressFraction({ done: 3, total: 12, bytesTotal: 0 })).toBe(0.25);
+    expect(progressFraction(undefined)).toBe(0);
   });
 });

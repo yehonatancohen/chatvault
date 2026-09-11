@@ -105,7 +105,9 @@ export class FakeDrive {
       if (injected !== undefined) return injected;
     }
 
-    if (init.headers.Authorization !== `Bearer ${this.validToken}`) {
+    // A resumable session URL is itself the credential, as with real Drive — which is what lets
+    // a native background upload finish without the app's (possibly expired) token.
+    if (!url.includes("/session/") && init.headers.Authorization !== `Bearer ${this.validToken}`) {
       return json(401, { error: { status: "UNAUTHENTICATED" } });
     }
     return this.serve(url, init);
@@ -231,8 +233,15 @@ export class FakeDrive {
     const session = this.sessions.get(path.slice("/session/".length));
     if (session === undefined) return notFound();
 
-    const range = init.headers["Content-Range"] ?? "";
     const body = init.body === undefined ? new Uint8Array(0) : bodyBytes(init);
+    // No Content-Range: the whole file in one request, as a native uploader sends it.
+    const range =
+      init.headers["Content-Range"] ??
+      (session.receivedBytes === 0
+        ? body.byteLength > 0
+          ? `bytes 0-${body.byteLength - 1}/${body.byteLength}`
+          : "bytes */0"
+        : "");
 
     const status = /^bytes \*\/(\d+|\*)$/.exec(range);
     const chunk = /^bytes (\d+)-(\d+)\/(\d+|\*)$/.exec(range);

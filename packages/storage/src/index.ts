@@ -1,5 +1,7 @@
 export {
   ObjectNotFoundError,
+  type LocalFile,
+  type PutFileOptions,
   type StorageAdapter,
   type StorageCapabilities,
 } from "./adapter.js";
@@ -15,6 +17,7 @@ export {
   DRIVE_SCOPE,
   type DriveClientOptions,
   type DriveFetch,
+  type FileUploader,
   type DriveRequestInit,
   type DriveResponse,
 } from "./google-drive/client.js";
