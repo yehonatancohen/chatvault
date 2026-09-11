@@ -25,6 +25,10 @@ export async function openSharedChat(folderId: string, hash: string): Promise<Ar
     fetch(url, {
       method: init.method,
       headers: init.headers,
+      // The page's policy is "no-referrer", but a Google API key restricted to this website
+      // is checked against the Referer. "origin" sends just `https://<site>/` — no path, so
+      // no folder id, and never the fragment — which is exactly what the restriction needs.
+      referrerPolicy: "origin",
       ...(init.body !== undefined ? { body: init.body as BodyInit } : {}),
     });
   const storage = new GoogleDriveStorageAdapter({

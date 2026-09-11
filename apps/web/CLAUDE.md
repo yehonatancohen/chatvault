@@ -45,7 +45,9 @@ the fragment to the server, do not include it in `Referer`, and do not log it.
   log line. `withoutKey()` in `lib/fragment-key.ts`.
 - **No third-party script on `/s/` pages**, and none site-wide that reads `location` —
   session-replay and most analytics capture full URLs and would leak keys wholesale.
-- `metadata.referrer` is `no-referrer` in `app/layout.tsx`. Do not relax it.
+- `metadata.referrer` is `no-referrer` in `app/layout.tsx`. Do not relax it. The one exception is
+  the Drive requests in `lib/shared-chat.ts`, which send `referrerPolicy: "origin"` — the site's
+  bare origin, no path or fragment — because the API key's website restriction checks it.
 
 ## Configuration (`lib/site.ts`)
 
