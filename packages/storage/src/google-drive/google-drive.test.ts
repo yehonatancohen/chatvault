@@ -255,7 +255,7 @@ describe("Drive folders", () => {
 
     expect(await ensureArchiveFolder(client, app, "arch-a", "Family (2024)")).toBe(id);
     expect(drive.files.get(id)?.name).toBe("Family (2024)");
-    expect(await listArchiveFolders(client, app)).toEqual([{ archiveId: "arch-a", folderId: id }]);
+    expect(await listArchiveFolders(client, app)).toEqual([{ archiveId: "arch-a", folderId: id, name: "Family (2024)" }]);
   });
 
   it("makes one folder per archive, named by id, and lists them", async () => {
@@ -267,8 +267,8 @@ describe("Drive folders", () => {
 
     expect(drive.files.get(a)?.name).toBe("arch-a");
     expect(await listArchiveFolders(client, app)).toEqual([
-      { archiveId: "arch-a", folderId: a },
-      { archiveId: "arch-b", folderId: b },
+      { archiveId: "arch-a", folderId: a, name: "arch-a" },
+      { archiveId: "arch-b", folderId: b, name: "arch-b" },
     ]);
   });
 });

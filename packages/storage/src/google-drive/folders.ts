@@ -27,15 +27,19 @@ export const APP_FOLDER_NAME = "Boydem";
 const ROLE = "boydemRole";
 const ARCHIVE_ID = "boydemArchiveId";
 
-/** The Boydem folder in the user's Drive, created on first use. Oldest wins if two exist. */
-export async function ensureAppFolder(client: DriveClient): Promise<string> {
+/** The Boydem folder in the user's Drive, if there is one. Never creates it (the web viewer uses this). */
+export async function findAppFolder(client: DriveClient): Promise<string | undefined> {
   const existing = await client.listFiles(
     `appProperties has { key=${quote(ROLE)} and value='app' } and ` +
       `mimeType = ${quote(FOLDER_MIME)} and trashed = false`,
     "createdTime",
   );
-  if (existing[0] !== undefined) return existing[0].id;
-  return (await client.createFolder(APP_FOLDER_NAME, undefined, { [ROLE]: "app" })).id;
+  return existing[0]?.id;
+}
+
+/** The Boydem folder in the user's Drive, created on first use. Oldest wins if two exist. */
+export async function ensureAppFolder(client: DriveClient): Promise<string> {
+  return (await findAppFolder(client)) ?? (await client.createFolder(APP_FOLDER_NAME, undefined, { [ROLE]: "app" })).id;
 }
 
 /**
@@ -60,19 +64,19 @@ export async function ensureArchiveFolder(
 export async function listArchiveFolders(
   client: DriveClient,
   appFolderId: string,
-): Promise<{ readonly archiveId: string; readonly folderId: string }[]> {
+): Promise<{ readonly archiveId: string; readonly folderId: string; readonly name: string }[]> {
   const folders = await client.listFiles(
     `${quote(appFolderId)} in parents and appProperties has { key=${quote(ROLE)} and value='archive' } and ` +
       `mimeType = ${quote(FOLDER_MIME)} and trashed = false`,
     "createdTime",
   );
   const seen = new Set<string>();
-  const out: { archiveId: string; folderId: string }[] = [];
+  const out: { archiveId: string; folderId: string; name: string }[] = [];
   for (const folder of folders) {
     const archiveId = archiveIdOf(folder);
     if (archiveId === undefined || seen.has(archiveId)) continue;
     seen.add(archiveId);
-    out.push({ archiveId, folderId: folder.id });
+    out.push({ archiveId, folderId: folder.id, name: folder.name });
   }
   return out;
 }

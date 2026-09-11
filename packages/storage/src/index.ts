@@ -25,6 +25,7 @@ export {
   APP_FOLDER_NAME,
   ensureAppFolder,
   ensureArchiveFolder,
+  findAppFolder,
   listArchiveFolders,
 } from "./google-drive/folders.js";
 export { runLiveDriveContract } from "./google-drive/live-contract.js";

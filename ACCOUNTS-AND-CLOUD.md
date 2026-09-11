@@ -184,6 +184,10 @@ a phone) still comes first — everything below syncs what that pipeline produce
   from the file (the 150 MB cap is gone) and deleted after import. Each photo gets a small
   preview kept on the phone, so galleries stay instant after photos move to Drive.
 
+- **Website reads your Drive (2026-09-11).** `/chats`: sign in with Google, see the chats the
+  phone backed up, open them (plain directly, protected by passphrase). Needs the Web OAuth
+  client ID and a Vercel deployment. Release (non-dev) app build verified on device.
+
 ### Next — Phase 1, remaining
 
 1. **Device check of backup and restore**: import a chat with Drive connected, watch Verify

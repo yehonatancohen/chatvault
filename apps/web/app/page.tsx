@@ -1,13 +1,9 @@
 /**
- * Landing. Its whole job is to explain the trust model in plain language and hand the
- * visitor to `/open` — there is no share-link backend yet (B0b, Track C), so there is no
- * live countdown and no "save to Drive" here; both would be claims nothing backs.
+ * Landing. Short on purpose (owner's rule: minimal text): what Boydem is, and the two ways in —
+ * your own chats from Google Drive (`/chats`), or a chat file someone gave you (`/open`).
  *
- * Set in Hebrew, RTL, matching the Boydem.dc.html direction. The RTL scope is this element,
- * not the document — the viewer at `/open` keeps its own per-message direction.
- *
- * Invariant 1 (root CLAUDE.md): Boydem never deletes from WhatsApp and never says it frees
- * storage. The copy guides the reader to delete the original themselves.
+ * Set in Hebrew, RTL. Invariant 1 (root CLAUDE.md): Boydem never deletes from WhatsApp and never
+ * says it frees storage; it shows the reader how to delete the original themselves.
  */
 export default function HomePage() {
   return (
@@ -17,42 +13,22 @@ export default function HomePage() {
         <span>בוידעם</span>
       </div>
 
-      <h1>הצ׳אטים של וואטסאפ, שמורים אצלך — ואפשר באמת לקרוא אותם.</h1>
+      <h1>הצ׳אטים של וואטסאפ, שמורים אצלכם.</h1>
 
       <p className="landing-lead">
-        בוידעם לוקח ייצוא של צ׳אט מוואטסאפ, מצפין אותו על המכשיר שלך, ושומר אותו במקום שאתה
-        בוחר. אחר כך הוא מראה לך, צעד־צעד, איך למחוק את הצ׳אט המקורי — את זה עושים רק אתם.
+        שומרים צ׳אט באפליקציה, והוא מגובה ל־Google Drive שלכם. כאן אפשר לקרוא אותו מכל מחשב.
       </p>
 
-      <div className="landing-card">
-        <h2>מה עושים בעמוד הזה</h2>
-        <p>
-          פותחים ארכיון שמישהו שיתף אתכם, וגם מוסיפים את הייצוא שלכם מאותו צ׳אט — כך שההיסטוריה
-          של הקבוצה חוזרת אחורה יותר ממה שייצוא אחד מסוגל לבד.
-        </p>
-      </div>
-
-      <div className="landing-card">
-        <h2>איך מגיע אליכם ארכיון</h2>
-        <p>
-          כרגע זה קובץ <code>.cvault</code> שמישהו מוסר לכם ישירות — ב־AirDrop, במייל או בתיקייה
-          משותפת ב־Drive — יחד עם סיסמה. שום דבר שתפתחו לא נשלח לשום מקום: הפענוח קורה בלשונית
-          הזו ולא באף מקום אחר.
-        </p>
-      </div>
-
-      <a className="landing-cta" href="/open">
-        פתח ארכיון
+      <a className="landing-cta" href="/chats">
+        הצ׳אטים שלי
       </a>
 
       <p className="landing-note">
-        מוצפן אצל השולח. המפתח יושב רק בקישור שקיבלתם — לא אצלנו. אנחנו לא רואים כלום.
+        <a href="/open">פתיחת קובץ צ׳אט</a> · שום דבר לא נשלח לשרתים שלנו.
       </p>
 
       <p className="landing-en">
-        Boydem — a WhatsApp archive you own and can actually read. Open a shared{" "}
-        <code>.cvault</code> file and a passphrase; it is decrypted only in this browser tab.{" "}
-        <a href="/open">Open an archive →</a>
+        Boydem — your WhatsApp chats, kept in your own Google Drive. <a href="/chats">Open my chats →</a>
       </p>
     </main>
   );

@@ -255,3 +255,17 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 
 .append-error { color: #c4442e; margin-top: 0.5rem; }
+
+/* ── Your chats (from Google Drive) ─────────────────────────────────────────────────────── */
+.chat-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.5rem; }
+.chat-link {
+  display: block;
+  padding: 0.85rem 1rem;
+  border-radius: 0.6rem;
+  background: rgba(127, 127, 127, 0.1);
+  color: inherit;
+  text-decoration: none;
+  font-weight: 600;
+}
+.chat-link:hover { background: rgba(127, 127, 127, 0.18); }
+button.quiet { background: none; border: none; color: var(--muted); cursor: pointer; margin-top: 1rem; }

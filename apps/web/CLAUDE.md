@@ -31,6 +31,30 @@ Consequences, all load-bearing:
   capture full URLs by default and would exfiltrate the key wholesale.
 - `metadata.referrer` is `no-referrer` in `app/layout.tsx`. Do not relax it.
 
+## Your chats from Google Drive (`/chats`)
+
+Sign in with Google (Identity Services token client, `lib/google.ts`), list the Boydem folder
+in the user's Drive (`lib/drive-chats.ts`), and open a chat straight from its folder with the
+same `GoogleDriveStorageAdapter` the phone uses, over the browser's `fetch`. Plain chats open
+directly; protected ones ask for their passphrase. Photos draw their previews and load full
+size only when opened; videos and files load only when tapped.
+
+- **`NEXT_PUBLIC_GOOGLE_CLIENT_ID`** is the *Web* OAuth client from the same Google Cloud
+  project as the iOS client — that is what lets the site see files the phone created under the
+  `drive.file` scope. Its *Authorized JavaScript origins* must list every origin the site runs
+  on (`http://localhost:3000`, the Vercel domain). Without it `/chats` says sign-in is not set up.
+- **The Google script is loaded only by `/chats` pages**, never site-wide: it is third-party
+  code, and the rule above about pages that carry keys in their URL still stands.
+- The access token lives in memory for the tab; there is no silent refresh, so an expired token
+  means "sign in again". Nothing is stored server-side, and nothing goes to Boydem's servers.
+
+## Deploying (Vercel)
+
+Import the GitHub repo in Vercel with **Root Directory `apps/web`** (the pnpm workspace is
+detected from the repo root; `patches/` and `patchedDependencies` come along). Set
+`NEXT_PUBLIC_GOOGLE_CLIENT_ID` in the project's environment variables, then add the Vercel
+domain to the Web OAuth client's authorized origins. Pushes to the production branch redeploy.
+
 ## How to test this app
 
 ```bash
