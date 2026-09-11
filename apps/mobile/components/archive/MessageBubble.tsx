@@ -5,7 +5,8 @@ import { toBase64 } from "../../lib/crypto/base64";
 import { mediaKindOf, mimeTypeOf } from "../../lib/ui/mime";
 import { messageTime } from "../../lib/ui/chat";
 import { colorForParticipant } from "../../lib/ui/participants";
-import { radius, theme } from "../../lib/ui/theme";
+import { createStyles, useApp } from "../app/providers";
+import { radius, space } from "../../lib/ui/theme";
 import type { LightboxSubject } from "./Lightbox";
 
 /**
@@ -41,6 +42,9 @@ export const MessageBubble = memo(function MessageBubble({
   isSelf: boolean;
   onOpenMedia: (subject: LightboxSubject) => void;
 }) {
+  const { t } = useApp();
+  const styles = useStyles();
+
   if (message.kind === "system") {
     return (
       <View style={styles.systemRow}>
@@ -49,7 +53,7 @@ export const MessageBubble = memo(function MessageBubble({
     );
   }
 
-  const sender = message.sender ?? "Unknown";
+  const sender = message.sender ?? t("common.unknown");
   const showName = startsGroup && !isSelf;
 
   return (
@@ -85,15 +89,15 @@ export const MessageBubble = memo(function MessageBubble({
         )}
 
         {message.kind === "attachment" && message.attachment?.sha256 === undefined && (
-          <NotHere label="This file was named in the chat but was not in the export." />
+          <NotHere label={t("bubble.notInExport")} />
         )}
 
         {message.kind === "omitted-media" && (
-          <NotHere label="WhatsApp left this media out of the export — it is not in the archive." />
+          <NotHere label={t("bubble.omitted")} />
         )}
 
         {message.kind === "deleted" && (
-          <Text style={styles.deleted}>This message was deleted</Text>
+          <Text style={styles.deleted}>{t("bubble.deleted")}</Text>
         )}
 
         {message.body.length > 0 && (
@@ -135,6 +139,8 @@ function Attachment({
   ts: number;
   onOpen: (subject: LightboxSubject) => void;
 }) {
+  const { t } = useApp();
+  const styles = useStyles();
   const [uri, setUri] = useState<string | undefined>(undefined);
   const [byteLength, setByteLength] = useState<number | undefined>(undefined);
   const [failed, setFailed] = useState<string | undefined>(undefined);
@@ -167,17 +173,23 @@ function Attachment({
     return (
       <View style={styles.fileChip}>
         <Text style={styles.fileChipKind}>
-          {kind === "video" ? "Video" : kind === "audio" ? "Voice or audio" : "File"}
+          {kind === "video"
+            ? t("bubble.kind.video")
+            : kind === "audio"
+              ? t("bubble.kind.audio")
+              : t("bubble.kind.file")}
         </Text>
         <Text style={styles.fileChipName} numberOfLines={1}>
           {filename}
         </Text>
-        <Text style={styles.fileChipNote}>Saved in the archive. Playback is not built yet.</Text>
+        <Text style={styles.fileChipNote}>{t("bubble.notPlayable")}</Text>
       </View>
     );
   }
 
-  if (failed !== undefined) return <NotHere label={`This image did not decrypt: ${failed}`} bad />;
+  if (failed !== undefined) {
+    return <NotHere label={t("bubble.decryptFailed", { error: failed })} bad />;
+  }
 
   if (uri === undefined) {
     return (
@@ -199,7 +211,7 @@ function Attachment({
         })
       }
       accessibilityRole="imagebutton"
-      accessibilityLabel={`Photo from ${sender ?? "unknown"}`}
+      accessibilityLabel={t("bubble.photoFrom", { sender: sender ?? t("common.unknown") })}
       style={({ pressed }) => [styles.imagePress, pressed && styles.pressed]}
     >
       <Image source={{ uri }} style={styles.image} resizeMode="cover" />
@@ -208,6 +220,7 @@ function Attachment({
 }
 
 function NotHere({ label, bad }: { label: string; bad?: boolean }) {
+  const styles = useStyles();
   return (
     <View style={[styles.notHere, bad === true && styles.notHereBad]}>
       <Text style={[styles.notHereText, bad === true && styles.notHereTextBad]}>{label}</Text>
@@ -215,7 +228,7 @@ function NotHere({ label, bad }: { label: string; bad?: boolean }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((t) => ({
   row: { flexDirection: "row", paddingHorizontal: 12 },
   rowSelf: { justifyContent: "flex-end" },
   rowOther: { justifyContent: "flex-start" },
@@ -229,26 +242,32 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     gap: 3,
   },
-  // The Boydem design leans flatter than a bubble, but self-messages still sit on their own
-  // side (the reader stores "which participant is you" for exactly that), so the shape stays
-  // and only the fill follows the warm palette: a wood tint for you, plain raised for others.
-  bubbleOther: { backgroundColor: theme.raised, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.hairline },
-  bubbleSelf: { backgroundColor: "#efe1d1" },
-  tailOther: { borderBottomLeftRadius: 4 },
-  tailSelf: { borderBottomRightRadius: 4 },
+  // The design leans flatter than a bubble, but self-messages still sit on their own side (the
+  // reader stores "which participant is you" for exactly that), so the shape stays and only the
+  // fill follows the palette: a wood tint for you, plain raised for others.
+  bubbleOther: {
+    backgroundColor: t.raised,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: t.hairline,
+  },
+  bubbleSelf: { backgroundColor: t.selfBubble },
+  // Squared on the side the run ends against. The logical properties mirror under RTL, which
+  // is what keeps the tail on the speaker's side in a Hebrew chat rather than across from it.
+  tailOther: { borderStartStartRadius: 16, borderEndStartRadius: 4 },
+  tailSelf: { borderEndEndRadius: 4 },
   sender: { fontSize: 13, fontWeight: "700", writingDirection: "auto" },
-  body: { fontSize: 15.5, lineHeight: 21, color: theme.ink, writingDirection: "auto" },
-  time: { fontSize: 11, color: theme.muted, alignSelf: "flex-end" },
-  timeSelf: { color: "#8a6a48" },
-  deleted: { fontSize: 15, fontStyle: "italic", color: theme.muted },
+  body: { fontSize: 15.5, lineHeight: 21, color: t.ink, writingDirection: "auto" },
+  time: { fontSize: 11, color: t.muted, alignSelf: "flex-end" },
+  timeSelf: { color: t.dark ? "#c7a683" : "#8a6a48" },
+  deleted: { fontSize: 15, fontStyle: "italic", color: t.muted },
   systemRow: { paddingVertical: 6, paddingHorizontal: 40, alignItems: "center" },
   systemText: {
     fontSize: 12,
     lineHeight: 18,
-    color: theme.muted,
+    color: t.muted,
     textAlign: "center",
     writingDirection: "auto",
-    backgroundColor: theme.panel,
+    backgroundColor: t.panel,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radius.chip,
@@ -256,37 +275,37 @@ const styles = StyleSheet.create({
   },
   imagePress: { borderRadius: 10, overflow: "hidden" },
   pressed: { opacity: 0.85 },
-  image: { width: 232, height: 232, backgroundColor: theme.hairline },
+  image: { width: 232, height: 232, backgroundColor: t.hairline },
   imagePlaceholder: {
     width: 232,
     height: 232,
     borderRadius: 10,
-    backgroundColor: theme.hairline,
+    backgroundColor: t.hairline,
     alignItems: "center",
     justifyContent: "center",
   },
   fileChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm + 2,
     gap: 2,
     borderRadius: 10,
-    backgroundColor: theme.panel,
+    backgroundColor: t.panel,
     minWidth: 180,
   },
-  fileChipKind: { fontSize: 12, fontWeight: "700", color: theme.muted },
-  fileChipName: { fontSize: 13, color: theme.ink },
-  fileChipNote: { fontSize: 11, color: theme.muted },
+  fileChipKind: { fontSize: 12, fontWeight: "700", color: t.muted, writingDirection: "auto" },
+  fileChipName: { fontSize: 13, color: t.ink },
+  fileChipNote: { fontSize: 11, color: t.muted, writingDirection: "auto" },
   notHere: {
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: space.sm,
     borderRadius: 10,
     borderWidth: 1,
     borderStyle: "dashed",
-    borderColor: theme.hairline,
-    backgroundColor: theme.panel,
+    borderColor: t.hairline,
+    backgroundColor: t.panel,
     maxWidth: 240,
   },
-  notHereBad: { borderColor: theme.bad, borderStyle: "solid" },
-  notHereText: { fontSize: 12, lineHeight: 17, color: theme.muted },
-  notHereTextBad: { color: theme.bad },
-});
+  notHereBad: { borderColor: t.bad, borderStyle: "solid" },
+  notHereText: { fontSize: 12, lineHeight: 17, color: t.muted, writingDirection: "auto" },
+  notHereTextBad: { color: t.bad },
+}));

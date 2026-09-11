@@ -50,6 +50,27 @@ describe("formatDate / formatRange", () => {
   });
 });
 
+describe("Hebrew dates", () => {
+  it("uses transliterated Gregorian months, not the Hebrew calendar", () => {
+    // These timestamps come from WhatsApp and are Gregorian. Rendering them as Hebrew-calendar
+    // dates would be a different date, not a translation of the same one.
+    expect(formatDate(Date.UTC(2025, 2, 14, 12), "he")).toContain("מרץ");
+    expect(formatDate(Date.UTC(2025, 2, 14, 12), "he")).toContain("2025");
+  });
+
+  it("keeps the same digits and shape as English, so a number survives a language change", () => {
+    const en = formatDate(Date.UTC(2025, 2, 14, 12), "en");
+    const he = formatDate(Date.UTC(2025, 2, 14, 12), "he");
+    expect(he.split(" ")[0]).toBe(en.split(" ")[0]);
+    expect(he.split(" ")[2]).toBe(en.split(" ")[2]);
+  });
+
+  it("still reports an absent range as absent", () => {
+    expect(formatRange(0, 0, "he")).toBe("-");
+    expect(formatDate(0, "he")).toBe("-");
+  });
+});
+
 describe("plural", () => {
   it("agrees with the number in front of it", () => {
     expect(plural(1, "photo")).toBe("1 photo");

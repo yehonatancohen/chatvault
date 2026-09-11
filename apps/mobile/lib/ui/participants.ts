@@ -10,6 +10,8 @@
  * when it goes wrong ("Dana, and 1 others").
  */
 
+import type { Language } from "../settings/settings";
+
 export interface ParticipantSummary {
   /** The names actually rendered. */
   readonly shown: readonly string[];
@@ -22,12 +24,24 @@ export interface ParticipantSummary {
 
 export const DEFAULT_VISIBLE_PARTICIPANTS = 3;
 
+/**
+ * Language defaults to English so `participants.test.ts` needs no knowledge of the setting.
+ *
+ * Hebrew joins with the prefix ו־ attached to the last name rather than a separate word, which
+ * is why the conjunction cannot simply be a translated string dropped between two names.
+ */
 export function summarizeParticipants(
   names: readonly string[],
   visible: number = DEFAULT_VISIBLE_PARTICIPANTS,
+  language: Language = "en",
 ): ParticipantSummary {
   if (names.length === 0) {
-    return { shown: [], hiddenCount: 0, label: "No one", collapsible: false };
+    return {
+      shown: [],
+      hiddenCount: 0,
+      label: language === "he" ? "אף אחד" : "No one",
+      collapsible: false,
+    };
   }
 
   // Showing "and 1 other" while hiding exactly one name is worse than just showing the name.
@@ -35,18 +49,22 @@ export function summarizeParticipants(
   const shown = names.slice(0, limit);
   const hiddenCount = names.length - shown.length;
 
-  return {
-    shown,
-    hiddenCount,
-    label: hiddenCount === 0 ? joinNames(shown) : `${shown.join(", ")} and ${hiddenCount} others`,
-    collapsible: hiddenCount > 0,
-  };
+  const label =
+    hiddenCount === 0
+      ? joinNames(shown, language)
+      : language === "he"
+        ? `${shown.join(", ")} ועוד ${hiddenCount}`
+        : `${shown.join(", ")} and ${hiddenCount} others`;
+
+  return { shown, hiddenCount, label, collapsible: hiddenCount > 0 };
 }
 
 /** `a`, `a and b`, `a, b and c` — the Oxford comma is deliberately absent; this is a list of people. */
-function joinNames(names: readonly string[]): string {
+function joinNames(names: readonly string[], language: Language): string {
   if (names.length === 1) return names[0]!;
-  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]!}`;
+  const last = names[names.length - 1]!;
+  const rest = names.slice(0, -1).join(", ");
+  return language === "he" ? `${rest} ו${last}` : `${rest} and ${last}`;
 }
 
 /**

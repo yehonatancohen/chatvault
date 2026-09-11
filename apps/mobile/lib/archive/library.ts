@@ -15,8 +15,11 @@
 
 import { ArchiveReader, type Manifest } from "@chatvault/core";
 import { getCryptoProvider } from "../crypto/expo-crypto-provider";
-import { buildMediaIndex, pickChatThumbnail, type MediaItem } from "../ui/media-index";
+import { buildMediaIndex, findChatPhoto, type MediaItem } from "../ui/media-index";
+import { readPreferences } from "./preferences";
 import { listArchiveIds, loadArchiveKey, storageFor } from "./vault";
+import { translate } from "../i18n/translate";
+import type { Language } from "../settings/settings";
 
 export interface LibraryEntry {
   readonly archiveId: string;
@@ -29,13 +32,15 @@ export interface LibraryEntry {
    * In memory only, for as long as the list is on screen.
    */
   readonly reader?: ArchiveReader;
-  /** The image chosen to stand for this chat, if it has one. Not yet decrypted. */
+  /** The photo the user chose for this chat, if they have. Not yet decrypted. */
   readonly thumbnail?: MediaItem;
   /** The most recent message, for the one-line preview a chat list shows. */
   readonly lastMessage?: { readonly sender: string | null; readonly text: string; readonly ts: number };
 }
 
-export async function readLibrary(): Promise<readonly LibraryEntry[]> {
+export async function readLibrary(
+  language: Language = "en",
+): Promise<readonly LibraryEntry[]> {
   const entries: LibraryEntry[] = [];
 
   for (const archiveId of listArchiveIds()) {
@@ -59,7 +64,11 @@ export async function readLibrary(): Promise<readonly LibraryEntry[]> {
       // library holds a handful of archives; if that stops being true, the fix is a small
       // summary sealed into the archive at write time, not a cache out here.
       const messages = await reader.readAll();
-      const thumbnail = pickChatThumbnail(buildMediaIndex(messages, reader.manifest.media));
+      const { chatPhotoSha256 } = await readPreferences(archiveId);
+      const thumbnail = findChatPhoto(
+        buildMediaIndex(messages, reader.manifest.media),
+        chatPhotoSha256,
+      );
       const last = messages[messages.length - 1];
 
       entries.push({
@@ -72,7 +81,7 @@ export async function readLibrary(): Promise<readonly LibraryEntry[]> {
           ? {
               lastMessage: {
                 sender: last.sender,
-                text: previewTextFor(last),
+                text: previewTextFor(last, language),
                 ts: last.ts,
               },
             }
@@ -95,10 +104,10 @@ export async function readLibrary(): Promise<readonly LibraryEntry[]> {
 }
 
 /** The one-line preview, naming what a media message is rather than showing an empty line. */
-function previewTextFor(message: { kind: string; body: string }): string {
+function previewTextFor(message: { kind: string; body: string }, language: Language): string {
   if (message.body.length > 0) return message.body;
-  if (message.kind === "attachment") return "Photo or file";
-  if (message.kind === "omitted-media") return "Media not in the archive";
-  if (message.kind === "deleted") return "Deleted message";
+  if (message.kind === "attachment") return translate(language, "preview.photoOrFile");
+  if (message.kind === "omitted-media") return translate(language, "preview.mediaMissing");
+  if (message.kind === "deleted") return translate(language, "preview.deleted");
   return "";
 }

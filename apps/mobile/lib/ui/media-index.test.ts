@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MediaRef, MergedMessage } from "@chatvault/core";
-import { buildMediaIndex, imagesOnly, initialsFor, pickChatThumbnail } from "./media-index";
+import { buildMediaIndex, findChatPhoto, imagesOnly, initialsFor } from "./media-index";
 
 let counter = 0;
 function attachment(
@@ -113,23 +113,34 @@ describe("buildMediaIndex", () => {
   });
 });
 
-describe("pickChatThumbnail", () => {
-  it("chooses the smallest image, because this runs while a list renders", () => {
-    const items = buildMediaIndex(
-      [
-        attachment("big.jpg", "big", 3000),
-        attachment("small.jpg", "small", 1000),
-        attachment("video.mp4", "vid", 4000),
-      ],
-      [ref("big", 900_000, "big.jpg"), ref("small", 4_000, "small.jpg"), ref("vid", 10, "video.mp4")],
-    );
+describe("findChatPhoto", () => {
+  const items = buildMediaIndex(
+    [
+      attachment("big.jpg", "big", 3000),
+      attachment("sticker.webp", "sticker", 1000),
+      attachment("video.mp4", "vid", 4000),
+    ],
+    [
+      ref("big", 900_000, "big.jpg"),
+      ref("sticker", 4_000, "sticker.webp"),
+      ref("vid", 10, "video.mp4"),
+    ],
+  );
 
-    expect(pickChatThumbnail(items)?.sha256).toBe("small");
+  it("never picks a photo the user did not choose — an export has no chat icon", () => {
+    expect(findChatPhoto(items, undefined)).toBeUndefined();
   });
 
-  it("returns nothing when the chat has no images", () => {
-    const items = buildMediaIndex([attachment("v.mp4", "vid", 1000)], [ref("vid", 10, "v.mp4")]);
-    expect(pickChatThumbnail(items)).toBeUndefined();
+  it("returns the chosen image", () => {
+    expect(findChatPhoto(items, "big")?.filename).toBe("big.jpg");
+  });
+
+  it("falls back when the chosen blob is not in the archive", () => {
+    expect(findChatPhoto(items, "gone")).toBeUndefined();
+  });
+
+  it("refuses a choice that is not an image", () => {
+    expect(findChatPhoto(items, "vid")).toBeUndefined();
   });
 });
 

@@ -1,49 +1,60 @@
 import { useEffect, useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 import type { ArchiveReader } from "@chatvault/core";
 import { toBase64 } from "../../lib/crypto/base64";
 import { mimeTypeOf } from "../../lib/ui/mime";
 import { initialsFor } from "../../lib/ui/media-index";
 import { colorForParticipant } from "../../lib/ui/participants";
 import type { MediaItem } from "../../lib/ui/media-index";
+import { createStyles } from "../app/providers";
 
 /**
- * The circle beside a chat in the library.
+ * The circle that stands for a chat — in the library, and at the top of chat info.
  *
- * A WhatsApp export contains no contact photos — there is no avatar anywhere in the data — so
- * the chat's own media is the only real image available, and initials are the fallback for a
- * chat that has none. That is also what WhatsApp itself shows for a contact without a picture,
- * so the fallback is not a compromise so much as the same convention.
+ * A WhatsApp export contains no contact or group photos — there is no avatar anywhere in the
+ * data — so this shows initials unless the user has chosen one of the chat's own photos
+ * (`ArchivePreferences.chatPhotoSha256`). Initials are also what WhatsApp itself shows for a
+ * contact without a picture, so the default is the same convention rather than a compromise.
  *
- * **Initials render immediately and the photo replaces them when it arrives.** Decrypting even
- * a small blob is work, and the library must not wait on it: the list should be usable the
- * instant it opens, with the thumbnails filling in. `pickChatThumbnail` deliberately chooses
- * the *smallest* image for this reason.
+ * **Initials render immediately and the photo replaces them when it arrives.** Decrypting a
+ * blob is work, and the library must not wait on it: the list should be usable the instant it
+ * opens, with photos filling in.
  *
- * Decrypted images are cached for the process. A user moving between the library and a chat
- * would otherwise pay for the same decryption repeatedly, and the bytes are already in memory
- * elsewhere while the app runs.
+ * Decrypted images are cached for the process, keyed by content address — so choosing a new
+ * photo shows the new one rather than a stale entry for the chat, and a user moving between the
+ * library and a chat does not pay for the same decryption twice.
  */
 
 const cache = new Map<string, string>();
 
 export function ChatAvatar({
-  archiveId,
   title,
   reader,
   thumbnail,
   size = 52,
 }: {
-  archiveId: string;
   title: string;
   reader: ArchiveReader | undefined;
   thumbnail: MediaItem | undefined;
   size?: number;
 }) {
-  const [uri, setUri] = useState<string | undefined>(() => cache.get(archiveId));
+  const styles = useStyles();
+  const sha256 = thumbnail?.sha256;
+  // Remembers which photo `uri` belongs to, so a changed choice never shows the previous image.
+  const [loaded, setLoaded] = useState<{ sha256: string; uri: string } | undefined>(() =>
+    sha256 !== undefined && cache.has(sha256)
+      ? { sha256, uri: cache.get(sha256)! }
+      : undefined,
+  );
+  const uri = loaded !== undefined && loaded.sha256 === sha256 ? loaded.uri : undefined;
 
   useEffect(() => {
-    if (uri !== undefined || reader === undefined || thumbnail === undefined) return;
+    if (reader === undefined || thumbnail === undefined) return;
+    const cached = cache.get(thumbnail.sha256);
+    if (cached !== undefined) {
+      setLoaded({ sha256: thumbnail.sha256, uri: cached });
+      return;
+    }
     let stale = false;
 
     void (async () => {
@@ -51,10 +62,10 @@ export function ChatAvatar({
         const bytes = await reader.readMedia(thumbnail.sha256);
         if (stale) return;
         const dataUri = `data:${mimeTypeOf(thumbnail.filename)};base64,${toBase64(bytes)}`;
-        cache.set(archiveId, dataUri);
-        setUri(dataUri);
+        cache.set(thumbnail.sha256, dataUri);
+        setLoaded({ sha256: thumbnail.sha256, uri: dataUri });
       } catch {
-        // A chat with an unreadable thumbnail still deserves a row; the initials stay, and the
+        // A chat with an unreadable photo still deserves a row; the initials stay, and the
         // library's own "unreadable" state is what reports a genuinely broken archive.
       }
     })();
@@ -62,7 +73,7 @@ export function ChatAvatar({
     return () => {
       stale = true;
     };
-  }, [archiveId, reader, thumbnail, uri]);
+  }, [reader, thumbnail]);
 
   const dimensions = { width: size, height: size, borderRadius: size / 2 };
 
@@ -84,8 +95,11 @@ export function ChatAvatar({
   );
 }
 
-const styles = StyleSheet.create({
-  image: { backgroundColor: "#ddd9d1" },
+const useStyles = createStyles((t) => ({
+  // The placeholder tint behind a photo that has not decrypted yet. It has to differ from
+  // `paper` in both palettes, or the row looks like it is missing an avatar rather than
+  // waiting for one.
+  image: { backgroundColor: t.hairline },
   fallback: { alignItems: "center", justifyContent: "center" },
   initials: { color: "#fff", fontWeight: "700" },
-});
+}));

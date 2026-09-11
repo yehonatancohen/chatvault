@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 import type { ArchiveReader } from "@chatvault/core";
 import { toBase64 } from "../../lib/crypto/base64";
 import { mimeTypeOf } from "../../lib/ui/mime";
 import type { MediaItem } from "../../lib/ui/media-index";
-import { radius, theme } from "../../lib/ui/theme";
+import { createStyles, useApp } from "../app/providers";
+import { space } from "../../lib/ui/theme";
 import type { LightboxSubject } from "./Lightbox";
 
 /**
@@ -31,12 +32,13 @@ export function MediaGrid({
   columns?: number;
   onOpen: (subject: LightboxSubject) => void;
 }) {
+  const { t } = useApp();
+  const styles = useStyles();
+
   if (items.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>
-          No photos in this archive yet. Anything the export carried would appear here.
-        </Text>
+        <Text style={styles.emptyText}>{t("media.empty")}</Text>
       </View>
     );
   }
@@ -67,6 +69,8 @@ export function MediaTile({
   columns: number;
   onOpen: (subject: LightboxSubject) => void;
 }) {
+  const { t } = useApp();
+  const styles = useStyles();
   const [uri, setUri] = useState<string | undefined>(undefined);
   const [failed, setFailed] = useState(false);
 
@@ -102,11 +106,14 @@ export function MediaTile({
             sender: item.sender,
             ts: item.ts,
             byteLength: item.byteLength,
+            sha256: item.sha256,
           })
         }
         disabled={uri === undefined}
         accessibilityRole="imagebutton"
-        accessibilityLabel={`Photo from ${item.sender ?? "unknown"}`}
+        accessibilityLabel={t("bubble.photoFrom", {
+          sender: item.sender ?? t("common.unknown"),
+        })}
         style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
       >
         {uri !== undefined ? (
@@ -121,16 +128,14 @@ export function MediaTile({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((t) => ({
   grid: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -2 },
   cell: { padding: 2 },
-  tile: { aspectRatio: 1, borderRadius: 8, overflow: "hidden", backgroundColor: theme.hairline },
+  tile: { aspectRatio: 1, borderRadius: 8, overflow: "hidden", backgroundColor: t.hairline },
   pressed: { opacity: 0.8 },
   image: { width: "100%", height: "100%" },
   placeholder: { flex: 1, alignItems: "center", justifyContent: "center" },
-  failed: { fontSize: 18, fontWeight: "700", color: theme.bad },
-  empty: { paddingVertical: 16, paddingHorizontal: 4 },
-  emptyText: { fontSize: 13.5, lineHeight: 20, color: theme.muted },
-});
-
-export const mediaGridStyles = { radius };
+  failed: { fontSize: 18, fontWeight: "700", color: t.bad },
+  empty: { paddingVertical: space.lg, paddingHorizontal: space.xs },
+  emptyText: { fontSize: 13.5, lineHeight: 20, color: t.muted, writingDirection: "auto" },
+}));

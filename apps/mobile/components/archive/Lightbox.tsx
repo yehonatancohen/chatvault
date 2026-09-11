@@ -1,4 +1,5 @@
 import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useApp } from "../app/providers";
 import { formatBytes, formatDateTime } from "../../lib/ui/format";
 
 /**
@@ -11,6 +12,10 @@ import { formatBytes, formatDateTime } from "../../lib/ui/format";
  *
  * `ScrollView` with `maximumZoomScale` is doing the zooming. A gesture library would be nicer
  * and would be a dependency; this is the platform's own pinch-to-zoom and it costs nothing.
+ *
+ * **The only screen that ignores the theme, deliberately.** A photo is judged against black
+ * whatever the rest of the app is doing, and every system photo viewer agrees; a "light mode"
+ * lightbox would tint the one thing on screen the user is trying to see accurately.
  */
 
 export interface LightboxSubject {
@@ -19,15 +24,28 @@ export interface LightboxSubject {
   readonly sender: string | null;
   readonly ts: number;
   readonly byteLength?: number;
+  /** Content address of the photo, when the caller wants to act on it (e.g. set a chat photo). */
+  readonly sha256?: string;
+}
+
+/** One optional button beside Done. `disabled` shows it as a settled state, e.g. "Chat photo ✓". */
+export interface LightboxAction {
+  readonly label: string;
+  readonly onPress: () => void;
+  readonly disabled?: boolean;
 }
 
 export function Lightbox({
   subject,
   onClose,
+  action,
 }: {
   subject: LightboxSubject | undefined;
   onClose: () => void;
+  action?: LightboxAction | undefined;
 }) {
+  const { t } = useApp();
+
   return (
     <Modal
       visible={subject !== undefined}
@@ -60,7 +78,7 @@ export function Lightbox({
 
           <View style={styles.caption}>
             <Text style={styles.captionPrimary} numberOfLines={1}>
-              {subject.sender ?? "Unknown"} · {formatDateTime(subject.ts)}
+              {subject.sender ?? t("common.unknown")} · {formatDateTime(subject.ts)}
             </Text>
             <Text style={styles.captionSecondary} numberOfLines={1}>
               {subject.filename}
@@ -71,11 +89,28 @@ export function Lightbox({
           <Pressable
             onPress={onClose}
             accessibilityRole="button"
-            accessibilityLabel="Close"
+            accessibilityLabel={t("common.done")}
             style={({ pressed }) => [styles.close, pressed && styles.pressed]}
           >
-            <Text style={styles.closeLabel}>Done</Text>
+            <Text style={styles.closeLabel}>{t("common.done")}</Text>
           </Pressable>
+
+          {action !== undefined && (
+            <Pressable
+              onPress={action.onPress}
+              disabled={action.disabled}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: action.disabled === true }}
+              style={({ pressed }) => [
+                styles.close,
+                styles.action,
+                pressed && styles.pressed,
+                action.disabled === true && styles.settled,
+              ]}
+            >
+              <Text style={styles.closeLabel}>{action.label}</Text>
+            </Pressable>
+          )}
         </View>
       )}
     </Modal>
@@ -110,6 +145,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: "#ffffff22",
   },
+  // Done's twin, on the opposite side.
+  action: { right: undefined, left: 20 },
+  settled: { opacity: 0.55 },
   pressed: { opacity: 0.6 },
   closeLabel: { color: "#fff", fontSize: 15, fontWeight: "600" },
 });

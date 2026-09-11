@@ -64,20 +64,19 @@ export function imagesOnly(items: readonly MediaItem[]): MediaItem[] {
 }
 
 /**
- * One image to stand for the whole chat in the library.
+ * The image the user chose to stand for the chat, if it is still in the archive.
  *
- * The *smallest* image, not the newest, and that is a performance decision rather than an
- * editorial one: this is decrypted while a list is rendering, and the small ones are stickers
- * and thumbnails that cost almost nothing. A library of six chats should not decrypt six
- * full-size photos to draw six 48-pixel circles.
+ * Only ever the user's choice. A WhatsApp export has no group or contact photo, and an earlier
+ * version picked the smallest image in the chat instead — which in practice meant a sticker,
+ * shown in the exact place people expect the chat's real icon. Initials make no claim; a
+ * random photo from the chat makes a false one.
  */
-export function pickChatThumbnail(items: readonly MediaItem[]): MediaItem | undefined {
-  let best: MediaItem | undefined;
-  for (const item of items) {
-    if (item.kind !== "image") continue;
-    if (!best || item.byteLength < best.byteLength) best = item;
-  }
-  return best;
+export function findChatPhoto(
+  items: readonly MediaItem[],
+  sha256: string | undefined,
+): MediaItem | undefined {
+  if (sha256 === undefined) return undefined;
+  return items.find((item) => item.sha256 === sha256 && item.kind === "image");
 }
 
 /**

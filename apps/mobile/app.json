@@ -4,6 +4,7 @@
     "slug": "chatvault",
     "version": "0.1.0",
     "scheme": "chatvault",
+    "icon": "./assets/images/icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,

@@ -1,20 +1,29 @@
+// Must be the first import in the app: it sets the native layout direction from the saved
+// language before any component renders. See `lib/i18n/bootstrap.ts` for why that cannot be
+// done from inside a component.
+import "../lib/i18n/bootstrap";
+
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { ShareIntentProvider, useShareIntentContext } from "expo-share-intent";
-import { theme } from "../lib/ui/theme";
+import { AppProvider, useApp } from "../components/app/providers";
 
 /**
- * `index` is the anchor of the stack, not merely its first screen.
+ * `(tabs)` is the anchor of the stack, not merely its first screen.
  *
  * A share-sheet handoff cold-starts the app straight onto `/import` (see `+native-intent.ts`),
  * so without this there is nothing underneath it and the user lands on a screen with no way
- * back — which is exactly how it behaved. Naming the anchor makes expo-router place the
- * library beneath `/import` even when the app was launched directly into it, so Back always
- * leads somewhere.
+ * back — which is exactly how it behaved. Naming the anchor makes expo-router place the tab
+ * bar beneath `/import` even when the app was launched directly into it, so Back always leads
+ * somewhere.
+ *
+ * **This changed from `"index"` when the tabs went in**, and it has to stay in step with the
+ * name of the group directory: an `initialRouteName` that names a route which no longer exists
+ * is silently ignored, and the dead end comes straight back.
  */
 export const unstable_settings = {
-  initialRouteName: "index",
+  initialRouteName: "(tabs)",
 };
 
 /**
@@ -52,36 +61,64 @@ function ShareIntentRouter() {
   return null;
 }
 
-export default function RootLayout() {
+/**
+ * The navigator, inside the provider so that headers restyle and retranslate with the setting.
+ *
+ * Screen titles come from `t()` rather than being literals in `screenOptions`, which is the
+ * reason this is a component at all — `RootLayout` itself sits outside the provider and cannot
+ * call the hook.
+ */
+function Navigation() {
+  const { theme, t } = useApp();
+
   return (
-    <ShareIntentProvider>
-      <StatusBar style="auto" />
-      <ShareIntentRouter />
+    <>
+      {/*
+        Tied to the palette rather than "auto": with an explicit Light or Dark override the
+        phone's own appearance is the wrong thing to follow, and the status bar is the one part
+        of the screen the app does not draw itself.
+      */}
+      <StatusBar style={theme.dark ? "light" : "dark"} />
       <Stack
         screenOptions={{
           headerShadowVisible: false,
-          headerBackTitle: "Library",
           headerTintColor: theme.ink,
           headerStyle: { backgroundColor: theme.paper },
+          headerTitleStyle: { color: theme.ink },
           contentStyle: { backgroundColor: theme.paper },
         }}
       >
-        <Stack.Screen name="index" options={{ title: "Boydem" }} />
-        <Stack.Screen name="import" options={{ title: "Import" }} />
+        {/* The tab bar draws its own headers, so the stack must not draw a second one above it. */}
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="import" options={{ title: t("import.title") }} />
         {/*
           Verify is the trust moment and is reached with `replace` from Import, so there is
           deliberately no back-link to a screen that has already done its work. `gestureEnabled`
           off for the same reason: swiping back from here would land on a finished import.
         */}
-        <Stack.Screen name="verify" options={{ title: "What was captured", gestureEnabled: false }} />
-        <Stack.Screen name="delete-guide" options={{ title: "Delete in WhatsApp" }} />
+        <Stack.Screen
+          name="verify"
+          options={{ title: t("verify.title"), gestureEnabled: false }}
+        />
+        <Stack.Screen name="delete-guide" options={{ title: t("deleteGuide.title") }} />
         {/* Titles come from the archive's own manifest — see each screen's `Stack.Screen`. */}
-        <Stack.Screen name="archive/[id]/index" options={{ title: "Archive" }} />
-        <Stack.Screen name="archive/[id]/info" options={{ title: "Chat info" }} />
-        <Stack.Screen name="archive/[id]/media" options={{ title: "Media" }} />
-        {/* Dev-only; `index.tsx` only links to it under `__DEV__`. See `dev-storage.tsx`. */}
-        <Stack.Screen name="dev-storage" options={{ title: "Storage contract" }} />
+        <Stack.Screen name="archive/[id]/index" options={{ title: t("reader.title") }} />
+        <Stack.Screen name="archive/[id]/info" options={{ title: t("info.title") }} />
+        <Stack.Screen name="archive/[id]/media" options={{ title: t("media.title") }} />
+        {/* Dev-only; Settings only links to it under `__DEV__`. See `dev-storage.tsx`. */}
+        <Stack.Screen name="dev-storage" options={{ title: t("dev.title") }} />
       </Stack>
+    </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ShareIntentProvider>
+      <AppProvider>
+        <ShareIntentRouter />
+        <Navigation />
+      </AppProvider>
     </ShareIntentProvider>
   );
 }

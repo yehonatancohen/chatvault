@@ -12,10 +12,17 @@ import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-rou
 import type { ArchiveReader } from "@chatvault/core";
 import { readPreferences } from "../../../lib/archive/preferences";
 import { useArchive } from "../../../components/archive/useArchive";
-import { buildChatRows, daySeparatorLabel, forInvertedList, type ChatRow } from "../../../lib/ui/chat";
+import {
+  buildChatRows,
+  daySeparatorLabel,
+  forInvertedList,
+  type ChatRow,
+} from "../../../lib/ui/chat";
+import { createStyles, useApp } from "../../../components/app/providers";
+import { Button } from "../../../components/app/ui";
 import { formatCount, formatRange } from "../../../lib/ui/format";
 import { summarizeParticipants } from "../../../lib/ui/participants";
-import { radius, theme } from "../../../lib/ui/theme";
+import { radius, space } from "../../../lib/ui/theme";
 import { MessageBubble } from "../../../components/archive/MessageBubble";
 import { Lightbox, type LightboxSubject } from "../../../components/archive/Lightbox";
 
@@ -40,6 +47,9 @@ export default function ArchiveChatScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
   const archiveId = params.id ?? "";
+
+  const { t, tp, theme, language } = useApp();
+  const styles = useStyles();
 
   const { state, unlock } = useArchive(archiveId);
   const [passphrase, setPassphrase] = useState("");
@@ -68,10 +78,10 @@ export default function ArchiveChatScreen() {
   if (state.kind === "loading" || state.kind === "unlocking") {
     return (
       <View style={styles.centered}>
-        <Stack.Screen options={{ title: "Archive" }} />
+        <Stack.Screen options={{ title: t("reader.title") }} />
         <ActivityIndicator />
         <Text style={styles.body}>
-          {state.kind === "unlocking" ? "Deriving the key..." : "Opening..."}
+          {state.kind === "unlocking" ? t("reader.deriving") : t("reader.opening")}
         </Text>
       </View>
     );
@@ -80,12 +90,9 @@ export default function ArchiveChatScreen() {
   if (state.kind === "locked") {
     return (
       <View style={styles.form}>
-        <Stack.Screen options={{ title: "Locked" }} />
-        <Text style={styles.heading}>This archive is locked</Text>
-        <Text style={styles.body}>
-          Its key is not in this phone's keychain — normal after a restore, a reinstall, or if
-          the archive came from another device. Your passphrase opens it, and puts the key back.
-        </Text>
+        <Stack.Screen options={{ title: t("reader.locked.title") }} />
+        <Text style={styles.heading}>{t("reader.locked.heading")}</Text>
+        <Text style={styles.body}>{t("reader.locked.body")}</Text>
         <TextInput
           value={passphrase}
           onChangeText={setPassphrase}
@@ -93,24 +100,18 @@ export default function ArchiveChatScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           style={styles.input}
-          placeholder="Passphrase"
+          placeholder={t("import.field.passphrase")}
           placeholderTextColor={theme.muted}
-          accessibilityLabel="Passphrase"
+          keyboardAppearance={theme.dark ? "dark" : "light"}
+          accessibilityLabel={t("import.field.passphrase")}
           onSubmitEditing={() => void unlock(passphrase)}
         />
         {state.error !== undefined && <Text style={styles.fieldError}>{state.error}</Text>}
-        <Pressable
+        <Button
+          label={t("reader.locked.unlock")}
           onPress={() => void unlock(passphrase)}
           disabled={passphrase.length === 0}
-          accessibilityRole="button"
-          style={({ pressed }) => [
-            styles.button,
-            pressed && styles.pressed,
-            passphrase.length === 0 && styles.buttonDisabled,
-          ]}
-        >
-          <Text style={styles.buttonLabel}>Unlock</Text>
-        </Pressable>
+        />
       </View>
     );
   }
@@ -118,26 +119,26 @@ export default function ArchiveChatScreen() {
   if (state.kind === "error") {
     return (
       <View style={styles.form}>
-        <Stack.Screen options={{ title: "Archive" }} />
-        <Text style={styles.headingBad}>This archive did not open</Text>
+        <Stack.Screen options={{ title: t("reader.title") }} />
+        <Text style={styles.headingBad}>{t("reader.error.heading")}</Text>
         <Text style={styles.body} selectable>
           {state.message}
         </Text>
-        <Text style={styles.body}>
-          If you have not deleted this chat in WhatsApp yet, do not delete it.
-        </Text>
-        <Pressable
-          onPress={() => router.replace("/")}
-          accessibilityRole="button"
-          style={({ pressed }) => [styles.button, pressed && styles.pressed]}
-        >
-          <Text style={styles.buttonLabel}>Back to library</Text>
-        </Pressable>
+        <Text style={styles.body}>{t("reader.error.warning")}</Text>
+        <Button label={t("common.backToLibrary")} onPress={() => router.replace("/")} />
       </View>
     );
   }
 
-  const people = summarizeParticipants(state.manifest.participants.map((p) => p.displayName));
+  const people = summarizeParticipants(
+    state.manifest.participants.map((p) => p.displayName),
+    undefined,
+    language,
+  );
+
+  const openInfo = (): void => {
+    router.push({ pathname: "/archive/[id]/info", params: { id: archiveId } });
+  };
 
   return (
     <View style={styles.chat}>
@@ -146,33 +147,35 @@ export default function ArchiveChatScreen() {
           title: state.manifest.chatTitle,
           headerRight: () => (
             <Pressable
-              onPress={() =>
-                router.push({ pathname: "/archive/[id]/info", params: { id: archiveId } })
-              }
+              onPress={openInfo}
               accessibilityRole="button"
-              accessibilityLabel="Chat information"
+              accessibilityLabel={t("reader.infoLabel")}
               style={({ pressed }) => [styles.infoButton, pressed && styles.pressed]}
             >
-              <Text style={styles.infoButtonLabel}>Info</Text>
+              <Text style={styles.infoButtonLabel}>{t("reader.info")}</Text>
             </Pressable>
           ),
         }}
       />
 
       {/*
-        The stand-in for the avatar row a messaging app puts under the title. The Boydem
-        design puts the archive's own numbers here — how much of the chat this is — because
-        the reader is evidence, and the count is part of the claim.
+        The stand-in for the avatar row a messaging app puts under the title. The archive's own
+        numbers go here — how much of the chat this is — because the reader is evidence, and the
+        count is part of the claim.
       */}
       <Pressable
-        onPress={() => router.push({ pathname: "/archive/[id]/info", params: { id: archiveId } })}
+        onPress={openInfo}
         accessibilityRole="button"
         style={({ pressed }) => [styles.subheader, pressed && styles.pressed]}
       >
         <Text style={styles.subheaderStats} numberOfLines={1}>
-          <Text style={styles.subheaderStrong}>{formatCount(state.messages.length)}</Text> messages
+          <Text style={styles.subheaderStrong}>{formatCount(state.messages.length)}</Text>{" "}
+          {t("verify.row.messages")}
           {"  ·  "}
-          <Text style={styles.subheaderStrong}>{formatCount(state.manifest.media.length)}</Text> files
+          <Text style={styles.subheaderStrong}>
+            {formatCount(state.manifest.media.length)}
+          </Text>{" "}
+          {t("verify.row.mediaFiles")}
           {"  ·  "}
           {formatRange(state.manifest.firstTs, state.manifest.lastTs)}
         </Text>
@@ -194,7 +197,9 @@ export default function ArchiveChatScreen() {
         ListFooterComponent={
           <View style={styles.beginning}>
             <Text style={styles.beginningText}>
-              The beginning of this archive · {formatCount(state.messages.length)} messages
+              {t("reader.beginning", {
+                messages: tp("common.messages", state.messages.length),
+              })}
             </Text>
           </View>
         }
@@ -220,10 +225,13 @@ function Row({
   selfId: string | undefined;
   onOpenMedia: (subject: LightboxSubject) => void;
 }) {
+  const { language } = useApp();
+  const styles = useStyles();
+
   if (row.kind === "day") {
     return (
       <View style={styles.dayRow}>
-        <Text style={styles.dayLabel}>{daySeparatorLabel(row.ts)}</Text>
+        <Text style={styles.dayLabel}>{daySeparatorLabel(row.ts, Date.now(), language)}</Text>
       </View>
     );
   }
@@ -244,59 +252,52 @@ function Row({
   );
 }
 
-const styles = StyleSheet.create({
-  chat: { flex: 1, backgroundColor: theme.paper },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-  form: { padding: 24, gap: 12 },
-  list: { paddingVertical: 10 },
-  heading: { fontSize: 22, fontWeight: "600", color: theme.ink },
-  headingBad: { fontSize: 22, fontWeight: "600", color: theme.bad },
-  body: { fontSize: 15, lineHeight: 22, color: theme.body },
+const useStyles = createStyles((t) => ({
+  chat: { flex: 1, backgroundColor: t.paper },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.md },
+  form: { padding: space.xl, gap: space.md },
+  list: { paddingVertical: space.sm + 2 },
+  heading: { fontSize: 22, fontWeight: "700", color: t.ink, writingDirection: "auto" },
+  headingBad: { fontSize: 22, fontWeight: "700", color: t.bad, writingDirection: "auto" },
+  body: { fontSize: 15, lineHeight: 22, color: t.body, writingDirection: "auto" },
   input: {
     borderWidth: 1,
-    borderColor: theme.hairline,
+    borderColor: t.hairline,
     borderRadius: radius.chip,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
     fontSize: 16,
-    color: theme.ink,
-    backgroundColor: "#fff",
+    color: t.ink,
+    backgroundColor: t.field,
+    textAlign: "left",
+    writingDirection: "ltr",
   },
-  fieldError: { fontSize: 13, color: theme.bad },
-  button: {
-    marginTop: 12,
-    paddingVertical: 15,
-    borderRadius: radius.card,
-    alignItems: "center",
-    backgroundColor: theme.accent,
-  },
-  buttonDisabled: { opacity: 0.35 },
-  pressed: { opacity: 0.7 },
-  buttonLabel: { fontSize: 16, fontWeight: "600", color: theme.paper },
-  infoButton: { paddingHorizontal: 8, paddingVertical: 4 },
-  infoButtonLabel: { fontSize: 16, color: theme.accent, fontWeight: "600" },
+  fieldError: { fontSize: 13, color: t.bad, writingDirection: "auto" },
+  pressed: { opacity: 0.65 },
+  infoButton: { paddingHorizontal: space.sm, paddingVertical: space.xs },
+  infoButtonLabel: { fontSize: 16, color: t.accent, fontWeight: "700" },
   subheader: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
     gap: 2,
-    backgroundColor: theme.raised,
+    backgroundColor: t.raised,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.hairline,
+    borderBottomColor: t.hairline,
   },
-  subheaderStats: { fontSize: 12.5, color: theme.muted },
-  subheaderStrong: { color: theme.ink, fontWeight: "700" },
-  subheaderText: { fontSize: 12.5, color: theme.muted },
-  dayRow: { alignItems: "center", paddingVertical: 10 },
+  subheaderStats: { fontSize: 12.5, color: t.muted, writingDirection: "auto" },
+  subheaderStrong: { color: t.ink, fontWeight: "700" },
+  subheaderText: { fontSize: 12.5, color: t.muted, writingDirection: "auto" },
+  dayRow: { alignItems: "center", paddingVertical: space.sm + 2 },
   dayLabel: {
     fontSize: 11.5,
     fontWeight: "700",
-    color: theme.muted,
-    backgroundColor: theme.paper,
-    paddingHorizontal: 12,
+    color: t.muted,
+    backgroundColor: t.panel,
+    paddingHorizontal: space.md,
     paddingVertical: 5,
     borderRadius: radius.chip,
     overflow: "hidden",
   },
   beginning: { alignItems: "center", paddingVertical: 18, paddingHorizontal: 40 },
-  beginningText: { fontSize: 11.5, color: theme.muted, textAlign: "center" },
-});
+  beginningText: { fontSize: 11.5, color: t.muted, textAlign: "center" },
+}));

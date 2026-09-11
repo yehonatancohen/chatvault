@@ -13,6 +13,7 @@
  */
 
 import type { MergedMessage } from "@chatvault/core";
+import type { Language } from "../settings/settings";
 
 /** Beyond this gap, the same sender starts a new group even on the same day. */
 export const GROUP_GAP_MS = 5 * 60 * 1000;
@@ -98,7 +99,28 @@ export function sameDay(a: number, b: number): boolean {
   );
 }
 
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAY_NAMES: Record<Language, readonly string[]> = {
+  en: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+  // Hebrew names its weekdays by number — יום ראשון is Sunday — except Saturday, which has a
+  // name. `שבת` rather than `יום שביעי` for that reason; nobody says the latter.
+  he: ["יום ראשון", "יום שני", "יום שלישי", "יום רביעי", "יום חמישי", "יום שישי", "שבת"],
+};
+
+const RELATIVE: Record<Language, { today: string; yesterday: string }> = {
+  en: { today: "Today", yesterday: "Yesterday" },
+  he: { today: "היום", yesterday: "אתמול" },
+};
+
+const FULL_MONTHS: Record<Language, readonly string[]> = {
+  en: [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ],
+  he: [
+    "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+    "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
+  ],
+};
 
 /**
  * `Today` / `Yesterday` / `Monday` / `14 March 2025`.
@@ -106,21 +128,31 @@ const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frid
  * Relative labels only within the last week, where they are genuinely easier to read than a
  * date. An archive is usually old, so most separators are the full date — which is the right
  * default for something being checked against a memory.
+ *
+ * The language defaults to English so that `chat.test.ts`, which asserts the English labels,
+ * needs no knowledge of the setting; the reader passes the live one.
  */
-export function daySeparatorLabel(ts: number, now: number = Date.now()): string {
-  if (sameDay(ts, now)) return "Today";
+export function daySeparatorLabel(
+  ts: number,
+  now: number = Date.now(),
+  language: Language = "en",
+): string {
+  if (sameDay(ts, now)) return RELATIVE[language].today;
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
-  if (sameDay(ts, yesterday.getTime())) return "Yesterday";
+  if (sameDay(ts, yesterday.getTime())) return RELATIVE[language].yesterday;
 
   const date = new Date(ts);
   // Calendar days, not elapsed milliseconds: 23:00 yesterday and 08:00 today are nine hours
   // apart and two different days, and a threshold in milliseconds gets that backwards near
   // any boundary.
   const ageDays = calendarDaysBetween(ts, now);
-  if (ageDays >= 0 && ageDays < 7) return DAY_NAMES[date.getDay()]!;
+  if (ageDays >= 0 && ageDays < 7) return DAY_NAMES[language][date.getDay()]!;
 
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  // Built by hand rather than through `toLocaleDateString`: Hermes ships without full ICU, so
+  // a `he` locale there silently falls back to English and the separator would be the one
+  // place in the app that stayed in the wrong language.
+  return `${date.getDate()} ${FULL_MONTHS[language][date.getMonth()]} ${date.getFullYear()}`;
 }
 
 /** `20:14`. The archive's timestamps are wall-clock, so this is deliberately not localized away. */

@@ -1,13 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   completeImport,
@@ -16,9 +8,12 @@ import {
 } from "../lib/import/device-import";
 import type { ImportStage } from "../lib/import/run-import";
 import { setImportSession } from "../lib/import/session";
-import { WeakPassphraseError, WrongPassphraseError } from "../lib/crypto/key-wrapping";
+import { WrongPassphraseError } from "../lib/crypto/key-wrapping";
+import { createStyles, useApp } from "../components/app/providers";
+import { Button, Callout, CalloutText, Row } from "../components/app/ui";
 import { formatBytes, formatCount } from "../lib/ui/format";
-import { radius, theme } from "../lib/ui/theme";
+import { radius, space } from "../lib/ui/theme";
+import type { StringKey } from "../lib/i18n/strings";
 
 /**
  * A4 — import. The screen a share lands on.
@@ -34,14 +29,16 @@ import { radius, theme } from "../lib/ui/theme";
  * chat is still where they left it.
  */
 
-/** Deliberately plain: a stuck import should tell the user which step it is stuck on. */
-const STAGE_LABELS: Record<ImportStage, string> = {
-  "deriving-key": "Deriving the key from your passphrase...",
-  parsing: "Reading the messages...",
-  "checking-media": "Checking the media files...",
-  writing: "Encrypting and writing...",
-  verifying: "Reading the archive back to check it...",
-};
+/**
+ * Deliberately plain: a stuck import should tell the user which step it is stuck on.
+ *
+ * The key is computed from the stage, which is the one place in the app that reaches the
+ * catalogue with something other than a literal — hence the cast, and hence `translate`
+ * returning the key rather than throwing when one is missing.
+ */
+function stageKey(stage: ImportStage): StringKey {
+  return `import.stage.${stage}` as StringKey;
+}
 
 type Phase =
   | { readonly kind: "reading" }
@@ -61,6 +58,8 @@ export default function ImportScreen() {
     size?: string;
   }>();
   const router = useRouter();
+  const { t } = useApp();
+  const styles = useStyles();
 
   const [phase, setPhase] = useState<Phase>({ kind: "reading" });
   const [passphrase, setPassphrase] = useState("");
@@ -97,15 +96,15 @@ export default function ImportScreen() {
           kind: "error",
           message:
             error instanceof WrongPassphraseError
-              ? "That passphrase does not open this archive."
-              : "The import did not finish.",
+              ? t("import.error.wrongPassphrase")
+              : t("import.error.unfinished"),
           // The stage is included because "it failed" is not a usable report and this is the
           // one screen where a failure is expensive to reproduce.
           detail: `${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}`,
         });
       }
     },
-    [router],
+    [router, t],
   );
 
   useEffect(() => {
@@ -113,7 +112,7 @@ export default function ImportScreen() {
 
     async function run(): Promise<void> {
       try {
-        if (!params.path) throw new Error("No file arrived with the share.");
+        if (!params.path) throw new Error(t("import.error.noFile"));
         const prepared = await prepareImport({
           path: params.path,
           ...(params.fileName !== undefined ? { fileName: params.fileName } : {}),
@@ -131,7 +130,7 @@ export default function ImportScreen() {
         if (stale || cancelled.current) return;
         setPhase({
           kind: "error",
-          message: "This export could not be read.",
+          message: t("import.error.unreadable"),
           detail: error instanceof Error ? error.message : String(error),
         });
       }
@@ -141,7 +140,7 @@ export default function ImportScreen() {
     return () => {
       stale = true;
     };
-  }, [params.path, params.fileName, params.mimeType, write]);
+  }, [params.path, params.fileName, params.mimeType, write, t]);
 
   const goBack = (): void => {
     if (router.canGoBack()) router.back();
@@ -151,20 +150,25 @@ export default function ImportScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       {phase.kind === "reading" && (
-        <Working label="Reading the export..." {...noteProp(fileNote(params.fileName, params.size))} />
+        <Working
+          label={t("import.reading")}
+          {...noteProp(fileNote(params.fileName, params.size))}
+        />
       )}
 
       {phase.kind === "writing" && (
         <Working
-          label={STAGE_LABELS[phase.stage]}
+          label={t(stageKey(phase.stage))}
           note={
-            `${formatCount(phase.prepared.parsed.messages.length)} messages, ` +
-            `${formatBytes(phase.prepared.byteLength)} of export. ` +
+            `${t("import.note.counts", {
+              messages: formatCount(phase.prepared.parsed.messages.length),
+              size: formatBytes(phase.prepared.byteLength),
+            })} ` +
             (phase.stage === "writing"
-              ? "Encrypting every file on this phone — a large export can take a while."
+              ? t("import.note.writing")
               : phase.stage === "deriving-key"
-                ? "Deliberately slow, so a stolen archive cannot be guessed at. Takes a moment."
-                : "Everything happens here; nothing is uploaded.")
+                ? t("import.note.deriving")
+                : t("import.note.local"))
           }
         />
       )}
@@ -188,11 +192,8 @@ export default function ImportScreen() {
               {phase.detail}
             </Text>
           )}
-          <Text style={styles.reassurance}>
-            Nothing was changed in WhatsApp. Your chat is exactly where it was — this app never
-            touches it.
-          </Text>
-          <Button label="Back to library" onPress={goBack} />
+          <Text style={styles.reassurance}>{t("import.error.reassurance")}</Text>
+          <Button label={t("common.backToLibrary")} onPress={goBack} />
         </View>
       )}
     </ScrollView>
@@ -214,6 +215,9 @@ function PassphrasePrompt({
   onConfirmation: (value: string) => void;
   onSubmit: () => void;
 }) {
+  const { t, theme } = useApp();
+  const styles = useStyles();
+
   const creating = prepared.creating;
   const tooShort = passphrase.length > 0 && passphrase.length < 8;
   const mismatch = creating && confirmation.length > 0 && confirmation !== passphrase;
@@ -224,28 +228,22 @@ function PassphrasePrompt({
   return (
     <View style={styles.block}>
       <Text style={styles.heading}>
-        {creating ? "Choose a passphrase" : `Unlock ${prepared.chatTitle}`}
+        {creating
+          ? t("import.choose.heading")
+          : t("import.unlock.heading", { chat: prepared.chatTitle })}
       </Text>
 
       <Text style={styles.body}>
-        {creating
-          ? "This archive is encrypted on this phone before it is written. The passphrase is " +
-            "the only way back into it — from this phone, from a new phone, or from the web " +
-            "viewer in a browser."
-          : "This export belongs to an archive already on this phone, but its key is not in " +
-            "this phone's keychain. Your passphrase opens it."}
+        {creating ? t("import.choose.body") : t("import.unlock.body")}
       </Text>
 
       {creating && (
-        <View style={styles.warning}>
-          <Text style={styles.warningText}>
-            We cannot reset it and we cannot recover it. Nobody holds a copy — that is what
-            makes the archive yours. Write it down somewhere safe before you continue.
-          </Text>
-        </View>
+        <Callout tone="caution">
+          <CalloutText>{t("import.choose.warning")}</CalloutText>
+        </Callout>
       )}
 
-      <Text style={styles.label}>Passphrase</Text>
+      <Text style={styles.label}>{t("import.field.passphrase")}</Text>
       <TextInput
         value={passphrase}
         onChangeText={onPassphrase}
@@ -253,15 +251,18 @@ function PassphrasePrompt({
         autoCapitalize="none"
         autoCorrect={false}
         style={styles.input}
-        placeholder="At least 8 characters"
+        placeholder={t("import.field.placeholder")}
         placeholderTextColor={theme.muted}
-        accessibilityLabel="Passphrase"
+        // Without this the system keyboard stays light behind a dark app, which is the single
+        // most obvious way a "supports dark mode" claim falls apart.
+        keyboardAppearance={theme.dark ? "dark" : "light"}
+        accessibilityLabel={t("import.field.passphrase")}
       />
-      {tooShort && <Text style={styles.fieldError}>{new WeakPassphraseError().message}</Text>}
+      {tooShort && <Text style={styles.fieldError}>{t("import.field.tooShort")}</Text>}
 
       {creating && (
         <>
-          <Text style={styles.label}>Type it again</Text>
+          <Text style={styles.label}>{t("import.field.again")}</Text>
           <TextInput
             value={confirmation}
             onChangeText={onConfirmation}
@@ -269,16 +270,17 @@ function PassphrasePrompt({
             autoCapitalize="none"
             autoCorrect={false}
             style={styles.input}
-            accessibilityLabel="Confirm passphrase"
+            keyboardAppearance={theme.dark ? "dark" : "light"}
+            accessibilityLabel={t("import.field.confirm")}
           />
-          {mismatch && <Text style={styles.fieldError}>These do not match.</Text>}
+          {mismatch && <Text style={styles.fieldError}>{t("import.field.mismatch")}</Text>}
         </>
       )}
 
       <Summary prepared={prepared} />
 
       <Button
-        label={creating ? "Create the archive" : "Unlock and merge"}
+        label={creating ? t("import.submit.create") : t("import.submit.merge")}
         onPress={onSubmit}
         disabled={!ready}
       />
@@ -287,20 +289,33 @@ function PassphrasePrompt({
 }
 
 function Summary({ prepared }: { prepared: PreparedImport }) {
-  const messages = prepared.parsed.messages.length;
+  const { t, tp } = useApp();
+  const styles = useStyles();
+
   return (
     <View style={styles.summary}>
-      <Row label="Chat" value={prepared.chatTitle} />
-      <Row label="In this export" value={`${formatCount(messages)} messages`} />
-      <Row label="File" value={formatBytes(prepared.byteLength)} />
+      <Row label={t("import.summary.chat")} value={prepared.chatTitle} />
+      <Row
+        label={t("import.summary.inExport")}
+        value={tp("common.messages", prepared.parsed.messages.length)}
+      />
+      <Row label={t("import.summary.file")} value={formatBytes(prepared.byteLength)} />
       {!prepared.creating && (
-        <Row label="Already archived" value={`${formatCount(prepared.overlap)} of them`} />
+        <Row
+          label={t("import.summary.alreadyArchived")}
+          value={t("import.summary.alreadyArchivedValue", {
+            count: formatCount(prepared.overlap),
+          })}
+        />
       )}
     </View>
   );
 }
 
 function Working({ label, note }: { label: string; note?: string }) {
+  const { t } = useApp();
+  const styles = useStyles();
+
   return (
     <View style={styles.block}>
       <View style={styles.workingRow}>
@@ -308,47 +323,8 @@ function Working({ label, note }: { label: string; note?: string }) {
         <Text style={styles.heading}>{label}</Text>
       </View>
       {note !== undefined && <Text style={styles.body}>{note}</Text>}
-      <Text style={styles.reassurance}>
-        Everything happens on this phone. Nothing is uploaded.
-      </Text>
+      <Text style={styles.reassurance}>{t("import.onThisPhone")}</Text>
     </View>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue} selectable>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-function Button({
-  label,
-  onPress,
-  disabled,
-}: {
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityState={{ disabled: disabled === true }}
-      style={({ pressed }) => [
-        styles.button,
-        pressed && styles.buttonPressed,
-        disabled && styles.buttonDisabled,
-      ]}
-    >
-      <Text style={styles.buttonLabel}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -363,58 +339,59 @@ function fileNote(fileName?: string, size?: string): string | undefined {
   return bytes > 0 ? `${fileName} — ${formatBytes(bytes)}` : fileName;
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 24, gap: 4 },
-  block: { gap: 12, paddingVertical: 8 },
-  heading: { fontSize: 22, fontWeight: "600", color: theme.ink, letterSpacing: -0.3 },
-  body: { fontSize: 15, lineHeight: 22, color: theme.body },
-  reassurance: { fontSize: 13, lineHeight: 20, color: theme.muted, marginTop: 4 },
-  label: { fontSize: 13, fontWeight: "600", color: theme.muted, marginTop: 8 },
+const useStyles = createStyles((t) => ({
+  container: { padding: space.xl, gap: space.xs },
+  block: { gap: space.md, paddingVertical: space.sm },
+  heading: {
+    flex: 1,
+    fontSize: 22,
+    fontWeight: "700",
+    color: t.ink,
+    letterSpacing: -0.3,
+    writingDirection: "auto",
+  },
+  body: { fontSize: 15, lineHeight: 22, color: t.body, writingDirection: "auto" },
+  reassurance: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: t.muted,
+    marginTop: space.xs,
+    writingDirection: "auto",
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: t.muted,
+    marginTop: space.sm,
+    writingDirection: "auto",
+  },
   input: {
     borderWidth: 1,
-    borderColor: theme.hairline,
+    borderColor: t.hairline,
     borderRadius: radius.chip,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
     fontSize: 16,
-    color: theme.ink,
-    backgroundColor: "#fff",
+    color: t.ink,
+    backgroundColor: t.field,
+    // A passphrase is never RTL text and mirroring the caret makes it feel broken while typing.
+    textAlign: "left",
+    writingDirection: "ltr",
   },
-  fieldError: { fontSize: 13, color: theme.bad, lineHeight: 19 },
-  warning: {
-    backgroundColor: theme.panel,
-    borderRadius: radius.card,
-    padding: 14,
-    borderLeftWidth: 3,
-    borderLeftColor: theme.caution,
-  },
-  warningText: { fontSize: 14, lineHeight: 21, color: theme.body },
+  fieldError: { fontSize: 13, color: t.bad, lineHeight: 19, writingDirection: "auto" },
   summary: {
-    marginTop: 16,
-    backgroundColor: theme.panel,
+    marginTop: space.lg,
+    backgroundColor: t.panel,
     borderRadius: radius.card,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
+    paddingHorizontal: space.md + 2,
+    paddingVertical: space.xs,
   },
-  row: {
+  workingRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 16,
-    paddingVertical: 10,
-  },
-  rowLabel: { fontSize: 14, color: theme.muted },
-  rowValue: { fontSize: 14, fontWeight: "500", color: theme.ink, flexShrink: 1, textAlign: "right" },
-  workingRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
-  errorHeading: { fontSize: 20, fontWeight: "600", color: theme.bad },
-  errorDetail: { fontSize: 14, lineHeight: 21, color: theme.body },
-  button: {
-    marginTop: 20,
-    paddingVertical: 15,
-    borderRadius: radius.card,
     alignItems: "center",
-    backgroundColor: theme.ink,
+    gap: space.md,
+    paddingVertical: space.sm,
   },
-  buttonPressed: { opacity: 0.7 },
-  buttonDisabled: { opacity: 0.35 },
-  buttonLabel: { fontSize: 16, fontWeight: "600", color: theme.paper },
-});
+  errorHeading: { fontSize: 20, fontWeight: "700", color: t.bad, writingDirection: "auto" },
+  errorDetail: { fontSize: 14, lineHeight: 21, color: t.body },
+}));

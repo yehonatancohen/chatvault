@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Text, View } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useArchive } from "../../../components/archive/useArchive";
+import { useChatPhoto } from "../../../components/archive/useChatPhoto";
 import { MediaTile } from "../../../components/archive/MediaGrid";
 import { Lightbox, type LightboxSubject } from "../../../components/archive/Lightbox";
 import { buildMediaIndex, imagesOnly, type MediaItem } from "../../../lib/ui/media-index";
+import { createStyles, useApp } from "../../../components/app/providers";
 import { formatBytes, formatCount, formatDate } from "../../../lib/ui/format";
-import { theme } from "../../../lib/ui/theme";
+import { space } from "../../../lib/ui/theme";
 
 /**
  * Every photo in the archive, newest first — the "Media" screen every messaging app has.
@@ -25,6 +27,9 @@ const COLUMNS = 3;
 export default function ArchiveMediaScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const { state } = useArchive(params.id ?? "");
+  const { lightboxAction } = useChatPhoto(params.id ?? "");
+  const { t, tp } = useApp();
+  const styles = useStyles();
   const [lightbox, setLightbox] = useState<LightboxSubject | undefined>(undefined);
 
   const all = useMemo(
@@ -37,15 +42,13 @@ export default function ArchiveMediaScreen() {
   if (state.kind !== "ready") {
     return (
       <View style={styles.centered}>
-        <Stack.Screen options={{ title: "Media" }} />
+        <Stack.Screen options={{ title: t("media.title") }} />
         {state.kind === "error" ? (
           <Text style={styles.error} selectable>
             {state.message}
           </Text>
         ) : state.kind === "locked" ? (
-          <Text style={styles.body}>
-            This archive is locked. Open it from the library and enter your passphrase.
-          </Text>
+          <Text style={styles.body}>{t("info.locked")}</Text>
         ) : (
           <ActivityIndicator />
         )}
@@ -58,7 +61,9 @@ export default function ArchiveMediaScreen() {
 
   return (
     <View style={styles.screen}>
-      <Stack.Screen options={{ title: `Media (${formatCount(images.length)})` }} />
+      <Stack.Screen
+        options={{ title: t("media.titleCount", { count: formatCount(images.length) }) }}
+      />
 
       <FlatList
         data={rows}
@@ -74,7 +79,7 @@ export default function ArchiveMediaScreen() {
                 onOpen={setLightbox}
               />
             ))}
-            {/* Keeps the last, partial row left-aligned rather than stretched. */}
+            {/* Keeps the last, partial row aligned to the start rather than stretched. */}
             {row.length < COLUMNS &&
               Array.from({ length: COLUMNS - row.length }, (_, i) => (
                 <View key={`filler-${i}`} style={styles.filler} />
@@ -85,15 +90,13 @@ export default function ArchiveMediaScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.headerText}>
-              {formatCount(images.length)} {images.length === 1 ? "photo" : "photos"} ·{" "}
-              {formatBytes(totalBytes)} in this archive
+              {t("media.header", {
+                photos: tp("media.photos", images.length),
+                size: formatBytes(totalBytes),
+              })}
             </Text>
             {otherKinds > 0 && (
-              <Text style={styles.headerNote}>
-                {formatCount(otherKinds)} {otherKinds === 1 ? "video or audio file is" : "videos and audio files are"}{" "}
-                also archived. They cannot be played in the app yet — they are in the file,
-                and the web viewer can open them.
-              </Text>
+              <Text style={styles.headerNote}>{tp("media.otherKinds", otherKinds)}</Text>
             )}
             {images.length > 0 && (
               <Text style={styles.headerNote}>
@@ -102,18 +105,18 @@ export default function ArchiveMediaScreen() {
             )}
           </View>
         }
-        ListEmptyComponent={
-          <Text style={styles.empty}>
-            This archive holds no photos. Anything the export carried would appear here.
-          </Text>
-        }
+        ListEmptyComponent={<Text style={styles.empty}>{t("media.empty")}</Text>}
         initialNumToRender={6}
         maxToRenderPerBatch={6}
         windowSize={7}
         removeClippedSubviews
       />
 
-      <Lightbox subject={lightbox} onClose={() => setLightbox(undefined)} />
+      <Lightbox
+        subject={lightbox}
+        onClose={() => setLightbox(undefined)}
+        action={lightboxAction(lightbox)}
+      />
     </View>
   );
 }
@@ -124,16 +127,22 @@ function chunk(items: readonly MediaItem[], size: number): MediaItem[][] {
   return rows;
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.paper },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 12 },
-  list: { padding: 14, paddingBottom: 40 },
+const useStyles = createStyles((t) => ({
+  screen: { flex: 1, backgroundColor: t.paper },
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: space.xl,
+    gap: space.md,
+  },
+  list: { padding: space.md + 2, paddingBottom: 40 },
   row: { flexDirection: "row" },
   filler: { width: `${100 / COLUMNS}%` },
-  header: { paddingBottom: 12, gap: 6 },
-  headerText: { fontSize: 14, color: theme.body },
-  headerNote: { fontSize: 12.5, lineHeight: 18, color: theme.muted },
-  body: { fontSize: 15, lineHeight: 22, color: theme.body, textAlign: "center" },
-  error: { fontSize: 14, lineHeight: 21, color: theme.bad },
-  empty: { fontSize: 14, lineHeight: 21, color: theme.muted, paddingVertical: 20 },
-});
+  header: { paddingBottom: space.md, gap: 6 },
+  headerText: { fontSize: 14, color: t.body, writingDirection: "auto" },
+  headerNote: { fontSize: 12.5, lineHeight: 18, color: t.muted, writingDirection: "auto" },
+  body: { fontSize: 15, lineHeight: 22, color: t.body, textAlign: "center" },
+  error: { fontSize: 14, lineHeight: 21, color: t.bad },
+  empty: { fontSize: 14, lineHeight: 21, color: t.muted, paddingVertical: 20 },
+}));

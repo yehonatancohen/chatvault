@@ -25,6 +25,8 @@ import { ExpoFileSystemStorageAdapter } from "../storage/expo-file-system-adapte
 import { fromBase64, toBase64 } from "../crypto/base64";
 import { getCryptoProvider } from "../crypto/expo-crypto-provider";
 import { unwrapArchiveKey } from "../crypto/key-wrapping";
+import { deletePreferences } from "./preferences";
+import type { Language } from "../settings/settings";
 
 const ARCHIVES_DIRECTORY = "archives";
 const KEY_PREFIX = "chatvault.archiveKey.";
@@ -41,11 +43,12 @@ export function archivesRoot(): Directory {
  * phone, inside this app, encrypted; it is in their iPhone backup so a lost phone does not
  * lose it; and no copy exists anywhere else.
  */
-export function archiveLocationSummary(): string {
-  return (
-    "In this app's own folder on this iPhone, inside your Documents directory — one encrypted " +
-    "folder per chat. No other app can read it, and there is no copy anywhere else."
-  );
+export function archiveLocationSummary(language: Language = "en"): string {
+  return language === "he"
+    ? "בתיקייה הפרטית של האפליקציה באייפון הזה, בתוך ספריית המסמכים שלכם — תיקייה מוצפנת אחת " +
+        "לכל צ׳אט. שום אפליקציה אחרת לא יכולה לקרוא אותה, ואין עותק בשום מקום אחר."
+    : "In this app's own folder on this iPhone, inside your Documents directory — one encrypted " +
+        "folder per chat. No other app can read it, and there is no copy anywhere else.";
 }
 
 export function newArchiveId(): string {
@@ -101,6 +104,43 @@ export async function loadArchiveKey(archiveId: string): Promise<Uint8Array | nu
     return fromBase64(stored);
   } catch {
     return null;
+  }
+}
+
+/**
+ * Remove an archive from this phone, permanently.
+ *
+ * The only destructive operation in the app, so the order matters and is not arbitrary:
+ *
+ * 1. **The directory first.** While it exists the archive is still openable, so a failure at
+ *    any later step leaves the user with a working archive rather than a folder of ciphertext
+ *    whose key has been thrown away. The reverse order can destroy data on a partial failure.
+ * 2. **Then the key**, which is worthless on its own once the ciphertext is gone, and would
+ *    otherwise sit in the Keychain forever after a reinstall.
+ * 3. **Then the display preferences**, which are disposable by definition.
+ *
+ * Steps 2 and 3 are best-effort for the same reason: once step 1 has succeeded the archive is
+ * gone from the user's point of view, and failing the whole operation over an orphaned Keychain
+ * entry would report a removal that plainly did happen as an error.
+ *
+ * Nothing here touches WhatsApp — there is nothing in WhatsApp to touch (root CLAUDE.md,
+ * invariant 1). Removing an archive removes our copy and only our copy, which is exactly why
+ * the confirmation in front of it is worded the way it is.
+ */
+export async function deleteArchive(archiveId: string): Promise<void> {
+  const directory = new Directory(archivesRoot(), archiveId);
+  if (directory.exists) directory.delete();
+
+  try {
+    await SecureStore.deleteItemAsync(KEY_PREFIX + archiveId);
+  } catch {
+    // A key with no ciphertext behind it opens nothing.
+  }
+
+  try {
+    await deletePreferences(archiveId);
+  } catch {
+    // Cosmetic; see `lib/archive/preferences.ts`.
   }
 }
 

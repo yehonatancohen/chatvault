@@ -11,6 +11,7 @@ import { Directory, Paths } from "expo-file-system";
 import { runStorageContract, type ContractResult } from "@chatvault/storage";
 import { ExpoFileSystemStorageAdapter } from "../lib/storage/expo-file-system-adapter";
 import { runPipelineChecks } from "../lib/dev/pipeline-check";
+import { createStyles } from "../components/app/providers";
 
 /**
  * The device checks. Dev-only; this must never ship.
@@ -59,6 +60,7 @@ type Run =
   | { readonly status: "error"; readonly message: string };
 
 export default function DevStorageScreen() {
+  const styles = useStyles();
   const [run, setRun] = useState<Run>({ status: "idle" });
 
   const start = useCallback(async (): Promise<void> => {
@@ -162,7 +164,7 @@ export default function DevStorageScreen() {
               {suite.results.map((result) => (
                 <View key={result.name} style={styles.result}>
                   <Text style={styles.resultLine}>
-                    <Text style={statusStyle(result.status)}>{statusMark(result.status)}</Text>{" "}
+                    <Text style={statusStyle(styles, result.status)}>{statusMark(result.status)}</Text>{" "}
                     {result.name}
                   </Text>
                   {result.detail !== undefined && (
@@ -189,15 +191,23 @@ function statusMark(status: ContractResult["status"]): string {
   return "SKIP";
 }
 
-function statusStyle(status: ContractResult["status"]) {
+/**
+ * Takes the sheet rather than closing over one: `useStyles` is a hook and this is called from
+ * inside a `map`, so the styles have to arrive as an argument.
+ */
+function statusStyle(styles: ReturnType<typeof useStyles>, status: ContractResult["status"]) {
   if (status === "passed") return styles.pass;
   if (status === "failed") return styles.fail;
   return styles.skip;
 }
 
-const styles = StyleSheet.create({
+// Themed but deliberately not translated: this screen never ships, and its output is check
+// names that only exist in English anyway. Theming it is not polish — without it the whole
+// screen is dark text on the dark palette's ground and unreadable exactly when a device bug is
+// being chased.
+const useStyles = createStyles((t) => ({
   container: { padding: 24, gap: 4 },
-  body: { fontSize: 15, lineHeight: 22, color: "#4a4842" },
+  body: { fontSize: 15, lineHeight: 22, color: t.body },
   mono: { fontFamily: "Menlo", fontSize: 13 },
   button: {
     marginTop: 20,
@@ -205,32 +215,32 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
-    backgroundColor: "#1c1b19",
+    backgroundColor: t.accent,
   },
   buttonPressed: { opacity: 0.7 },
-  buttonLabel: { fontSize: 16, fontWeight: "600", color: "#faf9f6" },
+  buttonLabel: { fontSize: 16, fontWeight: "600", color: t.onAccent },
   working: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 16 },
   summaryBox: { paddingVertical: 16, gap: 4 },
-  passHeading: { fontSize: 20, fontWeight: "600", color: "#256d4a" },
-  failHeading: { fontSize: 20, fontWeight: "600", color: "#a3341f" },
+  passHeading: { fontSize: 20, fontWeight: "600", color: t.good },
+  failHeading: { fontSize: 20, fontWeight: "600", color: t.bad },
   suiteTitle: {
     marginTop: 24,
     marginBottom: 4,
     fontSize: 13,
     fontWeight: "700",
-    color: "#6b6862",
+    color: t.muted,
   },
   result: {
     paddingVertical: 10,
     gap: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#ddd9d1",
+    borderBottomColor: t.hairline,
   },
-  resultLine: { fontSize: 14, lineHeight: 20, color: "#1c1b19" },
-  pass: { fontFamily: "Menlo", fontSize: 12, color: "#256d4a" },
-  fail: { fontFamily: "Menlo", fontSize: 12, color: "#a3341f" },
-  skip: { fontFamily: "Menlo", fontSize: 12, color: "#6b6862" },
-  detail: { fontSize: 13, lineHeight: 19, color: "#a3341f", fontFamily: "Menlo" },
+  resultLine: { fontSize: 14, lineHeight: 20, color: t.ink },
+  pass: { fontFamily: "Menlo", fontSize: 12, color: t.good },
+  fail: { fontFamily: "Menlo", fontSize: 12, color: t.bad },
+  skip: { fontFamily: "Menlo", fontSize: 12, color: t.muted },
+  detail: { fontSize: 13, lineHeight: 19, color: t.bad, fontFamily: "Menlo" },
   /** A measurement reported by a passing check reads as information, not as an error. */
-  note: { fontSize: 13, lineHeight: 19, color: "#6b6862", fontFamily: "Menlo" },
-});
+  note: { fontSize: 13, lineHeight: 19, color: t.muted, fontFamily: "Menlo" },
+}));

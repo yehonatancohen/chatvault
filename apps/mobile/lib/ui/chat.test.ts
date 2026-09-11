@@ -142,6 +142,26 @@ describe("daySeparatorLabel", () => {
     // elapsed-milliseconds threshold calls it today.
     expect(daySeparatorLabel(day(2025, 3, 19, 23, 0), day(2025, 3, 20, 8, 0))).toBe("Yesterday");
   });
+
+  it("says the same three things in Hebrew", () => {
+    expect(daySeparatorLabel(day(2025, 3, 20, 9, 0), now, "he")).toBe("היום");
+    expect(daySeparatorLabel(day(2025, 3, 19, 9, 0), now, "he")).toBe("אתמול");
+    expect(daySeparatorLabel(day(2025, 3, 17, 9, 0), now, "he")).toBe("יום שני");
+  });
+
+  it("names Saturday rather than numbering it", () => {
+    // Hebrew numbers its weekdays — יום ראשון through יום שישי — and then stops: the seventh
+    // has a name, and "יום שביעי" is not something anyone says.
+    expect(daySeparatorLabel(day(2025, 3, 15, 9, 0), now, "he")).toBe("שבת");
+    expect(daySeparatorLabel(day(2025, 3, 16, 9, 0), now, "he")).toBe("יום ראשון");
+  });
+
+  it("builds the Hebrew full date itself rather than through toLocaleDateString", () => {
+    // Hermes ships without full ICU, so a `he` locale there falls back to English silently.
+    // These would be "13 March 2025" if this went through the platform.
+    expect(daySeparatorLabel(day(2025, 3, 13, 9, 0), now, "he")).toBe("13 מרץ 2025");
+    expect(daySeparatorLabel(day(2024, 12, 25, 9, 0), now, "he")).toBe("25 דצמבר 2024");
+  });
 });
 
 describe("messageTime", () => {

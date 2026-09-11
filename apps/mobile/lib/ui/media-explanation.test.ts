@@ -151,6 +151,22 @@ describe("summarizeParticipants", () => {
   it("survives an empty participant list", () => {
     expect(summarizeParticipants([]).label).toBe("No one");
   });
+
+  it("joins with an attached prefix in Hebrew, not a separate word", () => {
+    // Hebrew's conjunction is a prefix on the last name — "דנה ויונתן" — so it cannot be a
+    // translated word dropped between two names the way "and" is.
+    expect(summarizeParticipants(["דנה", "יונתן"], undefined, "he").label).toBe("דנה ויונתן");
+    expect(summarizeParticipants(["דנה"], undefined, "he").label).toBe("דנה");
+  });
+
+  it("counts the remainder in Hebrew", () => {
+    const names = Array.from({ length: 12 }, (_, i) => `א${i + 1}`);
+    expect(summarizeParticipants(names, 3, "he").label).toBe("א1, א2, א3 ועוד 9");
+  });
+
+  it("says nobody in Hebrew too", () => {
+    expect(summarizeParticipants([], undefined, "he").label).toBe("אף אחד");
+  });
 });
 
 describe("colorForParticipant", () => {
@@ -164,5 +180,63 @@ describe("colorForParticipant", () => {
 
   it("stays within one saturation and lightness, so no one is louder", () => {
     expect(colorForParticipant("anybody")).toMatch(/^hsl\(\d{1,3}, 45%, 38%\)$/);
+  });
+});
+
+/**
+ * The Hebrew side of the most consequential copy in the product.
+ *
+ * These do not re-test the decision logic — that is language-independent and already covered
+ * above. They check the two things that a translation can silently break: that the branch a
+ * user lands on still *says* something in the right language, and that the counts survive into
+ * it, since a media-loss headline with the number missing is the exact failure this screen
+ * exists to prevent.
+ */
+describe("explainMedia in Hebrew", () => {
+  const base = {
+    totalMediaMessages: 10,
+    attachedCount: 7,
+    omittedCount: 2,
+    missingCount: 1,
+    notArchivedCount: 3,
+    uniqueBlobCount: 7,
+    totalBytes: 1024,
+    dedupSavedBytes: 0,
+  };
+
+  it("keeps the counts in the headline and the causes", () => {
+    const result = explainMedia(base, true, "he");
+    expect(result.headline).toContain("3");
+    expect(result.causes[0]?.what).toContain("2");
+    expect(result.causes[1]?.what).toContain("1");
+  });
+
+  it("says the good news in Hebrew too, not silently in English", () => {
+    const result = explainMedia(
+      { ...base, omittedCount: 0, missingCount: 0, notArchivedCount: 0 },
+      true,
+      "he",
+    );
+    expect(result.severity).toBe("none");
+    expect(result.headline).toMatch(/[\u0590-\u05FF]/);
+    expect(result.saved).toMatch(/[\u0590-\u05FF]/);
+  });
+
+  it("gives the without-media export its own advice, in Hebrew", () => {
+    // The branch that matters most: the files are still in WhatsApp and the fix is a second
+    // export. Advising otherwise sends the user to look for photos that were never lost.
+    const result = explainMedia(
+      { ...base, attachedCount: 0, missingCount: 0, omittedCount: 10, notArchivedCount: 10, uniqueBlobCount: 0 },
+      false,
+      "he",
+    );
+    expect(result.severity).toBe("all");
+    expect(result.causes[0]?.why).toContain("עדיין נמצאים בוואטסאפ");
+    expect(result.nextSteps[0]).toContain("צרף מדיה");
+  });
+
+  it("still reassures that the messages survived", () => {
+    const result = explainMedia(base, true, "he");
+    expect(result.stillSaved).toMatch(/[\u0590-\u05FF]/);
   });
 });

@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { takeImportSession, type ImportSession } from "../lib/import/session";
+import { createStyles, useApp } from "../components/app/providers";
+import { Button, Callout, CalloutText, Row, Section, Step } from "../components/app/ui";
 import { formatBytes, formatCount, formatRange } from "../lib/ui/format";
 import { explainMedia } from "../lib/ui/media-explanation";
 import { summarizeParticipants } from "../lib/ui/participants";
-import { radius, theme } from "../lib/ui/theme";
+import { radius, space } from "../lib/ui/theme";
 
 /**
  * A5 — Verify. The trust moment, and the screen this whole product is really about.
@@ -31,6 +33,9 @@ import { radius, theme } from "../lib/ui/theme";
 
 export default function VerifyScreen() {
   const router = useRouter();
+  const { t, tp, language } = useApp();
+  const styles = useStyles();
+
   const [session, setSession] = useState<ImportSession | undefined>(undefined);
   const [showEveryone, setShowEveryone] = useState(false);
 
@@ -42,62 +47,71 @@ export default function VerifyScreen() {
   if (!session) {
     return (
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.heading}>Nothing to verify</Text>
-        <Text style={styles.body}>
-          This screen shows what an import captured, right after it happens. Open an archive
-          from the library to see what it holds now.
-        </Text>
-        <Button label="Back to library" onPress={() => router.replace("/")} />
+        <Text style={styles.heading}>{t("verify.nothing.heading")}</Text>
+        <Text style={styles.body}>{t("verify.nothing.body")}</Text>
+        <Button label={t("common.backToLibrary")} onPress={() => router.replace("/")} />
       </ScrollView>
     );
   }
 
   const { outcome } = session;
   const { stats } = outcome;
-  const media = explainMedia(stats, session.hadMedia);
-  const people = summarizeParticipants(outcome.participants);
+  const media = explainMedia(stats, session.hadMedia, language);
+  const people = summarizeParticipants(outcome.participants, undefined, language);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.eyebrow}>
-        {outcome.mode === "created" ? "Archive created" : "Merged into your archive"}
+        {outcome.mode === "created" ? t("verify.eyebrow.created") : t("verify.eyebrow.merged")}
       </Text>
       <Text style={styles.heading}>{session.chatTitle}</Text>
 
       <Text style={styles.lede}>
         {outcome.mode === "created"
-          ? `${formatCount(outcome.messageCount)} messages are now encrypted on this phone.`
+          ? t("verify.lede.created", { messages: tp("common.messages", outcome.messageCount) })
           : outcome.addedCount > 0
-            ? `${formatCount(outcome.addedCount)} new messages added — ${formatCount(outcome.messageCount)} in the archive now.`
-            : `Nothing new in this export. The archive already had all ${formatCount(outcome.messageCount)} of these messages.`}
+            ? t("verify.lede.added", {
+                added: formatCount(outcome.addedCount),
+                total: formatCount(outcome.messageCount),
+              })
+            : t("verify.lede.nothingNew", { total: formatCount(outcome.messageCount) })}
       </Text>
 
-      <Section title="What the archive holds">
-        <Row label="Messages" value={formatCount(outcome.messageCount)} strong />
-        <Row label="Date range" value={formatRange(outcome.firstTs, outcome.lastTs)} />
+      <Section title={t("verify.holds")}>
+        <Row label={t("verify.row.messages")} value={formatCount(outcome.messageCount)} strong />
+        <Row
+          label={t("verify.row.dateRange")}
+          value={formatRange(outcome.firstTs, outcome.lastTs)}
+        />
         {/*
           A family group has sixty participants and this is the screen someone reads to decide
           whether to delete a chat — it must not become a scroll past a wall of names.
         */}
         <Row
-          label={outcome.participants.length > 2 ? `People (${formatCount(outcome.participants.length)})` : "People"}
+          label={
+            outcome.participants.length > 2
+              ? t("verify.row.peopleCount", { count: formatCount(outcome.participants.length) })
+              : t("verify.row.people")
+          }
           value={showEveryone ? outcome.participants.join(", ") : people.label}
         />
         {people.collapsible && (
           <Pressable
             onPress={() => setShowEveryone((value) => !value)}
             accessibilityRole="button"
-            style={({ pressed }) => [styles.disclosure, pressed && styles.buttonPressed]}
+            style={({ pressed }) => [styles.disclosure, pressed && styles.pressed]}
           >
             <Text style={styles.disclosureLabel}>
-              {showEveryone ? "Show fewer" : `Show all ${formatCount(outcome.participants.length)}`}
+              {showEveryone
+                ? t("common.showFewer")
+                : t("common.showAll", { count: formatCount(outcome.participants.length) })}
             </Text>
           </Pressable>
         )}
-        <Row label="Media files" value={formatCount(stats.uniqueBlobCount)} />
-        <Row label="Media size" value={formatBytes(stats.totalBytes)} />
+        <Row label={t("verify.row.mediaFiles")} value={formatCount(stats.uniqueBlobCount)} />
+        <Row label={t("verify.row.mediaSize")} value={formatBytes(stats.totalBytes)} />
         {stats.dedupSavedBytes > 0 && (
-          <Row label="Saved by dedup" value={formatBytes(stats.dedupSavedBytes)} />
+          <Row label={t("verify.row.dedup")} value={formatBytes(stats.dedupSavedBytes)} />
         )}
       </Section>
 
@@ -108,14 +122,12 @@ export default function VerifyScreen() {
         does. The wording is computed in `explainMedia`, where it can be tested.
       */}
       {media.severity === "none" ? (
-        <View style={styles.goodBox}>
-          <Text style={styles.goodHeading}>{media.headline}</Text>
-          <Text style={styles.lossBody}>{media.saved}</Text>
-        </View>
+        <Callout tone="good" title={media.headline}>
+          <CalloutText>{media.saved}</CalloutText>
+        </Callout>
       ) : (
-        <View style={styles.lossBox}>
-          <Text style={styles.lossHeading}>{media.headline}</Text>
-          <Text style={styles.lossBody}>{media.saved}</Text>
+        <Callout tone="bad" title={media.headline}>
+          <CalloutText>{media.saved}</CalloutText>
 
           {media.causes.map((cause) => (
             <View key={cause.what} style={styles.cause}>
@@ -130,182 +142,103 @@ export default function VerifyScreen() {
             </View>
           )}
 
-          <Text style={styles.nextStepsTitle}>What can still be done</Text>
-          {media.nextSteps.map((step, index) => (
-            <View key={step} style={styles.step}>
-              <Text style={styles.stepNumber}>{index + 1}</Text>
-              <Text style={styles.stepText}>{step}</Text>
-            </View>
-          ))}
-        </View>
+          <Text style={styles.nextStepsTitle}>{t("verify.nextSteps")}</Text>
+          <View style={styles.steps}>
+            {media.nextSteps.map((step, index) => (
+              <Step key={step} index={index + 1} text={step} />
+            ))}
+          </View>
+        </Callout>
       )}
 
       {outcome.issues.length > 0 && (
-        <Section title="Lines the parser could not read">
+        <Section title={t("verify.issues.title")}>
           <Text style={styles.body}>
-            {formatCount(outcome.issues.length)} of them. They were kept as text rather than
-            dropped, but if this number is large the archive may not match what you see in
-            WhatsApp — worth checking before you delete anything.
+            {t("verify.issues.body", { count: formatCount(outcome.issues.length) })}
           </Text>
         </Section>
       )}
 
-      <Section title="Check this yourself">
-        <Text style={styles.body}>
-          Open the chat in WhatsApp and compare. The message count and the dates above should
-          match what is there. If they do not, do not delete the chat — tell us instead.
-        </Text>
+      <Section title={t("verify.check.title")}>
+        <Text style={styles.body}>{t("verify.check.body")}</Text>
       </Section>
 
       <Button
-        label="Read the archive"
-        onPress={() => router.push({ pathname: "/archive/[id]", params: { id: session.archiveId } })}
+        label={t("verify.cta.read")}
+        onPress={() =>
+          router.push({ pathname: "/archive/[id]", params: { id: session.archiveId } })
+        }
       />
       <Button
-        label="Now delete the chat in WhatsApp"
+        label={t("verify.cta.delete")}
         onPress={() =>
           router.push({ pathname: "/delete-guide", params: { title: session.chatTitle } })
         }
         tone="quiet"
       />
-      <Button label="Back to library" onPress={() => router.replace("/")} tone="quiet" />
+      <Button label={t("common.backToLibrary")} onPress={() => router.replace("/")} tone="quiet" />
 
-      <Text style={styles.footnote}>
-        ChatVault cannot delete anything from WhatsApp — no app can. The next screen shows you
-        how to do it yourself, once you are satisfied with what is above.
-      </Text>
+      <Text style={styles.footnote}>{t("verify.footnote")}</Text>
     </ScrollView>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.sectionBody}>{children}</View>
-    </View>
-  );
-}
-
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={[styles.rowValue, strong && styles.rowValueStrong]} selectable>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-function Button({
-  label,
-  onPress,
-  tone,
-}: {
-  label: string;
-  onPress: () => void;
-  tone?: "quiet";
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      style={({ pressed }) => [
-        styles.button,
-        tone === "quiet" && styles.buttonQuiet,
-        pressed && styles.buttonPressed,
-      ]}
-    >
-      <Text style={[styles.buttonLabel, tone === "quiet" && styles.buttonLabelQuiet]}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: { padding: 24, paddingBottom: 48, gap: 8 },
-  eyebrow: { fontSize: 13, fontWeight: "600", color: theme.good, letterSpacing: 0.3 },
-  heading: { fontSize: 26, fontWeight: "600", color: theme.ink, letterSpacing: -0.5 },
-  lede: { fontSize: 16, lineHeight: 24, color: theme.body, marginTop: 4, marginBottom: 8 },
-  body: { fontSize: 14, lineHeight: 21, color: theme.body },
-  section: { marginTop: 20, gap: 8 },
-  sectionTitle: { fontSize: 13, fontWeight: "600", color: theme.muted, letterSpacing: 0.2 },
-  sectionBody: {
-    backgroundColor: theme.panel,
-    borderRadius: radius.card,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    gap: 4,
-  },
-  row: { flexDirection: "row", justifyContent: "space-between", gap: 16, paddingVertical: 9 },
-  rowLabel: { fontSize: 14, color: theme.muted },
-  rowValue: { fontSize: 14, fontWeight: "500", color: theme.ink, flexShrink: 1, textAlign: "right" },
-  rowValueStrong: { fontSize: 17, fontWeight: "700" },
-  lossBox: {
-    marginTop: 20,
-    padding: 16,
-    gap: 8,
-    borderRadius: radius.card,
-    backgroundColor: "#fbf1ee",
-    borderLeftWidth: 3,
-    borderLeftColor: theme.bad,
-  },
-  lossHeading: { fontSize: 18, fontWeight: "600", color: theme.bad },
-  lossBody: { fontSize: 14, lineHeight: 21, color: theme.body },
-  cause: { marginTop: 10, gap: 3 },
-  causeWhat: { fontSize: 14, fontWeight: "600", color: theme.ink },
-  causeWhy: { fontSize: 14, lineHeight: 21, color: theme.body },
-  stillSaved: {
-    marginTop: 12,
-    padding: 12,
-    borderRadius: radius.chip,
-    backgroundColor: "#eef4f0",
-  },
-  stillSavedText: { fontSize: 14, lineHeight: 21, color: "#1f5138" },
-  nextStepsTitle: {
-    marginTop: 16,
+const useStyles = createStyles((t) => ({
+  container: { padding: space.xl, paddingBottom: 48, gap: space.sm },
+  eyebrow: {
     fontSize: 13,
     fontWeight: "700",
-    color: theme.muted,
+    color: t.good,
+    letterSpacing: 0.3,
+    writingDirection: "auto",
   },
-  step: { flexDirection: "row", gap: 10, alignItems: "flex-start", marginTop: 8 },
-  stepNumber: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: theme.ink,
-    color: theme.paper,
-    textAlign: "center",
-    lineHeight: 20,
-    fontSize: 11,
+  heading: {
+    fontSize: 26,
     fontWeight: "700",
-    overflow: "hidden",
+    color: t.ink,
+    letterSpacing: -0.5,
+    writingDirection: "auto",
   },
-  stepText: { flex: 1, fontSize: 14, lineHeight: 21, color: theme.body },
-  disclosure: { paddingVertical: 8 },
-  disclosureLabel: { fontSize: 13, fontWeight: "600", color: theme.ink },
-  goodBox: {
-    marginTop: 20,
-    padding: 16,
-    gap: 6,
-    borderRadius: radius.card,
-    backgroundColor: "#eef4f0",
-    borderLeftWidth: 3,
-    borderLeftColor: theme.good,
+  lede: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: t.body,
+    marginTop: space.xs,
+    marginBottom: space.sm,
+    writingDirection: "auto",
   },
-  goodHeading: { fontSize: 17, fontWeight: "600", color: theme.good },
-  button: {
-    marginTop: 12,
-    paddingVertical: 15,
-    borderRadius: radius.card,
-    alignItems: "center",
-    backgroundColor: theme.ink,
+  body: { fontSize: 14, lineHeight: 21, color: t.body, writingDirection: "auto" },
+  cause: { marginTop: space.sm + 2, gap: 3 },
+  causeWhat: { fontSize: 14, fontWeight: "700", color: t.ink, writingDirection: "auto" },
+  causeWhy: { fontSize: 14, lineHeight: 21, color: t.body, writingDirection: "auto" },
+  stillSaved: {
+    marginTop: space.md,
+    padding: space.md,
+    borderRadius: radius.chip,
+    backgroundColor: t.goodWash,
   },
-  buttonQuiet: { backgroundColor: "transparent", borderWidth: 1, borderColor: theme.hairline },
-  buttonPressed: { opacity: 0.7 },
-  buttonLabel: { fontSize: 16, fontWeight: "600", color: theme.paper },
-  buttonLabelQuiet: { color: theme.ink },
-  footnote: { marginTop: 20, fontSize: 13, lineHeight: 20, color: theme.muted },
-});
+  stillSavedText: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: t.dark ? t.body : "#1f5138",
+    writingDirection: "auto",
+  },
+  nextStepsTitle: {
+    marginTop: space.lg,
+    fontSize: 13,
+    fontWeight: "700",
+    color: t.muted,
+    writingDirection: "auto",
+  },
+  steps: { gap: space.md, marginTop: space.sm },
+  disclosure: { paddingVertical: space.sm },
+  disclosureLabel: { fontSize: 13, fontWeight: "700", color: t.accent },
+  pressed: { opacity: 0.65 },
+  footnote: {
+    marginTop: space.xl,
+    fontSize: 13,
+    lineHeight: 20,
+    color: t.muted,
+    writingDirection: "auto",
+  },
+}));
