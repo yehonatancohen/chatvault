@@ -83,6 +83,7 @@ export async function connectGoogleDrive(): Promise<GoogleConnection | null> {
  */
 export async function disconnectGoogleDrive(): Promise<void> {
   ensureConfigured();
+  cachedToken = undefined;
   try {
     await GoogleSignin.revokeAccess();
   } finally {
@@ -98,11 +99,23 @@ export async function disconnectGoogleDrive(): Promise<void> {
  */
 export const googleAccessToken: AccessTokenProvider = async ({ forceRefresh }) => {
   ensureConfigured();
-  const { accessToken } = await GoogleSignin.getTokens();
-  if (!forceRefresh || Platform.OS !== "android") return accessToken;
-  await GoogleSignin.clearCachedAccessToken(accessToken);
-  return (await GoogleSignin.getTokens()).accessToken;
+  // Cached for a few minutes: a backup makes hundreds of requests, and asking the native SDK for
+  // a token before each one was a measurable part of why uploads felt slow. A 401 still forces a
+  // fresh one, so an expired cache costs one retried request.
+  if (!forceRefresh && cachedToken !== undefined && Date.now() < cachedToken.until) {
+    return cachedToken.token;
+  }
+  let { accessToken } = await GoogleSignin.getTokens();
+  if (forceRefresh && Platform.OS === "android") {
+    await GoogleSignin.clearCachedAccessToken(accessToken);
+    accessToken = (await GoogleSignin.getTokens()).accessToken;
+  }
+  cachedToken = { token: accessToken, until: Date.now() + TOKEN_CACHE_MS };
+  return accessToken;
 };
+
+const TOKEN_CACHE_MS = 5 * 60 * 1000;
+let cachedToken: { token: string; until: number } | undefined;
 
 function toConnection(data: {
   user: { email: string; name: string | null };

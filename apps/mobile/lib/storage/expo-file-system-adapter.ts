@@ -65,6 +65,11 @@ export class ExpoFileSystemStorageAdapter implements StorageAdapter {
     if (file.exists) file.delete();
   }
 
+  async sizeOf(path: string): Promise<number | undefined> {
+    const file = this.fileFor(path);
+    return file.exists ? (file.size ?? undefined) : undefined;
+  }
+
   capabilities(): StorageCapabilities {
     // Device storage is exactly the iCloud case `packages/storage/CLAUDE.md` warns about:
     // reachable from this app on this device, and nowhere else — not the web viewer, not

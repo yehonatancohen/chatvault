@@ -44,4 +44,11 @@ export interface StorageAdapter {
    */
   putStream?(path: string, data: AsyncIterable<Uint8Array>): Promise<void>;
   getStream?(path: string): AsyncIterable<Uint8Array>;
+
+  /**
+   * Size in bytes of the object at `path`, or `undefined` if there is none. Optional, but sync
+   * needs it from both sides to offload media from the phone: a photo is removed locally only
+   * when the destination reports the same size for it.
+   */
+  sizeOf?(path: string): Promise<number | undefined>;
 }

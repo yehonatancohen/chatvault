@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { ArchiveReader, type Manifest, type MergedMessage } from "@chatvault/core";
 import { getCryptoProvider } from "../../lib/crypto/expo-crypto-provider";
 import { WrongPassphraseError } from "../../lib/crypto/key-wrapping";
-import { keyForArchive, storageFor, unlockWithPassphrase } from "../../lib/archive/vault";
+import { keyForArchive, unlockWithPassphrase } from "../../lib/archive/vault";
+import { readableStorageFor } from "../../lib/archive/readable-storage";
 
 /**
  * Opening an archive, for the three screens that read one.
@@ -40,7 +41,8 @@ export function useArchive(archiveId: string): {
     async (key: Uint8Array | undefined): Promise<void> => {
       const reader = await ArchiveReader.open({
         crypto: getCryptoProvider(),
-        storage: storageFor(archiveId),
+        // Photos the phone no longer keeps are read back from Drive.
+        storage: readableStorageFor(archiveId),
         key,
         archiveId,
       });

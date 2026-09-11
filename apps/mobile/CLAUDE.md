@@ -319,6 +319,27 @@ Before adding a sentence to a screen, put it in Help instead.
 - **Media not in the export is one neutral sentence** (`MediaNote`) with "Learn more" and
   "Don't remind me" — never a red warning. The count is always the real `notArchivedCount`.
 - **The Verify numbers are still read back out of the archive**, not remembered from the write.
+- **Photos do not stay on the phone once they are in Drive.** A backup ends with `offloadMedia`;
+  a restore brings messages only. Every screen that reads a chat goes through
+  `readableStorageFor` (`lib/archive/readable-storage.ts`): phone first, Drive for media the
+  phone no longer has, with a small in-memory cache. Imports still write to the phone only
+  (`storageFor`). A photo Drive cannot deliver shows a calm "couldn't load"; only one that fails
+  its content-address check is called damaged.
+- **Drive folders are named after the chat** (plain chats; protected ones get a neutral name).
+  "✓ In your Google Drive" opens that folder.
+- **Every screen below the tabs has a Home button** (`HomeButton` in `app/_layout.tsx`,
+  `router.dismissTo("/")`). A screen that sets its own `headerRight` replaces it — only the chat
+  screen does, and Back from there is already home.
+
+### The share extension is patched (`patches/expo-share-intent@8.0.1.patch`)
+
+`expo-share-intent`'s extension opened the app *before* completing the share request. On iOS
+that left WhatsApp covered by the extension's invisible full-screen view after the handoff — it
+looked frozen until force-quit. The patch completes the request first and opens the app from
+its completion handler. It is applied by pnpm (`patchedDependencies` in the root
+`package.json`) to the template `expo prebuild` copies, and was applied by hand to the current
+`ios/ChatVaultImport/ShareViewController.swift`. Re-check it on any `expo-share-intent` bump:
+the patch is pinned to 8.0.1 and will stop applying to another version.
 
 **Guided delete never touches WhatsApp.** We cannot delete anything — no API exists (root
 CLAUDE.md, invariant 1). The screen shows the user the steps and lets them confirm they did it.

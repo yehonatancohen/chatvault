@@ -26,6 +26,7 @@ export {
 } from "./google-drive/folders.js";
 export { runLiveDriveContract } from "./google-drive/live-contract.js";
 export {
+  offloadMedia,
   pullArchive,
   pushArchive,
   type PushResult,

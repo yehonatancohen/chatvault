@@ -100,5 +100,13 @@ anything reaches this layer.
 - **Streaming matters for media.** `put`/`get` take a whole `Uint8Array`; a 40 MB video
   buffered whole is how a mobile process gets killed. Implement `putStream`/`getStream` and set
   `capabilities().streaming` for any adapter that will carry media.
-- **Never delete without an explicit user action.** `remove` exists for cleaning up a failed
-  write. Nothing in this package should ever garbage-collect an archive on its own.
+- **Never delete without an explicit user action — with one deliberate exception.** `remove`
+  exists for cleaning up a failed write, and nothing here garbage-collects an archive on its own.
+  The exception is `offloadMedia` (owner's decision, 2026-09-11: keeping chats on the phone
+  "would ruin the whole idea"): after a backup it removes *photos from the phone* that Drive
+  verifiably holds — listed there and reported at exactly the same size. Nothing is ever removed
+  from Drive, messages never leave the phone, and a copy Drive holds at the wrong size is
+  re-uploaded (`sizesDiffer`) rather than trusted. Tested in `sync.test.ts`.
+- **Backups are request-light on purpose.** One listing up front lets the Drive adapter answer
+  every "is it there?" from memory (`completeDirs`); files up to 5 MB go whole in one request;
+  media uploads run four at a time. `sync.test.ts` → "speed" pins the request count down.

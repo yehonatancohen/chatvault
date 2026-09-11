@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Linking, Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import {
   backupArchive,
+  driveLinkFor,
   isDriveConnected,
   watchBackup,
   type BackupStatus,
@@ -99,7 +100,16 @@ export function DriveBackup({
 
   const current = backedUpAt !== undefined && backedUpAt >= updatedAt;
   return current ? (
-    <Text style={styles.good}>✓ {t("backup.inDrive")}</Text>
+    // Opens the chat's own folder in Google Drive (the Drive app, when installed).
+    <Pressable
+      onPress={() => void driveLinkFor(archiveId).then((url) => url !== undefined && Linking.openURL(url))}
+      accessibilityRole="link"
+      hitSlop={8}
+      style={styles.row}
+    >
+      <Text style={styles.good}>✓ {t("backup.inDrive")}</Text>
+      <Text style={styles.link}>{t("backup.open")}</Text>
+    </Pressable>
   ) : (
     <View style={styles.row}>
       <Text style={styles.muted}>{t("backup.onlyPhone")}</Text>

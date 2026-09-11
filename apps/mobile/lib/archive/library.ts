@@ -17,7 +17,8 @@ import { ArchiveReader, type Manifest } from "@chatvault/core";
 import { getCryptoProvider } from "../crypto/expo-crypto-provider";
 import { buildMediaIndex, findChatPhoto, type MediaItem } from "../ui/media-index";
 import { readPreferences } from "./preferences";
-import { keyForArchive, listArchiveIds, storageFor } from "./vault";
+import { keyForArchive, listArchiveIds } from "./vault";
+import { readableStorageFor } from "./readable-storage";
 import { translate } from "../i18n/translate";
 import type { Language } from "../settings/settings";
 
@@ -54,7 +55,8 @@ export async function readLibrary(
 
       const reader = await ArchiveReader.open({
         crypto: getCryptoProvider(),
-        storage: storageFor(archiveId),
+        // Photos the phone no longer keeps are read back from Drive.
+        storage: readableStorageFor(archiveId),
         key,
         archiveId,
       });

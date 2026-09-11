@@ -101,33 +101,46 @@ export async function pushArchive(
   }
 
   const localPaths = await local.list("");
-  const remoteMedia = new Set(await remote.list(MEDIA_PREFIX));
+  // One listing of the whole destination up front. Besides telling us what is there, it lets
+  // the Drive adapter answer every later "is this here?" without a request.
+  const remotePaths = new Set(await remote.list(""));
   const ordered = pushOrder(localPaths);
+  const media = ordered.filter((path) => path.startsWith(MEDIA_PREFIX));
+  const rest = ordered.filter((path) => !path.startsWith(MEDIA_PREFIX));
   const next: Record<string, string> = { ...ledger };
   let copied = 0;
   let unchanged = 0;
+  let done = 0;
+  const tick = (path: string) => {
+    done += 1;
+    options.onProgress?.({ done, total: ordered.length, path });
+  };
 
-  for (const [i, path] of ordered.entries()) {
-    if (path.startsWith(MEDIA_PREFIX)) {
-      if (remoteMedia.has(path)) {
-        unchanged += 1;
-      } else {
-        await copy(local, remote, path);
-        copied += 1;
-      }
+  // Media first, several at a time: it is almost all of the bytes, each file is independent,
+  // and nothing names a new photo until the manifest lands last.
+  await forEachLimit(media, UPLOAD_PARALLELISM, async (path) => {
+    if (remotePaths.has(path) && !(await sizesDiffer(local, remote, path))) {
+      unchanged += 1;
     } else {
-      const bytes = await local.get(path);
-      const hash = await options.sha256Hex(bytes);
-      if (next[path] === hash && (await remote.has(path))) {
-        unchanged += 1;
-      } else {
-        await remote.put(path, bytes);
-        next[path] = hash;
-        copied += 1;
-        await options.onLedger?.({ ...next });
-      }
+      await copy(local, remote, path);
+      copied += 1;
     }
-    options.onProgress?.({ done: i + 1, total: ordered.length, path });
+    tick(path);
+  });
+
+  // Everything else strictly in order, the manifest last.
+  for (const path of rest) {
+    const bytes = await local.get(path);
+    const hash = await options.sha256Hex(bytes);
+    if (next[path] === hash && remotePaths.has(path)) {
+      unchanged += 1;
+    } else {
+      await remote.put(path, bytes);
+      next[path] = hash;
+      copied += 1;
+      await options.onLedger?.({ ...next });
+    }
+    tick(path);
   }
 
   return { kind: "pushed", ledger: { ...next }, copied, unchanged };
@@ -140,7 +153,13 @@ export async function pushArchive(
 export async function pullArchive(
   remote: StorageAdapter,
   local: StorageAdapter,
-  options: SyncOptions,
+  options: SyncOptions & {
+    /**
+     * Leave photos and files in Drive and copy only the messages. The app then fetches media
+     * when it is looked at — a new phone gets its chats back without refilling its storage.
+     */
+    readonly skipMedia?: boolean;
+  },
 ): Promise<SyncLedger> {
   if (await local.has(HEADER_PATH)) {
     throw new Error("This archive is already on this device; restoring would overwrite it.");
@@ -149,7 +168,9 @@ export async function pullArchive(
     throw new Error("The copy in Drive is incomplete — it was never fully backed up.");
   }
 
-  const ordered = pullOrder(await remote.list(""));
+  const ordered = pullOrder(await remote.list("")).filter(
+    (path) => !(options.skipMedia === true && path.startsWith(MEDIA_PREFIX)),
+  );
   const ledger: Record<string, string> = {};
   for (const [i, path] of ordered.entries()) {
     if (path.startsWith(MEDIA_PREFIX)) {
@@ -182,13 +203,77 @@ function order(paths: readonly string[], tail: readonly string[]): string[] {
 }
 
 /**
- * One object, streamed when both sides can — a video is copied chunk by chunk rather than held
- * whole in memory on a phone.
+ * Remove photos and files from the phone that the destination verifiably holds.
+ *
+ * This is the point of the product: once a chat is in the user's Drive, keeping a second copy
+ * of every photo on the phone would fill it right back up. A file is removed locally only when
+ * the destination lists it *and* reports exactly the same size — a partial or failed upload
+ * never matches. Messages stay: they are small, and they make a chat open instantly and offline.
+ * The app reads removed media back from Drive on demand.
+ */
+export async function offloadMedia(
+  local: StorageAdapter,
+  remote: StorageAdapter,
+): Promise<{ readonly removed: number; readonly bytes: number }> {
+  if (local.sizeOf === undefined || remote.sizeOf === undefined) return { removed: 0, bytes: 0 };
+  const remoteMedia = new Set(await remote.list(MEDIA_PREFIX));
+  let removed = 0;
+  let bytes = 0;
+  for (const path of await local.list(MEDIA_PREFIX)) {
+    if (!remoteMedia.has(path)) continue;
+    const [here, there] = await Promise.all([local.sizeOf(path), remote.sizeOf(path)]);
+    if (here === undefined || here !== there) continue;
+    await local.remove(path);
+    removed += 1;
+    bytes += here;
+  }
+  return { removed, bytes };
+}
+
+/**
+ * A destination copy whose size is known and differs from ours is damaged (a cut-off upload,
+ * or edited by hand) and is sent again. Unknown sizes count as matching.
+ */
+async function sizesDiffer(local: StorageAdapter, remote: StorageAdapter, path: string): Promise<boolean> {
+  if (local.sizeOf === undefined || remote.sizeOf === undefined) return false;
+  const [here, there] = await Promise.all([local.sizeOf(path), remote.sizeOf(path)]);
+  return here !== undefined && there !== undefined && here !== there;
+}
+
+/** How many media uploads run at once. Enough to hide latency, few enough for a phone. */
+const UPLOAD_PARALLELISM = 4;
+/** Above this a file is streamed; below it, sent whole in one request. */
+const STREAM_ABOVE_BYTES = 5 * 1024 * 1024;
+
+/**
+ * One object. Small files go whole — one request instead of a resumable session's three — and
+ * large ones stream, so a video is never held whole in memory on a phone.
  */
 async function copy(from: StorageAdapter, to: StorageAdapter, path: string): Promise<void> {
-  if (from.getStream && to.putStream && from.capabilities().streaming && to.capabilities().streaming) {
-    await to.putStream(path, from.getStream(path));
+  const size = await from.sizeOf?.(path);
+  const canStream =
+    from.getStream !== undefined &&
+    to.putStream !== undefined &&
+    from.capabilities().streaming &&
+    to.capabilities().streaming;
+  if (canStream && (size === undefined || size > STREAM_ABOVE_BYTES)) {
+    await to.putStream!(path, from.getStream!(path));
   } else {
     await to.put(path, await from.get(path));
   }
+}
+
+async function forEachLimit<T>(
+  items: readonly T[],
+  limit: number,
+  work: (item: T) => Promise<void>,
+): Promise<void> {
+  let next = 0;
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const item = items[next++]!;
+      await work(item);
+    }
+  });
+  await Promise.all(runners);
 }

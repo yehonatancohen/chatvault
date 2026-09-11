@@ -6,8 +6,10 @@ import "../lib/i18n/bootstrap";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { Pressable } from "react-native";
 import { ShareIntentProvider, useShareIntentContext } from "expo-share-intent";
 import { AppProvider, useApp } from "../components/app/providers";
+import { TabIcon } from "../components/app/TabIcon";
 
 /**
  * `(tabs)` is the anchor of the stack, not merely its first screen.
@@ -68,6 +70,23 @@ function ShareIntentRouter() {
  * reason this is a component at all — `RootLayout` itself sits outside the provider and cannot
  * call the hook.
  */
+/** Straight to the chat list from any depth: pops the whole stack, then shows the Chats tab. */
+function HomeButton() {
+  const router = useRouter();
+  const { theme, t } = useApp();
+  return (
+    <Pressable
+      onPress={() => router.dismissTo("/")}
+      accessibilityRole="button"
+      accessibilityLabel={t("tabs.chats")}
+      hitSlop={10}
+      style={({ pressed }) => pressed && { opacity: 0.5 }}
+    >
+      <TabIcon name="chats" color={theme.ink} background={theme.paper} />
+    </Pressable>
+  );
+}
+
 function Navigation() {
   const { theme, t } = useApp();
 
@@ -86,6 +105,9 @@ function Navigation() {
           headerStyle: { backgroundColor: theme.paper },
           headerTitleStyle: { color: theme.ink },
           contentStyle: { backgroundColor: theme.paper },
+          // Every screen below the tabs gets a way straight home — back, back, back is not a
+          // way to get anywhere. The tabs draw their own headers and never show this one.
+          headerRight: () => <HomeButton />,
         }}
       >
         {/* The tab bar draws its own headers, so the stack must not draw a second one above it. */}

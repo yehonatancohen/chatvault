@@ -17,6 +17,8 @@ export interface BackupState {
   readonly ledger: SyncLedger;
   /** Epoch ms of the last *completed* backup. Absent while only partially backed up. */
   readonly backedUpAt?: number;
+  /** The chat's folder in Drive, for "open in Drive" and for reading media back. */
+  readonly folderId?: string;
 }
 
 const DIRECTORY = "drive-backup";
@@ -33,6 +35,7 @@ export async function readBackupState(archiveId: string): Promise<BackupState> {
     return {
       ledger: typeof parsed.ledger === "object" && parsed.ledger !== null ? parsed.ledger : {},
       ...(typeof parsed.backedUpAt === "number" ? { backedUpAt: parsed.backedUpAt } : {}),
+      ...(typeof parsed.folderId === "string" ? { folderId: parsed.folderId } : {}),
     };
   } catch {
     return { ledger: {} };

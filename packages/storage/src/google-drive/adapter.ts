@@ -60,6 +60,16 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
   private readonly folders = new Map<string, Promise<string | undefined>>();
   /** Object path → file id, for paths already resolved. */
   private readonly fileIds = new Map<string, string>();
+  /** Object path → size in bytes, from listings and our own writes. */
+  private readonly sizes = new Map<string, number>();
+  /**
+   * Directories whose every child is known — listed in full by `list`, or created by us. For
+   * these, a path missing from `fileIds` is known to be absent without asking Drive. A backup
+   * lists the archive once up front, so checking "is this photo already there?" for hundreds of
+   * photos costs no requests at all. (A file another device adds meanwhile is not seen until
+   * the next adapter; sync's manifest check is what guards against that.)
+   */
+  private readonly completeDirs = new Set<string>();
 
   constructor(options: GoogleDriveAdapterOptions) {
     this.client = options.client;
@@ -87,10 +97,13 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
       // A media upload replaces the content whole, so a shorter rewrite leaves no tail.
       const updated = await this.client.request(
         `${DRIVE_UPLOAD_API}/files/${existing}?uploadType=media&fields=id`,
-        { method: "PATCH", headers: { "Content-Type": OCTET }, body: Uint8Array.from(data) },
+        { method: "PATCH", headers: { "Content-Type": mimeTypeOf(name) }, body: Uint8Array.from(data) },
         [200, 404],
       );
-      if (updated.status === 200) return;
+      if (updated.status === 200) {
+        this.sizes.set(path, data.byteLength);
+        return;
+      }
       // The cached id went stale — deleted in the Drive UI since we looked. Write it afresh.
       this.fileIds.delete(path);
     }
@@ -102,10 +115,11 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
       {
         method: "POST",
         headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
-        body: multipart(boundary, { name, parents: [parentId!] }, data),
+        body: multipart(boundary, { name, parents: [parentId!], mimeType: mimeTypeOf(name) }, data),
       },
     );
     this.fileIds.set(path, created.id);
+    this.sizes.set(path, data.byteLength);
   }
 
   async get(path: string): Promise<Uint8Array> {
@@ -138,6 +152,7 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
         `${quote(id)} in parents and trashed = false`,
         "modifiedTime desc",
       );
+      this.completeDirs.add(dir);
       for (const child of children) {
         const childPath = dir === "" ? child.name : `${dir}/${child.name}`;
         if (child.mimeType === FOLDER_MIME) {
@@ -147,6 +162,7 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
           // Newest first, so the id cached for a duplicated name is the one reads should use.
           found.add(childPath);
           this.fileIds.set(childPath, child.id);
+          if (child.size !== undefined) this.sizes.set(childPath, Number(child.size));
         }
       }
     }
@@ -156,6 +172,7 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
   async remove(path: string): Promise<void> {
     const { dir, name } = split(path);
     this.fileIds.delete(path);
+    this.sizes.delete(path);
     const parentId = await this.folderId(dir, false);
     if (parentId === undefined) return;
 
@@ -188,7 +205,7 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
         ? undefined
         : await this.client.request(
             `${DRIVE_UPLOAD_API}/files/${existing}?uploadType=resumable&fields=id`,
-            { method: "PATCH", headers: json, body: "{}" },
+            { method: "PATCH", headers: json, body: asciiJson({ mimeType: mimeTypeOf(name) }) },
             [200, 404],
           );
     if (session === undefined || session.status === 404) {
@@ -196,7 +213,7 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
       session = await this.client.request(`${DRIVE_UPLOAD_API}/files?uploadType=resumable&fields=id`, {
         method: "POST",
         headers: json,
-        body: asciiJson({ name, parents: [(await this.folderId(dir, true))!] }),
+        body: asciiJson({ name, parents: [(await this.folderId(dir, true))!], mimeType: mimeTypeOf(name) }),
       });
     }
     const sessionUrl = session.headers.get("Location") ?? session.headers.get("location");
@@ -227,6 +244,21 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
     const finished = await this.sendChunk(sessionUrl, last, sent, sent + last.byteLength);
     const created = JSON.parse(await finished.text()) as DriveFile;
     this.fileIds.set(path, created.id);
+    this.sizes.set(path, sent + last.byteLength);
+  }
+
+  async sizeOf(path: string): Promise<number | undefined> {
+    const known = this.sizes.get(path);
+    if (known !== undefined) return known;
+    const fileId = await this.findFile(path);
+    if (fileId === undefined) return undefined;
+    const meta = await this.client.json<DriveFile>(`${DRIVE_API}/files/${fileId}?fields=size`, {
+      method: "GET",
+      headers: {},
+    });
+    const size = Number(meta.size ?? "0");
+    this.sizes.set(path, size);
+    return size;
   }
 
   async *getStream(path: string): AsyncIterable<Uint8Array> {
@@ -325,6 +357,8 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
     if (cached !== undefined) return cached;
 
     const { dir, name } = split(path);
+    // Everything in this folder is already known, and this path is not among it.
+    if (this.completeDirs.has(dir)) return undefined;
     const parentId = await this.folderId(dir, false);
     if (parentId === undefined) return undefined;
     const newest = (await this.filesNamed(parentId, name))[0];
@@ -364,6 +398,13 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
     const lookup = (async () => {
       const parentId = await this.folderId(parentDir, create);
       if (parentId === undefined) return undefined;
+      // The parent was listed in full and this folder was not in it: no need to ask.
+      if (this.completeDirs.has(parentDir)) {
+        if (!create) return undefined;
+        const made = (await this.client.createFolder(name, parentId)).id;
+        this.completeDirs.add(dir);
+        return made;
+      }
       const existing = await this.client.listFiles(
         `name = ${quote(name)} and ${quote(parentId)} in parents and ` +
           `mimeType = ${quote(FOLDER_MIME)} and trashed = false`,
@@ -372,7 +413,9 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
       );
       if (existing[0] !== undefined) return existing[0].id;
       if (!create) return undefined;
-      return (await this.client.createFolder(name, parentId)).id;
+      const made = (await this.client.createFolder(name, parentId)).id;
+      this.completeDirs.add(dir);
+      return made;
     })();
 
     this.folders.set(dir, lookup);
@@ -387,6 +430,41 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
     );
     return lookup;
   }
+}
+
+/**
+ * The type Drive should show a file as. A photo uploaded as `application/octet-stream` is an
+ * opaque blob in Drive; as `image/jpeg` it previews, thumbnails and opens like any photo — which
+ * is what makes a plain archive's folder a copy the user can actually use without this app.
+ */
+const MIME_TYPES: Readonly<Record<string, string>> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  "3gp": "video/3gpp",
+  m4v: "video/x-m4v",
+  opus: "audio/ogg",
+  ogg: "audio/ogg",
+  m4a: "audio/mp4",
+  mp3: "audio/mpeg",
+  aac: "audio/aac",
+  wav: "audio/wav",
+  pdf: "application/pdf",
+  txt: "text/plain",
+  json: "application/json",
+  jsonl: "application/x-ndjson",
+  vcf: "text/vcard",
+};
+
+export function mimeTypeOf(name: string): string {
+  const ext = /\.([A-Za-z0-9]+)$/.exec(name)?.[1]?.toLowerCase();
+  return (ext !== undefined ? MIME_TYPES[ext] : undefined) ?? OCTET;
 }
 
 function split(path: string): { dir: string; name: string } {

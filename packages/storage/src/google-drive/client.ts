@@ -8,8 +8,8 @@
  * `contract.ts`, this runs under Hermes.
  *
  * **What this client never does: send chat content anywhere but the user's own Drive.** Every
- * URL below is `googleapis.com`, every byte it uploads is ciphertext handed down by `core`, and
- * the access token belongs to the user. Boydem's own servers are not in this path at all (root
+ * URL below is `googleapis.com`, every byte it uploads is an archive file handed down by `core`
+ * (plain, or sealed if the user protected the chat), and the access token belongs to the user. Boydem's own servers are not in this path at all (root
  * `CLAUDE.md`, invariant 2).
  */
 
@@ -220,6 +220,14 @@ export class DriveClient {
         }),
       },
     );
+  }
+
+  async rename(fileId: string, name: string): Promise<void> {
+    await this.request(`${DRIVE_API}/files/${fileId}?fields=id`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json; charset=UTF-8" },
+      body: asciiJson({ name }),
+    });
   }
 
   private async backoff(attempt: number): Promise<void> {

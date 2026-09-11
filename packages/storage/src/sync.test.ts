@@ -15,7 +15,7 @@ import { MemoryStorageAdapter } from "./memory.js";
 import { GoogleDriveStorageAdapter } from "./google-drive/adapter.js";
 import { DriveClient } from "./google-drive/client.js";
 import { FakeDrive } from "./google-drive/fake-drive.js";
-import { pullArchive, pushArchive, type SyncLedger } from "./sync.js";
+import { offloadMedia, pullArchive, pushArchive, type SyncLedger } from "./sync.js";
 
 /**
  * Sync is checked against *real archives* — written by core's `ArchiveWriter` with a real
@@ -242,7 +242,86 @@ describe("plain archives", () => {
   });
 });
 
+describe("speed", () => {
+  it("uploads each small photo in one request, with no lookup per file", async () => {
+    const local = new MemoryStorageAdapter();
+    const photos = Array.from({ length: 12 }, (_, i) => photo(i + 1, 20 * 1024));
+    await writer(local).write(content("s1", [text(0, "Dana", "hi")], photos));
+    const { fake, adapter } = drive();
+
+    await pushArchive(local, adapter(), {}, { sha256Hex });
+
+    const uploads = fake.log.filter((r) => r.url.includes("/upload/")).length;
+    const lookups = fake.log.filter((r) => r.method === "GET" && r.url.includes("q=")).length;
+    const files = (await local.list("")).length;
+    expect(uploads).toBe(files); // one request per file, no resumable sessions for small ones
+    expect(lookups).toBeLessThanOrEqual(4); // the one up-front listing, and folder lookups
+  });
+});
+
+describe("offloadMedia", () => {
+  it("removes photos from the phone only once Drive holds them at the same size", async () => {
+    const local = new MemoryStorageAdapter();
+    await writer(local).write(content("s1", [text(0, "Dana", "hi")], [photo(1), photo(2), photo(3)]));
+    const { adapter } = drive();
+    await pushArchive(local, adapter(), {}, { sha256Hex });
+    const mediaPaths = await local.list("media/");
+
+    // One upload is corrupted in Drive (shorter than the original) and one is missing.
+    const remote = adapter();
+    await remote.put(mediaPaths[0]!, photo(1, 10));
+    await remote.remove(mediaPaths[1]!);
+
+    const result = await offloadMedia(local, adapter());
+
+    expect(result.removed).toBe(1);
+    expect(await local.list("media/")).toEqual(expect.arrayContaining([mediaPaths[0], mediaPaths[1]]));
+    expect(await local.has(mediaPaths[2]!)).toBe(false);
+    // Messages stay on the phone.
+    expect(await local.has(MANIFEST_PATH)).toBe(true);
+    expect((await local.list("chunks/")).length).toBeGreaterThan(0);
+  });
+
+  it("re-sends a photo whose Drive copy is damaged, then offloads it", async () => {
+    const local = new MemoryStorageAdapter();
+    await writer(local).write(content("s1", [text(0, "Dana", "hi")], [photo(5)]));
+    const { adapter } = drive();
+    const first = await pushArchive(local, adapter(), {}, { sha256Hex });
+    if (first.kind !== "pushed") throw new Error("expected a push");
+    const [path] = await local.list("media/");
+    await adapter().put(path!, photo(5, 10)); // cut short in Drive
+
+    await pushArchive(local, adapter(), first.ledger, { sha256Hex });
+    expect(await adapter().sizeOf(path!)).toBe(await local.sizeOf(path!));
+    expect((await offloadMedia(local, adapter())).removed).toBe(1);
+  });
+
+  it("leaves an offloaded archive whose messages still open, with media readable from Drive", async () => {
+    const local = new MemoryStorageAdapter();
+    const written = await writer(local).write(content("s1", [text(0, "Dana", "hi")], [photo(7)]));
+    const { adapter } = drive();
+    await pushArchive(local, adapter(), {}, { sha256Hex });
+    await offloadMedia(local, adapter());
+
+    expect((await (await open(local)).readAll()).map((m) => m.body)).toEqual(["hi"]);
+    expect(await (await open(adapter())).readMedia(written.media[0]!.sha256)).toHaveLength(300 * 1024);
+  });
+});
+
 describe("pullArchive", () => {
+  it("can restore just the messages, leaving photos in Drive", async () => {
+    const original = new MemoryStorageAdapter();
+    await writer(original).write(content("s1", [text(0, "Dana", "hi")], [photo(4)]));
+    const { adapter } = drive();
+    await pushArchive(original, adapter(), {}, { sha256Hex });
+
+    const newPhone = new MemoryStorageAdapter();
+    await pullArchive(adapter(), newPhone, { sha256Hex, skipMedia: true });
+
+    expect(await newPhone.list("media/")).toEqual([]);
+    expect((await (await open(newPhone)).readAll()).map((m) => m.body)).toEqual(["hi"]);
+  });
+
   it("restores an archive from Drive onto an empty device, header last", async () => {
     const original = new MemoryStorageAdapter();
     await writer(original).write(content("s1", [text(0, "Dana", "hi"), text(1, "Ravid", "yo")], [photo(4)]));

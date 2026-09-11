@@ -201,6 +201,30 @@ describe("GoogleDriveStorageAdapter — Drive-specific behaviour", () => {
     expect(await adapter.get("media/it's a \\ name.enc")).toEqual(pattern(4));
   });
 
+  it("answers 'is it there?' from one listing, without a request per file", async () => {
+    const { drive, root, client, adapter } = setup();
+    await adapter.put("media/a.jpg", pattern(4));
+    const fresh = new GoogleDriveStorageAdapter({ client, rootFolderId: root });
+    await fresh.list("");
+    const before = drive.log.length;
+    expect(await fresh.has("media/missing.jpg")).toBe(false);
+    expect(await fresh.has("chunks/0.jsonl")).toBe(false);
+    expect(await fresh.has("media/a.jpg")).toBe(true);
+    expect(await fresh.sizeOf("media/a.jpg")).toBe(4);
+    expect(drive.log.length).toBe(before);
+  });
+
+  it("stores photos as images, so Drive previews them", async () => {
+    const { drive, adapter } = setup({ uploadChunkBytes: 256 * KIB });
+    await adapter.put("media/a.jpg", pattern(4));
+    await adapter.putStream("media/v.mp4", parts(pattern(300 * KIB), [100 * KIB]));
+    await adapter.put("chunks/0.jsonl.enc", pattern(4));
+    const types = Object.fromEntries([...drive.files.values()].map((f) => [f.name, f.mimeType]));
+    expect(types["a.jpg"]).toBe("image/jpeg");
+    expect(types["v.mp4"]).toBe("video/mp4");
+    expect(types["0.jsonl.enc"]).toBe("application/octet-stream");
+  });
+
   it("only ever talks to Google", async () => {
     const { drive, adapter } = setup({ uploadChunkBytes: 256 * KIB });
     await adapter.put("header.json", pattern(4));
@@ -221,6 +245,17 @@ describe("Drive folders", () => {
 
     drive.files.get(first)!.name = "WhatsApp backups";
     expect(await ensureAppFolder(client)).toBe(first);
+  });
+
+  it("names an archive's folder after the chat, and renames it when the name changes", async () => {
+    const { drive, client } = setup();
+    const app = await ensureAppFolder(client);
+    const id = await ensureArchiveFolder(client, app, "arch-a", "Family ❤️");
+    expect(drive.files.get(id)?.name).toBe("Family ❤️");
+
+    expect(await ensureArchiveFolder(client, app, "arch-a", "Family (2024)")).toBe(id);
+    expect(drive.files.get(id)?.name).toBe("Family (2024)");
+    expect(await listArchiveFolders(client, app)).toEqual([{ archiveId: "arch-a", folderId: id }]);
   });
 
   it("makes one folder per archive, named by id, and lists them", async () => {

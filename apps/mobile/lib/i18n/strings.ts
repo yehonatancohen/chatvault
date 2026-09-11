@@ -155,7 +155,8 @@ const en = {
   "bubble.notInExport": "This file was named in the chat but was not in the export.",
   "bubble.omitted": "WhatsApp left this media out of the export — it is not in the archive.",
   "bubble.deleted": "This message was deleted",
-  "bubble.decryptFailed": "This image did not decrypt: {error}",
+  "bubble.damaged": "This photo is damaged.",
+  "bubble.unreachable": "Couldn't load this photo from Drive.",
   "bubble.kind.video": "Video",
   "bubble.kind.audio": "Voice or audio",
   "bubble.kind.file": "File",
@@ -214,6 +215,8 @@ const en = {
 
   // ── Added in the 2026-09-11 simplification ─────────────────────────────────────────
   "status.device": "On this phone",
+  "drive.protectedFolder": "Protected chat",
+  "backup.open": "Open",
   "status.uploading": "Uploading {percent}%",
   "status.safe": "Safe to delete",
   "status.deleted": "Deleted · in Drive",
@@ -401,7 +404,8 @@ const he: Record<StringKey, string> = {
   "bubble.notInExport": "הקובץ הזה הוזכר בצ׳אט אבל לא נכלל בייצוא.",
   "bubble.omitted": "וואטסאפ השאירה את המדיה הזו מחוץ לייצוא — היא לא נמצאת בארכיון.",
   "bubble.deleted": "ההודעה הזו נמחקה",
-  "bubble.decryptFailed": "התמונה הזו לא פוענחה: {error}",
+  "bubble.damaged": "התמונה הזו פגומה.",
+  "bubble.unreachable": "לא הצלחנו לטעון את התמונה מ-Drive.",
   "bubble.kind.video": "וידאו",
   "bubble.kind.audio": "הקלטה או אודיו",
   "bubble.kind.file": "קובץ",
@@ -460,6 +464,8 @@ const he: Record<StringKey, string> = {
 
   // ── Added in the 2026-09-11 simplification ─────────────────────────────────────────
   "status.device": "בטלפון הזה",
+  "drive.protectedFolder": "צ׳אט מוגן",
+  "backup.open": "פתיחה",
   "status.uploading": "מעלה {percent}%",
   "status.safe": "אפשר למחוק",
   "status.deleted": "נמחק · ב-Drive",

@@ -158,9 +158,10 @@ function Attachment({
         setUri(`data:${mimeTypeOf(filename)};base64,${toBase64(bytes)}`);
       } catch (error) {
         if (stale) return;
-        // `readMedia` re-hashes the blob against its own content address, so a failure here is
-        // a genuine integrity problem and worth showing rather than a blank box.
-        setFailed(error instanceof Error ? error.message : String(error));
+        // Two different things: a photo that came back but does not match its own content
+        // address is damaged (worth saying plainly); anything else is almost always Drive being
+        // unreachable for a photo the phone no longer keeps — ordinary, and said calmly.
+        setFailed(error instanceof Error && error.name === "ArchiveIntegrityError" ? "damaged" : "unreachable");
       }
     })();
 
@@ -188,7 +189,11 @@ function Attachment({
   }
 
   if (failed !== undefined) {
-    return <NotHere label={t("bubble.decryptFailed", { error: failed })} bad />;
+    return failed === "damaged" ? (
+      <NotHere label={t("bubble.damaged")} bad />
+    ) : (
+      <NotHere label={t("bubble.unreachable")} />
+    );
   }
 
   if (uri === undefined) {

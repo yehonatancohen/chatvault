@@ -36,12 +36,22 @@ export function createDriveClient(getAccessToken: AccessTokenProvider): DriveCli
   return new DriveClient({ fetch: driveFetch, getAccessToken });
 }
 
-/** The storage for one archive in the user's Drive: `My Drive/Boydem/<archiveId>/`. */
+/**
+ * The storage for one archive in the user's Drive: `My Drive/Boydem/<name>/`. The folder is
+ * found by the archive's id (not its name) and renamed to `name` if it differs — so a folder
+ * always carries the chat's current title. Returns the folder id too, for "open in Drive".
+ */
 export async function driveStorageFor(
   client: DriveClient,
   archiveId: string,
-): Promise<GoogleDriveStorageAdapter> {
+  name?: string,
+): Promise<{ storage: GoogleDriveStorageAdapter; folderId: string }> {
   const appFolderId = await ensureAppFolder(client);
-  const rootFolderId = await ensureArchiveFolder(client, appFolderId, archiveId);
-  return new GoogleDriveStorageAdapter({ client, rootFolderId });
+  const folderId = await ensureArchiveFolder(client, appFolderId, archiveId, name);
+  return { storage: new GoogleDriveStorageAdapter({ client, rootFolderId: folderId }), folderId };
+}
+
+/** The web address of a folder in Google Drive; opens the Drive app when it is installed. */
+export function driveFolderUrl(folderId: string): string {
+  return `https://drive.google.com/drive/folders/${folderId}`;
 }

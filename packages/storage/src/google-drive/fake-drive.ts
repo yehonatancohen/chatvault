@@ -31,7 +31,9 @@ interface StoredFile {
 interface Session {
   /** Update an existing file, or create one with this metadata. */
   fileId?: string;
-  metadata?: { name: string; parents: string[] };
+  metadata?: { name: string; parents: string[]; mimeType?: string };
+  /** For an update: the type the file should end up as, if the session set one. */
+  mimeType?: string;
   received: Uint8Array[];
   receivedBytes: number;
 }
@@ -127,8 +129,9 @@ export class FakeDrive {
       if (init.method === "GET" && params.alt === "media") return this.download(file, init);
       if (init.method === "GET") return json(200, this.describe(file));
       if (init.method === "PATCH") {
-        const patch = JSON.parse(bodyText(init)) as { trashed?: boolean };
+        const patch = JSON.parse(bodyText(init)) as { trashed?: boolean; name?: string };
         if (patch.trashed !== undefined) file.trashed = patch.trashed;
+        if (patch.name !== undefined) file.name = patch.name;
         file.modifiedTime = this.tick();
         return json(200, this.describe(file));
       }
@@ -142,7 +145,13 @@ export class FakeDrive {
       if (params.uploadType === "multipart") return this.multipartCreate(init);
       if (params.uploadType === "resumable") {
         const meta = JSON.parse(bodyText(init)) as MetadataBody;
-        return this.openSession({ metadata: { name: meta.name, parents: meta.parents ?? [] } });
+        return this.openSession({
+          metadata: {
+            name: meta.name,
+            parents: meta.parents ?? [],
+            ...(meta.mimeType !== undefined ? { mimeType: meta.mimeType } : {}),
+          },
+        });
       }
     }
 
@@ -152,10 +161,14 @@ export class FakeDrive {
       if (file === undefined || file.trashed) return notFound();
       if (params.uploadType === "media") {
         file.content = bodyBytes(init).slice();
+        if (init.headers["Content-Type"] !== undefined) file.mimeType = init.headers["Content-Type"];
         file.modifiedTime = this.tick();
         return json(200, { id: file.id });
       }
-      if (params.uploadType === "resumable") return this.openSession({ fileId: file.id });
+      if (params.uploadType === "resumable") {
+        const meta = JSON.parse(bodyText(init) || "{}") as { mimeType?: string };
+        return this.openSession({ fileId: file.id, ...(meta.mimeType !== undefined ? { mimeType: meta.mimeType } : {}) });
+      }
     }
 
     return json(400, { error: { status: "INVALID_ARGUMENT", message: `fake: ${init.method} ${path}` } });
@@ -256,9 +269,15 @@ export class FakeDrive {
     if (session.fileId !== undefined) {
       file = this.files.get(session.fileId)!;
       file.content = content;
+      if (session.mimeType !== undefined) file.mimeType = session.mimeType;
       file.modifiedTime = this.tick();
     } else {
-      file = this.insert({ name: session.metadata!.name, parents: session.metadata!.parents, content });
+      file = this.insert({
+        name: session.metadata!.name,
+        parents: session.metadata!.parents,
+        content,
+        ...(session.metadata!.mimeType !== undefined ? { mimeType: session.metadata!.mimeType } : {}),
+      });
     }
     this.sessions.delete(path.slice("/session/".length));
     return json(200, { id: file.id });

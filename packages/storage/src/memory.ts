@@ -42,6 +42,10 @@ export class MemoryStorageAdapter implements StorageAdapter {
     return Promise.resolve();
   }
 
+  sizeOf(path: string): Promise<number | undefined> {
+    return Promise.resolve(this.objects.get(path)?.byteLength);
+  }
+
   capabilities(): StorageCapabilities {
     return { streaming: false, webReadable: true };
   }

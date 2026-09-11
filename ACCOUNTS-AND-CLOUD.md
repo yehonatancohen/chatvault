@@ -174,6 +174,12 @@ a phone) still comes first — everything below syncs what that pipeline produce
   - Media not in the export: one neutral sentence, "Learn more", "Don't remind me".
   - Every explanation moved to Settings → Help; screens trimmed to actions.
 
+- **Off the phone, faster, named (2026-09-11).** After a backup, photos Drive verifiably holds
+  are removed from the phone; screens read them back from Drive. Restores bring messages only.
+  Backups make one request per small file, four in parallel, with no per-file lookups. Drive
+  folders are named after the chat; "In your Google Drive" opens the folder. Share extension
+  patched so WhatsApp no longer looks frozen after sharing. Home button on every inner screen.
+
 ### Next — Phase 1, remaining
 
 1. **Device check of backup and restore**: import a chat with Drive connected, watch Verify

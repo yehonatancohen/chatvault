@@ -6,17 +6,18 @@ import { FOLDER_MIME, quote, type DriveClient, type DriveFile } from "./client.j
  * ```
  * My Drive/
  *   Boydem/                     ← the app folder, found by appProperties, not by name
- *     <archiveId>/              ← one folder per archive: header.json, chunks/, media/, …
+ *     <chat name>/              ← one folder per archive: header.json, chunks/, media/, …
  * ```
  *
  * **Found by tag, not by name.** Each folder carries an `appProperties` marker, so a user who
  * renames "Boydem" to "WhatsApp backups" or moves it elsewhere in their Drive does not make the
  * app lose its archives and silently start a second, empty folder.
  *
- * **Archive folders are named by archive id, not by chat title.** The title is personal data —
- * often a person's name — and a folder name is visible to anyone the folder is ever shared with,
- * and in Drive's search and activity feeds. The id reveals nothing; the title lives inside the
- * sealed manifest where it belongs.
+ * **Archive folders are named after the chat** (owner's decision, 2026-09-11), so the user's
+ * Drive reads like their chat list. The caller chooses the name — the app passes the chat's
+ * title for a plain chat, and something neutral for a protected one, whose title is otherwise
+ * sealed. The folder is *found* by its archive-id tag, never by name, so renaming it (by us when
+ * a title changes, or by the user) never loses it.
  *
  * With the `drive.file` scope, Drive only ever shows this app the files it created itself, so
  * these queries cannot see — or collide with — anything else in the user's Drive.
@@ -37,17 +38,22 @@ export async function ensureAppFolder(client: DriveClient): Promise<string> {
   return (await client.createFolder(APP_FOLDER_NAME, undefined, { [ROLE]: "app" })).id;
 }
 
-/** The folder holding one archive, created on first use. */
+/**
+ * The folder holding one archive, created on first use and named `name` (the archive id if
+ * none is given). An existing folder with a different name is renamed to match.
+ */
 export async function ensureArchiveFolder(
   client: DriveClient,
   appFolderId: string,
   archiveId: string,
+  name: string = archiveId,
 ): Promise<string> {
-  const existing = await findArchiveFolders(client, appFolderId, archiveId);
-  if (existing[0] !== undefined) return existing[0].id;
-  return (
-    await client.createFolder(archiveId, appFolderId, { [ROLE]: "archive", [ARCHIVE_ID]: archiveId })
-  ).id;
+  const existing = (await findArchiveFolders(client, appFolderId, archiveId))[0];
+  if (existing === undefined) {
+    return (await client.createFolder(name, appFolderId, { [ROLE]: "archive", [ARCHIVE_ID]: archiveId })).id;
+  }
+  if (existing.name !== name) await client.rename(existing.id, name);
+  return existing.id;
 }
 
 /** Every archive in the user's Drive — what a second device lists to find what exists. */
