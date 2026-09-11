@@ -78,7 +78,8 @@ against the platform's is worth more than purity in a test.
 | `merge.ts` | Idempotent, commutative, associative union |
 | `crypto/sha256.ts` | Sync SHA-256 for short strings only |
 | `crypto/ports.ts` | `CryptoProvider` + WebCrypto implementation |
-| `archive/format.ts` | `.cvault` layout, manifest shape, AAD binding, version guard |
+| `archive/format.ts` | Sealed and plain layouts, manifest shape, AAD binding, version guard |
+| `archive/transcript.ts` | `chat.txt` for plain archives — readable without the app |
 | `archive/writer.ts` | Chunking, sealing, media dedup, manifest/index writes, append |
 | `archive/reader.ts` | Version guard, lazy chunk reads, integrity checks, media |
 | `archive/jsonl.ts` | Canonical chunk encoding — canonicality is load-bearing for append |
@@ -155,7 +156,22 @@ checks that do not share assumptions with the code — `regression.test.ts` re-s
 messages and diffs them against the original source, which catches whole classes of error that
 no hand-typed expectation would.
 
-## The archive, and the two things that must not be re-broken
+## The archive: two layouts, told apart by the header
+
+**Plain (format v2, the default) and sealed (format v1, passphrase-protected).** `layoutFor(header)`
+picks the file names; the writer and reader follow the archive's own header, never the caller's
+options, so an append never changes an archive's kind. Two things to keep:
+
+- **`aadFor` is pinned to `SEALED_FORMAT_VERSION` (1), not `FORMAT_VERSION`.** Every sealed
+  payload ever written is bound to `cvault/1/…`; following the newest version breaks them all.
+  `plain.test.ts` asserts the exact AAD string.
+- **New sealed archives are still written as version 1**, byte for byte — only plain archives are
+  version 2. That is what lets every existing reader keep working with no migration.
+- **`MediaRef.path` (plain only) is fixed at first write**, with the extension of the first
+  filename seen, so a later alias never moves a photo in the user's Drive.
+- `chat.txt` (plain only) is regenerated on every commit and never read back.
+
+## The sealed archive, and the two things that must not be re-broken
 
 **The key wrapping lives in a cleartext header, not the manifest.** `header.json` is the only
 unsealed file in an archive: format version, archive id, createdAt, KDF params, wrapped key.

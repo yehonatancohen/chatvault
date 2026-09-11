@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ArchiveReader, ArchiveWriter, createWebCryptoProvider, parseExport } from "@chatvault/core";
+import {
+  ArchiveReader,
+  ArchiveWriter,
+  createWebCryptoProvider,
+  isPlainHeader,
+  parseExport,
+} from "@chatvault/core";
 import { readWhatsAppExport } from "../../lib/read-export";
 import { buildImport } from "../../lib/build-import";
 import type { OpenedArchive } from "../../lib/open-archive";
@@ -41,12 +47,13 @@ export function AppendPanel({ opened, onAppended }: AppendPanelProps) {
 
       const beforeCount = reader.manifest.messageCount;
 
+      // A plain archive is appended to as plain; the writer follows the archive's own header.
+      const header = reader.header;
       const writer = new ArchiveWriter({
         crypto,
         storage,
-        key,
-        archiveId: reader.header.archiveId,
-        keyWrapping: reader.header.keyWrapping,
+        archiveId: header.archiveId,
+        ...(key !== undefined && !isPlainHeader(header) ? { key, keyWrapping: header.keyWrapping } : {}),
       });
 
       const manifest = await writer.append({

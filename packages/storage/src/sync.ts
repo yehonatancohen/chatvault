@@ -1,12 +1,19 @@
-import { HEADER_PATH, INDEX_PATH, MANIFEST_PATH } from "@chatvault/core";
+import {
+  HEADER_PATH,
+  INDEX_PATH,
+  MANIFEST_PATH,
+  PLAIN_INDEX_PATH,
+  PLAIN_MANIFEST_PATH,
+  TRANSCRIPT_PATH,
+} from "@chatvault/core";
 import type { StorageAdapter } from "./adapter.js";
 
 /**
  * Copying one archive between two storages — the phone and the user's Google Drive — without
  * ever needing its key.
  *
- * Everything here moves sealed bytes. It never decrypts, so it works for any archive whether or
- * not this device holds the key, and it cannot leak what it cannot read.
+ * Everything here moves bytes exactly as stored. It never decrypts, so it works for any archive —
+ * plain, or protected whether or not this device holds the key.
  *
  * **What changes and what does not**, which decides what a sync must re-send:
  *
@@ -29,6 +36,9 @@ import type { StorageAdapter } from "./adapter.js";
  * with what this device last sent. If someone else has written since, the push stops and says
  * so rather than overwriting their work; merging two diverged archives needs the key and
  * `core`'s merge, and is deliberately not attempted here.
+ *
+ * Works the same for protected (sealed) and plain archives: the two layouts differ only in file
+ * names (`manifest.json.enc` vs `manifest.json`, …), and this file knows both.
  *
  * Nothing is ever deleted from either side (`packages/storage/CLAUDE.md`).
  */
@@ -56,7 +66,15 @@ export type PushResult =
   | { readonly kind: "diverged" };
 
 const MEDIA_PREFIX = "media/";
-const TAIL = new Set([INDEX_PATH, HEADER_PATH, MANIFEST_PATH]);
+const MANIFESTS = [MANIFEST_PATH, PLAIN_MANIFEST_PATH];
+const INDEXES = [INDEX_PATH, PLAIN_INDEX_PATH];
+const TAIL = new Set([...INDEXES, TRANSCRIPT_PATH, HEADER_PATH, ...MANIFESTS]);
+
+/** Whichever manifest this archive has — sealed or plain. */
+async function manifestPath(storage: StorageAdapter): Promise<string | undefined> {
+  for (const path of MANIFESTS) if (await storage.has(path)) return path;
+  return undefined;
+}
 
 /**
  * Bring `remote` up to date with `local`.
@@ -69,16 +87,17 @@ export async function pushArchive(
   ledger: SyncLedger,
   options: SyncOptions,
 ): Promise<PushResult> {
-  if (!(await local.has(MANIFEST_PATH))) {
+  const manifest = await manifestPath(local);
+  if (manifest === undefined) {
     throw new Error("Nothing to back up: this archive has no manifest yet.");
   }
 
   // Divergence: the destination's manifest must be the one we last sent, or byte-identical to
   // ours. Anything else was written by another device.
-  if (await remote.has(MANIFEST_PATH)) {
-    const theirs = await options.sha256Hex(await remote.get(MANIFEST_PATH));
-    const ours = await options.sha256Hex(await local.get(MANIFEST_PATH));
-    if (theirs !== ledger[MANIFEST_PATH] && theirs !== ours) return { kind: "diverged" };
+  if (await remote.has(manifest)) {
+    const theirs = await options.sha256Hex(await remote.get(manifest));
+    const ours = await options.sha256Hex(await local.get(manifest));
+    if (theirs !== ledger[manifest] && theirs !== ours) return { kind: "diverged" };
   }
 
   const localPaths = await local.list("");
@@ -126,7 +145,7 @@ export async function pullArchive(
   if (await local.has(HEADER_PATH)) {
     throw new Error("This archive is already on this device; restoring would overwrite it.");
   }
-  if (!(await remote.has(HEADER_PATH)) || !(await remote.has(MANIFEST_PATH))) {
+  if (!(await remote.has(HEADER_PATH)) || (await manifestPath(remote)) === undefined) {
     throw new Error("The copy in Drive is incomplete — it was never fully backed up.");
   }
 
@@ -146,14 +165,14 @@ export async function pullArchive(
   return ledger;
 }
 
-/** Media, then chunks and anything else, then index, header, and the manifest last. */
+/** Media, then chunks and anything else, then index, transcript, header, and the manifest last. */
 function pushOrder(paths: readonly string[]): string[] {
-  return order(paths, [INDEX_PATH, HEADER_PATH, MANIFEST_PATH]);
+  return order(paths, [...INDEXES, TRANSCRIPT_PATH, HEADER_PATH, ...MANIFESTS]);
 }
 
 /** As push, but the header last — it is what makes the app list the archive. */
 function pullOrder(paths: readonly string[]): string[] {
-  return order(paths, [INDEX_PATH, MANIFEST_PATH, HEADER_PATH]);
+  return order(paths, [...INDEXES, TRANSCRIPT_PATH, ...MANIFESTS, HEADER_PATH]);
 }
 
 function order(paths: readonly string[], tail: readonly string[]): string[] {

@@ -4,22 +4,26 @@ import { mergeBatches, mergeMerged, type MergedMessage, type MessageBatch } from
 import type { ImportSource } from "../types.js";
 import {
   aadFor,
-  chunkPath,
   decodeSealed,
   encodeSealed,
-  FORMAT_VERSION,
   HEADER_PATH,
-  INDEX_PATH,
+  KeyRequiredError,
+  layoutFor,
   MANIFEST_PATH,
-  mediaPath,
   MESSAGES_PER_CHUNK,
+  PLAIN_LAYOUT,
+  PLAIN_MANIFEST_PATH,
+  SEALED_LAYOUT,
+  TRANSCRIPT_PATH,
   type ArchiveHeader,
   type ArchiveIndex,
+  type ArchiveLayout,
   type ChunkRef,
   type KeyWrapping,
   type Manifest,
   type MediaRef,
 } from "./format.js";
+import { renderTranscript } from "./transcript.js";
 import { decodeChunk, encodeChunk } from "./jsonl.js";
 import type { ArchiveStoragePort } from "./ports.js";
 import { decodeUtf8, encodeUtf8 } from "../util/utf8.js";
@@ -48,10 +52,11 @@ export class ArchiveExistsError extends Error {
 
 export class MissingHeaderError extends Error {
   constructor(readonly archiveId: string) {
-    super(`Archive ${archiveId} has no ${HEADER_PATH}; it cannot be opened by passphrase.`);
+    super(`Archive ${archiveId} has no ${HEADER_PATH}; it cannot be opened.`);
     this.name = "MissingHeaderError";
   }
 }
+
 
 /**
  * One media file, read on demand.
@@ -100,15 +105,23 @@ export interface ArchiveContent {
 export interface ArchiveWriterOptions {
   readonly crypto: CryptoProvider;
   readonly storage: ArchiveStoragePort;
-  /** The archive key itself. The writer never sees a passphrase — see `keyWrapping`. */
-  readonly key: Uint8Array;
+  /**
+   * The archive key itself, for a protected (sealed) archive. The writer never sees a
+   * passphrase — see `keyWrapping`. **Omit both `key` and `keyWrapping` to write a plain,
+   * unprotected archive**, which is the default since encryption became opt-in.
+   *
+   * `append` goes by the archive's own header, not by these options: a plain archive stays
+   * plain and a sealed one stays sealed, whatever the caller passes — and a sealed one without
+   * its key is refused (`KeyRequiredError`).
+   */
+  readonly key?: Uint8Array;
   readonly archiveId: string;
   /**
    * Copied verbatim into the cleartext header. Deriving and wrapping belongs to whoever holds
    * the passphrase, which is never this layer. `append` leaves the existing header untouched:
    * re-wrapping on every append would invalidate the passphrase the user already has.
    */
-  readonly keyWrapping: KeyWrapping;
+  readonly keyWrapping?: KeyWrapping;
   /** Overridable for tests that need to cross a chunk boundary without 2,000 messages. */
   readonly messagesPerChunk?: number;
   readonly now?: () => number;
@@ -117,9 +130,11 @@ export interface ArchiveWriterOptions {
 export class ArchiveWriter {
   private readonly crypto: CryptoProvider;
   private readonly storage: ArchiveStoragePort;
-  private readonly key: Uint8Array;
+  private readonly key: Uint8Array | undefined;
   private readonly archiveId: string;
-  private readonly keyWrapping: KeyWrapping;
+  private readonly keyWrapping: KeyWrapping | undefined;
+  /** Set by `write` from the options, and by `append` from the archive's header. */
+  private layout: ArchiveLayout = PLAIN_LAYOUT;
   private readonly messagesPerChunk: number;
   private readonly now: () => number;
 
@@ -143,14 +158,28 @@ export class ArchiveWriter {
    * second write is an error rather than a leak. Use `append` to add to an existing archive.
    */
   async write(content: ArchiveContent): Promise<Manifest> {
-    if (await this.storage.has(MANIFEST_PATH)) throw new ArchiveExistsError(this.archiveId);
+    if ((await this.storage.has(MANIFEST_PATH)) || (await this.storage.has(PLAIN_MANIFEST_PATH))) {
+      throw new ArchiveExistsError(this.archiveId);
+    }
+    if ((this.key === undefined) !== (this.keyWrapping === undefined)) {
+      throw new Error("A protected archive needs both key and keyWrapping; a plain one needs neither.");
+    }
 
-    const header: ArchiveHeader = {
-      formatVersion: FORMAT_VERSION,
-      archiveId: this.archiveId,
-      createdAt: this.now(),
-      keyWrapping: this.keyWrapping,
-    };
+    this.layout = this.key === undefined ? PLAIN_LAYOUT : SEALED_LAYOUT;
+    const header: ArchiveHeader =
+      this.keyWrapping === undefined
+        ? {
+            formatVersion: this.layout.formatVersion,
+            archiveId: this.archiveId,
+            createdAt: this.now(),
+            encryption: "none",
+          }
+        : {
+            formatVersion: this.layout.formatVersion,
+            archiveId: this.archiveId,
+            createdAt: this.now(),
+            keyWrapping: this.keyWrapping,
+          };
     // Cleartext, and the only object here that is. Nothing about the *chat* may be added to
     // it — see `ArchiveHeader` for what this is allowed to leak and why.
     await this.storage.put(HEADER_PATH, encodeUtf8(JSON.stringify(header)));
@@ -169,6 +198,9 @@ export class ArchiveWriter {
     // the passphrase that opens this archive was fixed when it was created, and silently
     // re-wrapping under a different one would lock the user out of their own vault.
     if (!(await this.storage.has(HEADER_PATH))) throw new MissingHeaderError(this.archiveId);
+    const header = JSON.parse(decodeUtf8(await this.storage.get(HEADER_PATH))) as ArchiveHeader;
+    this.layout = layoutFor(header);
+    if (this.layout.sealed && this.key === undefined) throw new KeyRequiredError(this.archiveId);
 
     const existing = await this.readManifest();
     const priorText = new Map<number, string>();
@@ -207,11 +239,20 @@ export class ArchiveWriter {
     }
 
     const media = await this.writeMedia(content.media ?? [], existing?.media ?? []);
-    await this.sealTo(INDEX_PATH, encodeUtf8(JSON.stringify(index satisfies ArchiveIndex)));
+    await this.sealTo(this.layout.index, encodeUtf8(JSON.stringify(index satisfies ArchiveIndex)));
+
+    if (!this.layout.sealed) {
+      // The readable copy of the chat, for someone opening the folder without this app.
+      const paths = new Map(media.map((ref) => [ref.sha256, ref.path ?? this.layout.media(ref.sha256)]));
+      await this.storage.put(
+        TRANSCRIPT_PATH,
+        encodeUtf8(renderTranscript(content.chatTitle, messages, paths)),
+      );
+    }
 
     const createdAt = existing?.createdAt ?? this.now();
     const manifest: Manifest = {
-      formatVersion: FORMAT_VERSION,
+      formatVersion: this.layout.formatVersion,
       archiveId: this.archiveId,
       chatTitle: content.chatTitle,
       participants: mergeParticipants(existing?.participants ?? [], content.participants),
@@ -227,7 +268,7 @@ export class ArchiveWriter {
       updatedAt: this.now(),
     };
 
-    await this.sealTo(MANIFEST_PATH, encodeUtf8(JSON.stringify(manifest)));
+    await this.sealTo(this.layout.manifest, encodeUtf8(JSON.stringify(manifest)));
     return manifest;
   }
 
@@ -240,7 +281,7 @@ export class ArchiveWriter {
     const last = slice[slice.length - 1];
     if (!first || !last) throw new Error("refusing to write an empty chunk");
 
-    const ciphertextHash = await this.sealTo(chunkPath(indexNumber), encodeUtf8(text));
+    const ciphertextHash = await this.sealTo(this.layout.chunk(indexNumber), encodeUtf8(text));
     return {
       index: indexNumber,
       sha256: ciphertextHash,
@@ -254,10 +295,14 @@ export class ArchiveWriter {
     blobs: readonly MediaBlob[],
     existing: readonly MediaRef[],
   ): Promise<MediaRef[]> {
-    const byHash = new Map<string, { byteLength: number; filenames: Set<string> }>(
+    const byHash = new Map<string, { byteLength: number; filenames: Set<string>; path?: string }>(
       existing.map((ref) => [
         ref.sha256,
-        { byteLength: ref.byteLength, filenames: new Set(ref.filenames) },
+        {
+          byteLength: ref.byteLength,
+          filenames: new Set(ref.filenames),
+          ...(ref.path !== undefined ? { path: ref.path } : {}),
+        },
       ]),
     );
 
@@ -280,17 +325,24 @@ export class ArchiveWriter {
       const bytes = await blob.read();
       const hash = blob.sha256 ?? toHex(await this.crypto.sha256(bytes));
       const known = byHash.get(hash);
+      // A plain archive names the file after the first filename it arrived under, and keeps
+      // that path for good — see `MediaRef.path`.
+      const path = known?.path ?? this.layout.media(hash, blob.filename);
       if (known) {
         known.filenames.add(blob.filename);
       } else {
-        byHash.set(hash, { byteLength: bytes.length, filenames: new Set([blob.filename]) });
+        byHash.set(hash, {
+          byteLength: bytes.length,
+          filenames: new Set([blob.filename]),
+          ...(this.layout.sealed ? {} : { path }),
+        });
       }
 
       // The path is the content address, so a second write would be a no-op — except that
       // re-sealing burns a fresh IV and rewrites bytes that other archives may already have
       // verified. Ask storage first: identical media is stored exactly once, ever.
-      if (await this.storage.has(mediaPath(hash))) continue;
-      await this.sealTo(mediaPath(hash), bytes);
+      if (await this.storage.has(path)) continue;
+      await this.sealTo(path, bytes);
     }
 
     return [...byHash.entries()]
@@ -298,12 +350,20 @@ export class ArchiveWriter {
         sha256,
         byteLength: entry.byteLength,
         filenames: [...entry.filenames].sort(),
+        ...(entry.path !== undefined ? { path: entry.path } : {}),
       }))
       .sort((a, b) => (a.sha256 < b.sha256 ? -1 : a.sha256 > b.sha256 ? 1 : 0));
   }
 
-  /** Seals `plaintext` to `path` and returns the hex SHA-256 of the ciphertext. */
+  /**
+   * Writes `plaintext` to `path` — sealed in a protected archive, as-is in a plain one — and
+   * returns the hex SHA-256 of the stored payload (the ciphertext, or the plain bytes).
+   */
   private async sealTo(path: string, plaintext: Uint8Array): Promise<string> {
+    if (!this.layout.sealed || this.key === undefined) {
+      await this.storage.put(path, plaintext);
+      return toHex(await this.crypto.sha256(plaintext));
+    }
     const sealed = await this.crypto.seal(this.key, plaintext, aadFor(this.archiveId, path));
     await this.storage.put(path, encodeSealed(sealed));
     return toHex(await this.crypto.sha256(sealed.ciphertext));
@@ -311,11 +371,12 @@ export class ArchiveWriter {
 
   private async openAt(path: string): Promise<Uint8Array> {
     const stored = await this.storage.get(path);
+    if (!this.layout.sealed || this.key === undefined) return stored;
     return this.crypto.open(this.key, decodeSealed(stored, path), aadFor(this.archiveId, path));
   }
 
   private async readManifest(): Promise<Manifest> {
-    const parsed: unknown = JSON.parse(decodeUtf8(await this.openAt(MANIFEST_PATH)));
+    const parsed: unknown = JSON.parse(decodeUtf8(await this.openAt(this.layout.manifest)));
     // No structural validation here on purpose: the manifest opened under our own AAD and key,
     // so it is a manifest this app wrote. The reader, which faces the user's archive rather
     // than one we just produced, is where the version guard lives.
@@ -323,7 +384,7 @@ export class ArchiveWriter {
   }
 
   private async readChunkText(indexNumber: number): Promise<string> {
-    return decodeUtf8(await this.openAt(chunkPath(indexNumber)));
+    return decodeUtf8(await this.openAt(this.layout.chunk(indexNumber)));
   }
 }
 

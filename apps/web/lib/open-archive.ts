@@ -6,7 +6,7 @@
  * "picking a file" vs "unlocking" vs "viewing".
  */
 
-import { ArchiveReader, createWebCryptoProvider, readHeader } from "@chatvault/core";
+import { ArchiveReader, createWebCryptoProvider, isPlainHeader, readHeader } from "@chatvault/core";
 import { BundleStorage } from "./bundle-storage";
 import { unwrapArchiveKey } from "./unwrap-key";
 
@@ -18,9 +18,16 @@ export interface OpenedArchive {
    * expose it (it is a private field) — but appending needs to construct a fresh
    * `ArchiveWriter` and reopen a reader afterwards, and re-prompting for the passphrase on
    * every append would be a needless second unlock for something already unlocked this
-   * session. Never sent anywhere; lives only in this tab's memory.
+   * session. Never sent anywhere; lives only in this tab's memory. `undefined` for a plain
+   * (unprotected) archive, which has no key.
    */
-  readonly key: Uint8Array;
+  readonly key: Uint8Array | undefined;
+}
+
+/** Whether the picked file is a protected archive, so the page knows to ask for a passphrase. */
+export async function needsPassphrase(file: File): Promise<boolean> {
+  const storage = await BundleStorage.open(file);
+  return !isPlainHeader(await readHeader(storage, await archiveIdOf(storage)));
 }
 
 export async function openBundle(file: File, passphrase: string): Promise<OpenedArchive> {
@@ -28,7 +35,8 @@ export async function openBundle(file: File, passphrase: string): Promise<Opened
   const crypto = createWebCryptoProvider(window.crypto.subtle, (a) => window.crypto.getRandomValues(a));
 
   const header = await readHeader(storage, await archiveIdOf(storage));
-  const key = await unwrapArchiveKey(header, passphrase, crypto);
+  // A plain archive has nothing to unwrap — whatever was typed in the passphrase box is ignored.
+  const key = isPlainHeader(header) ? undefined : await unwrapArchiveKey(header, passphrase, crypto);
   const reader = await ArchiveReader.open({
     crypto,
     storage,

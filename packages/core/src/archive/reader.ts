@@ -4,14 +4,13 @@ import type { MergedMessage } from "../merge.js";
 import {
   aadFor,
   assertReadableVersion,
-  chunkPath,
   decodeSealed,
   HEADER_PATH,
-  INDEX_PATH,
-  MANIFEST_PATH,
-  mediaPath,
+  KeyRequiredError,
+  layoutFor,
   type ArchiveHeader,
   type ArchiveIndex,
+  type ArchiveLayout,
   type ChunkRef,
   type KeyWrapping,
   type Manifest,
@@ -86,11 +85,15 @@ export async function readHeader(
 function asHeader(value: unknown): ArchiveHeader {
   if (typeof value !== "object" || value === null) throw new MalformedHeaderError("not an object");
   const record = value as Record<string, unknown>;
-  const { formatVersion, archiveId, createdAt, keyWrapping } = record;
+  const { formatVersion, archiveId, createdAt, keyWrapping, encryption } = record;
 
   if (typeof formatVersion !== "number") throw new MalformedHeaderError("formatVersion");
   if (typeof archiveId !== "string") throw new MalformedHeaderError("archiveId");
   if (typeof createdAt !== "number") throw new MalformedHeaderError("createdAt");
+  if (encryption === "none") return { formatVersion, archiveId, createdAt, encryption };
+  if (encryption !== undefined && encryption !== "aes-256-gcm") {
+    throw new MalformedHeaderError(`encryption ${String(encryption)}`);
+  }
   return { formatVersion, archiveId, createdAt, keyWrapping: asKeyWrapping(keyWrapping) };
 }
 
@@ -124,15 +127,17 @@ export class UnknownChunkError extends Error {
 export interface ArchiveReaderOptions {
   readonly crypto: CryptoProvider;
   readonly storage: ArchiveStoragePort;
-  readonly key: Uint8Array;
+  /** Needed for a protected (sealed) archive; ignored for a plain one. */
+  readonly key?: Uint8Array | undefined;
   readonly archiveId: string;
 }
 
 export class ArchiveReader {
   private readonly crypto: CryptoProvider;
   private readonly storage: ArchiveStoragePort;
-  private readonly key: Uint8Array;
+  private readonly key: Uint8Array | undefined;
   private readonly archiveId: string;
+  private readonly layout: ArchiveLayout;
   private cachedIndex: ArchiveIndex | null = null;
 
   private constructor(
@@ -144,6 +149,12 @@ export class ArchiveReader {
     this.storage = options.storage;
     this.key = options.key;
     this.archiveId = options.archiveId;
+    this.layout = layoutFor(header);
+  }
+
+  /** Whether this archive is protected by a passphrase. */
+  get encrypted(): boolean {
+    return this.layout.sealed;
   }
 
   /**
@@ -155,13 +166,18 @@ export class ArchiveReader {
    */
   static async open(options: ArchiveReaderOptions): Promise<ArchiveReader> {
     const header = await readHeader(options.storage, options.archiveId);
+    const layout = layoutFor(header);
+    if (layout.sealed && options.key === undefined) throw new KeyRequiredError(options.archiveId);
 
-    const stored = await options.storage.get(MANIFEST_PATH);
-    const plaintext = await options.crypto.open(
-      options.key,
-      decodeSealed(stored, MANIFEST_PATH),
-      aadFor(options.archiveId, MANIFEST_PATH),
-    );
+    const stored = await options.storage.get(layout.manifest);
+    const plaintext =
+      layout.sealed && options.key !== undefined
+        ? await options.crypto.open(
+            options.key,
+            decodeSealed(stored, layout.manifest),
+            aadFor(options.archiveId, layout.manifest),
+          )
+        : stored;
     const manifest = JSON.parse(decodeUtf8(plaintext)) as Manifest;
     // Checked twice on purpose: the header is unauthenticated, so a downgraded version there
     // must not talk us into reading a newer sealed manifest as if it were v1.
@@ -188,7 +204,7 @@ export class ArchiveReader {
   /** Message id -> chunk index. Read once and kept; it is small and every lookup wants it. */
   async readIndex(): Promise<ArchiveIndex> {
     if (this.cachedIndex) return this.cachedIndex;
-    const plaintext = await this.openAt(INDEX_PATH);
+    const plaintext = await this.openAt(this.layout.index);
     const parsed = JSON.parse(decodeUtf8(plaintext)) as ArchiveIndex;
     this.cachedIndex = parsed;
     return parsed;
@@ -210,7 +226,8 @@ export class ArchiveReader {
    * which is a stronger check than the chunk hash, since the address *is* the plaintext hash.
    */
   async readMedia(sha256: string): Promise<Uint8Array> {
-    const path = mediaPath(sha256);
+    const ref = this.manifest.media.find((candidate) => candidate.sha256 === sha256);
+    const path = ref?.path ?? this.layout.media(sha256);
     const plaintext = await this.openAt(path);
     const found = toHex(await this.crypto.sha256(plaintext));
     if (found !== sha256) throw new ArchiveIntegrityError(path, sha256, found);
@@ -232,18 +249,26 @@ export class ArchiveReader {
   }
 
   private async openChunk(ref: ChunkRef): Promise<Uint8Array> {
-    const path = chunkPath(ref.index);
-    const sealed = decodeSealed(await this.storage.get(path), path);
+    const path = this.layout.chunk(ref.index);
+    const stored = await this.storage.get(path);
 
+    if (!this.layout.sealed || this.key === undefined) {
+      // Plain: the ref hashes the stored bytes themselves, so the same check still holds.
+      const found = toHex(await this.crypto.sha256(stored));
+      if (found !== ref.sha256) throw new ArchiveIntegrityError(path, ref.sha256, found);
+      return stored;
+    }
+
+    const sealed = decodeSealed(stored, path);
     const found = toHex(await this.crypto.sha256(sealed.ciphertext));
     if (found !== ref.sha256) throw new ArchiveIntegrityError(path, ref.sha256, found);
-
     return this.crypto.open(this.key, sealed, aadFor(this.archiveId, path));
   }
 
   private async openAt(path: string): Promise<Uint8Array> {
-    const sealed = decodeSealed(await this.storage.get(path), path);
-    return this.crypto.open(this.key, sealed, aadFor(this.archiveId, path));
+    const stored = await this.storage.get(path);
+    if (!this.layout.sealed || this.key === undefined) return stored;
+    return this.crypto.open(this.key, decodeSealed(stored, path), aadFor(this.archiveId, path));
   }
 }
 

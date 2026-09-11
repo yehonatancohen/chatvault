@@ -9,7 +9,7 @@ import {
   aadFor,
   chunkPath,
   decodeSealed,
-  FORMAT_VERSION,
+  SEALED_FORMAT_VERSION,
   HEADER_PATH,
   INDEX_PATH,
   MANIFEST_PATH,
@@ -69,7 +69,7 @@ describe("ArchiveWriter", () => {
     expect(await storage.list("")).toEqual(
       expect.arrayContaining([HEADER_PATH, MANIFEST_PATH, INDEX_PATH, chunkPath(0)]),
     );
-    expect(manifest.formatVersion).toBe(FORMAT_VERSION);
+    expect(manifest.formatVersion).toBe(SEALED_FORMAT_VERSION);
     expect(manifest.messageCount).toBe(2);
     expect(manifest.chunks).toHaveLength(1);
     expect(manifest.chunks[0]?.messageCount).toBe(2);
@@ -86,7 +86,7 @@ describe("ArchiveWriter", () => {
 
       const header = JSON.parse(await readHeaderJson(storage)) as ArchiveHeader;
       expect(header).toEqual({
-        formatVersion: FORMAT_VERSION,
+        formatVersion: SEALED_FORMAT_VERSION,
         archiveId: "arch-1",
         createdAt: 1_700_000_000_000,
         keyWrapping: testKeyWrapping,

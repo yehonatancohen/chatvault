@@ -27,11 +27,27 @@ import type { ImportSource } from "../types.js";
  */
 
 /**
- * Bumped on any change to the on-disk shape. Archives outlive app versions — a user may open
- * a two-year-old vault — so a bump requires a migration, never a silent reinterpretation.
- * See root CLAUDE.md invariant 4.
+ * The newest format this build reads. Bumped on any change to the on-disk shape. Archives
+ * outlive app versions — a user may open a two-year-old vault — so a bump requires a migration,
+ * never a silent reinterpretation. See root CLAUDE.md invariant 4.
+ *
+ * **Two layouts live side by side, told apart by the header** (2026-09-11):
+ *
+ * - **Sealed — version 1, unchanged.** Every payload AES-GCM sealed under the archive key, as
+ *   described above. Written for archives the user chose to protect with a passphrase. New
+ *   sealed archives are still written as version 1, byte for byte, so every existing archive
+ *   and every existing reader keeps working and no migration is needed for them.
+ * - **Plain — version 2.** The default since encryption became opt-in: the same content, in
+ *   files anyone can open — `manifest.json`, `index.json`, `chunks/<n>.jsonl`, media as
+ *   `media/<sha256>.<ext>` with its real extension, and a readable `chat.txt`. A copy in the
+ *   user's Drive is then usable without this app. An older app meets `formatVersion: 2` in the
+ *   header and says "newer than me" instead of failing to decrypt.
  */
-export const FORMAT_VERSION = 1;
+export const FORMAT_VERSION = 2;
+/** Protected archives keep the original sealed layout. */
+export const SEALED_FORMAT_VERSION = 1;
+/** Unprotected archives: plain files with readable names. */
+export const PLAIN_FORMAT_VERSION = 2;
 
 /** Messages per chunk. Sized so the web viewer can fetch and decrypt a screenful quickly. */
 export const MESSAGES_PER_CHUNK = 2_000;
@@ -49,6 +65,12 @@ export interface ChunkRef {
 export interface MediaRef {
   /** Hash of the plaintext blob — this is also its filename under `media/`. */
   readonly sha256: string;
+  /**
+   * Plain archives only: where the blob is stored, with the extension of the first filename it
+   * arrived under (`media/<sha256>.jpg`), so a photo in the user's Drive opens as a photo. Fixed
+   * at first write and never recomputed — later aliases must not move the file.
+   */
+  readonly path?: string;
   readonly byteLength: number;
   /** Every filename any member's export used for this blob. */
   readonly filenames: readonly string[];
@@ -84,11 +106,35 @@ export interface KeyWrapping {
  * Nothing had shipped when the header was introduced, so there is no v1-without-header in the
  * wild and no migration to hunt for.
  */
-export interface ArchiveHeader {
+export type ArchiveHeader = SealedArchiveHeader | PlainArchiveHeader;
+
+export interface SealedArchiveHeader {
   readonly formatVersion: number;
   readonly archiveId: string;
   readonly createdAt: number;
+  /** Absent in archives written before plain archives existed; they are all sealed. */
+  readonly encryption?: "aes-256-gcm";
   readonly keyWrapping: KeyWrapping;
+}
+
+/** An unprotected archive: nothing to unwrap, nothing to ask the user for. */
+export interface PlainArchiveHeader {
+  readonly formatVersion: number;
+  readonly archiveId: string;
+  readonly createdAt: number;
+  readonly encryption: "none";
+}
+
+/** A sealed archive was handed to a writer or reader without its key. */
+export class KeyRequiredError extends Error {
+  constructor(readonly archiveId: string) {
+    super(`Archive ${archiveId} is protected; its key is needed to open it.`);
+    this.name = "KeyRequiredError";
+  }
+}
+
+export function isPlainHeader(header: ArchiveHeader): header is PlainArchiveHeader {
+  return header.encryption === "none";
 }
 
 export interface Manifest {
@@ -152,13 +198,60 @@ export const INDEX_PATH = "index.json.enc";
 /** Plain UTF-8 JSON, never sealed — the `.enc`-less name is the reminder. See `ArchiveHeader`. */
 export const HEADER_PATH = "header.json";
 
+export const PLAIN_MANIFEST_PATH = "manifest.json";
+export const PLAIN_INDEX_PATH = "index.json";
+/** Plain archives only: the whole chat as text, rewritten on every import. Never read back. */
+export const TRANSCRIPT_PATH = "chat.txt";
+
+/** Where each kind of object lives, for one of the two layouts. */
+export interface ArchiveLayout {
+  readonly sealed: boolean;
+  readonly formatVersion: number;
+  readonly manifest: string;
+  readonly index: string;
+  chunk(index: number): string;
+  /** `filename` supplies the extension in plain archives; sealed ones ignore it. */
+  media(sha256: string, filename?: string): string;
+}
+
+export const SEALED_LAYOUT: ArchiveLayout = {
+  sealed: true,
+  formatVersion: SEALED_FORMAT_VERSION,
+  manifest: MANIFEST_PATH,
+  index: INDEX_PATH,
+  chunk: chunkPath,
+  media: (sha256) => mediaPath(sha256),
+};
+
+export const PLAIN_LAYOUT: ArchiveLayout = {
+  sealed: false,
+  formatVersion: PLAIN_FORMAT_VERSION,
+  manifest: PLAIN_MANIFEST_PATH,
+  index: PLAIN_INDEX_PATH,
+  chunk: (index) => `chunks/${index}.jsonl`,
+  media: (sha256, filename) => `media/${sha256}${extensionOf(filename)}`,
+};
+
+export function layoutFor(header: ArchiveHeader): ArchiveLayout {
+  return isPlainHeader(header) ? PLAIN_LAYOUT : SEALED_LAYOUT;
+}
+
+/** `.jpg` from `IMG-0001.JPG`; nothing for a name without a short, ordinary extension. */
+function extensionOf(filename: string | undefined): string {
+  const match = filename === undefined ? null : /\.([A-Za-z0-9]{1,5})$/.exec(filename);
+  return match ? `.${match[1]!.toLowerCase()}` : "";
+}
+
 /**
  * Additional authenticated data for a payload. Binds each ciphertext to its archive and its
  * path, so a chunk cannot be swapped for a different chunk — or a chunk from another archive
  * — without the open failing.
  */
 export function aadFor(archiveId: string, path: string): Uint8Array {
-  return encodeUtf8(`cvault/${FORMAT_VERSION}/${archiveId}/${path}`);
+  // Pinned to the sealed layout's version, never `FORMAT_VERSION`: every sealed payload ever
+  // written is bound to "cvault/1/…", and following the newest version here would make every
+  // existing archive fail to open.
+  return encodeUtf8(`cvault/${SEALED_FORMAT_VERSION}/${archiveId}/${path}`);
 }
 
 export class UnsupportedFormatError extends Error {

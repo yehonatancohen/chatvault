@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { MergedMessage } from "@chatvault/core";
-import { openBundle, type OpenedArchive } from "../../lib/open-archive";
+import { needsPassphrase, openBundle, type OpenedArchive } from "../../lib/open-archive";
 import { MessageList } from "./MessageList";
 import { AppendPanel } from "./AppendPanel";
 
@@ -21,6 +21,8 @@ type Stage =
 export default function OpenPage() {
   const [stage, setStage] = useState<Stage>({ kind: "pick" });
   const [passphrase, setPassphrase] = useState("");
+  // Only protected archives ask for one; a plain archive opens the moment it is picked.
+  const [askPassphrase, setAskPassphrase] = useState(false);
 
   async function unlock(file: File, phrase: string) {
     setStage({ kind: "unlocking", file });
@@ -88,9 +90,8 @@ export default function OpenPage() {
     <main className="open-picker">
       <h1>Open an archive</h1>
       <p>
-        Pick a <code>.cvault</code> file someone shared with you and enter the passphrase it was
-        created with. Nothing here is sent anywhere — the file is decrypted in this browser tab
-        only.
+        Pick a <code>.cvault</code> file. If it is protected, you will be asked for its passphrase.
+        Nothing is sent anywhere — the file is opened in this browser tab only.
       </p>
 
       <form
@@ -105,19 +106,30 @@ export default function OpenPage() {
           disabled={busy}
           onChange={(e) => {
             const picked = e.target.files?.[0];
-            if (picked) setStage({ kind: "pick", file: picked });
+            if (!picked) return;
+            setStage({ kind: "pick", file: picked });
+            void needsPassphrase(picked)
+              .then((needed) => {
+                setAskPassphrase(needed);
+                if (!needed) void unlock(picked, "");
+              })
+              .catch(() => setAskPassphrase(true));
           }}
         />
 
-        <label htmlFor="passphrase">Passphrase</label>
-        <input
-          id="passphrase"
-          type="password"
-          value={passphrase}
-          disabled={busy}
-          onChange={(e) => setPassphrase(e.target.value)}
-          autoComplete="off"
-        />
+        {askPassphrase && (
+          <>
+            <label htmlFor="passphrase">Passphrase</label>
+            <input
+              id="passphrase"
+              type="password"
+              value={passphrase}
+              disabled={busy}
+              onChange={(e) => setPassphrase(e.target.value)}
+              autoComplete="off"
+            />
+          </>
+        )}
 
         <button type="submit" disabled={!file || busy}>
           {busy ? "Unlocking…" : "Open"}

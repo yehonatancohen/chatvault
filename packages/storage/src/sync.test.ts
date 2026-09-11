@@ -203,6 +203,45 @@ describe("pushArchive", () => {
   });
 });
 
+describe("plain archives", () => {
+  const plainWriter = (storage: StorageAdapter) =>
+    new ArchiveWriter({ crypto, storage, archiveId: ARCHIVE_ID, now: () => 1_700_000_000_000 });
+
+  it("back up as readable files, and restore to an archive that opens with no key", async () => {
+    const local = new MemoryStorageAdapter();
+    await plainWriter(local).write(content("s1", [text(0, "Dana", "hi")], [photo(1)]));
+    const { fake, folder, adapter } = drive();
+
+    const pushed = await pushArchive(local, adapter(), {}, { sha256Hex });
+    expect(pushed.kind).toBe("pushed");
+    expect(fake.tree(folder)).toEqual(
+      expect.arrayContaining(["chat.txt", "manifest.json", "header.json", "chunks/0.jsonl"]),
+    );
+    expect(fake.tree(folder).some((p) => /^media\/[0-9a-f]{64}\.jpg$/.test(p))).toBe(true);
+
+    const newPhone = new MemoryStorageAdapter();
+    await pullArchive(adapter(), newPhone, { sha256Hex });
+    const restored = await ArchiveReader.open({ crypto, storage: newPhone, archiveId: ARCHIVE_ID });
+    expect((await restored.readAll()).map((m) => m.body)).toEqual(["hi"]);
+  });
+
+  it("re-send the transcript and manifest after an append, and not the photo", async () => {
+    const local = new MemoryStorageAdapter();
+    await plainWriter(local).write(content("s1", [text(0, "Dana", "hi")], [photo(1)]));
+    const remote = new Recording();
+    const first = await pushArchive(local, remote, {}, { sha256Hex });
+    if (first.kind !== "pushed") throw new Error("expected a push");
+
+    await plainWriter(local).append(content("s2", [text(3, "Noa", "later")], [photo(1)]));
+    remote.writes.length = 0;
+    await pushArchive(local, remote, first.ledger, { sha256Hex });
+
+    expect(remote.writes).toContain("chat.txt");
+    expect(remote.writes.at(-1)).toBe("manifest.json");
+    expect(remote.writes.some((p) => p.startsWith("media/"))).toBe(false);
+  });
+});
+
 describe("pullArchive", () => {
   it("restores an archive from Drive onto an empty device, header last", async () => {
     const original = new MemoryStorageAdapter();

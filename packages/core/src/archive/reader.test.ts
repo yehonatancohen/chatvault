@@ -16,6 +16,7 @@ import {
   mediaPath,
   UnsupportedFormatError,
   type ArchiveHeader,
+  type SealedArchiveHeader,
   type Manifest,
 } from "./format.js";
 import {
@@ -286,7 +287,7 @@ describe("ArchiveReader", () => {
       storage: MemoryStorageAdapter,
       passphrase: string,
     ): Promise<Uint8Array> {
-      const { keyWrapping } = await readHeader(storage, ARCHIVE_ID);
+      const { keyWrapping } = (await readHeader(storage, ARCHIVE_ID)) as SealedArchiveHeader;
       // The algorithm comes from the header, not from a constant here. A provider that does
       // not implement it must throw `UnsupportedKdfError` rather than silently deriving a
       // PBKDF2 key and reporting the user's correct passphrase as wrong.
@@ -317,7 +318,7 @@ describe("ArchiveReader", () => {
         archiveId: ARCHIVE_ID,
       });
       expect((await reader.readAll()).map((m) => m.body)).toEqual(["hello"]);
-      expect(reader.header.keyWrapping.iterations).toBe(ITERATIONS);
+      expect((reader.header as SealedArchiveHeader).keyWrapping.iterations).toBe(ITERATIONS);
     });
 
     it("yields nothing for the wrong passphrase", async () => {
@@ -364,7 +365,7 @@ describe("ArchiveReader", () => {
         new TextEncoder().encode(
           JSON.stringify({
             ...header,
-            keyWrapping: { ...header.keyWrapping, iterations: 1 },
+            keyWrapping: { ...(header as SealedArchiveHeader).keyWrapping, iterations: 1 },
           }),
         ),
       );

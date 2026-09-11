@@ -73,11 +73,24 @@ export {
   FORMAT_VERSION,
   HEADER_PATH,
   INDEX_PATH,
+  isPlainHeader,
+  KeyRequiredError,
+  layoutFor,
   MANIFEST_PATH,
   mediaPath,
   MESSAGES_PER_CHUNK,
+  PLAIN_FORMAT_VERSION,
+  PLAIN_INDEX_PATH,
+  PLAIN_LAYOUT,
+  PLAIN_MANIFEST_PATH,
+  SEALED_FORMAT_VERSION,
+  SEALED_LAYOUT,
+  TRANSCRIPT_PATH,
   UnsupportedFormatError,
   type ArchiveHeader,
+  type ArchiveLayout,
+  type PlainArchiveHeader,
+  type SealedArchiveHeader,
   type ArchiveIndex,
   type ChunkRef,
   type KeyWrapping,
@@ -104,6 +117,7 @@ export {
 } from "./archive/reader.js";
 export type { ArchiveStoragePort } from "./archive/ports.js";
 export { decodeChunk, encodeChunk, MalformedChunkError } from "./archive/jsonl.js";
+export { renderTranscript } from "./archive/transcript.js";
 
 /**
  * Exported for the clients, which decode export transcripts and archive JSON themselves.

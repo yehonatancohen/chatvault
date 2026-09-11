@@ -7,8 +7,10 @@ import type { ParsedMessage } from "../types.js";
  * This is the most consequential screen in the app. Everything downstream of it is
  * irreversible and performed by the user's own hands in WhatsApp, so these counts have to be
  * honest about the gap between "messages that mention media" and "media we actually hold".
- * `notArchivedCount` is that gap, and it is the one number that must never be rounded away,
- * softened, or omitted from the UI: it is exactly what will be lost.
+ * `notArchivedCount` is that gap, and it must never be rounded away or misstated: it is exactly
+ * what will be lost. Since 2026-09-11 the app shows it as one calm sentence rather than a
+ * warning — missing media is normal — and a user may choose "Don't remind me"; the number itself
+ * is always the real one.
  *
  * Root CLAUDE.md invariant 1 is the other half of the same idea — we never delete anything
  * ourselves, we report and then guide.

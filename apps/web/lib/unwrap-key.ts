@@ -8,7 +8,7 @@
  * ("goes passphrase -> header -> key -> manifest -> messages").
  */
 
-import type { ArchiveHeader, CryptoProvider } from "@chatvault/core";
+import type { CryptoProvider, SealedArchiveHeader } from "@chatvault/core";
 import { fromBase64 } from "./base64";
 
 export class WrongPassphraseError extends Error {
@@ -19,7 +19,7 @@ export class WrongPassphraseError extends Error {
 }
 
 export async function unwrapArchiveKey(
-  header: ArchiveHeader,
+  header: SealedArchiveHeader,
   passphrase: string,
   crypto: CryptoProvider,
 ): Promise<Uint8Array> {
