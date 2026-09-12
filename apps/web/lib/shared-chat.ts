@@ -14,13 +14,13 @@ import { GOOGLE_API_KEY } from "./site";
 
 export class ChatUnavailableError extends Error {
   constructor() {
-    super("This chat isn't available. The link may have been turned off.");
+    super("הצ׳אט הזה כבר לא זמין. ייתכן שמי ששיתף אותו הפסיק את השיתוף.");
     this.name = "ChatUnavailableError";
   }
 }
 
 export async function openSharedChat(folderId: string, hash: string): Promise<ArchiveReader> {
-  if (GOOGLE_API_KEY === "") throw new Error("Shared chats aren't set up on this site yet.");
+  if (GOOGLE_API_KEY === "") throw new Error("שיתוף צ׳אטים עדיין לא מוגדר באתר הזה.");
   const browserFetch: DriveFetch = (url, init) =>
     fetch(url, {
       method: init.method,

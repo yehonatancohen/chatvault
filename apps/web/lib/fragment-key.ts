@@ -20,7 +20,7 @@ const KEY_PARAM = "k";
 
 export class MissingKeyError extends Error {
   constructor() {
-    super("This link is missing its decryption key. Ask whoever shared it for the full URL.");
+    super("לקישור הזה חסר המפתח לפתיחת הצ׳אט. בקשו ממי ששיתף אותו את הקישור המלא.");
     this.name = "MissingKeyError";
   }
 }

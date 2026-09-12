@@ -61,7 +61,7 @@ export function MediaAttachment({ reader, filename, sha256, onOpenLightbox }: Me
   }
 
   if (kind === "image") {
-    if (load.status === "error") return <div className="media-slot media-error">Could not load {filename}</div>;
+    if (load.status === "error") return <div className="media-slot media-error">לא הצלחנו לטעון את {filename}</div>;
     if (load.status !== "ready") return <div className="media-slot media-loading">{filename}</div>;
     return (
       <button
@@ -95,7 +95,7 @@ export function MediaAttachment({ reader, filename, sha256, onOpenLightbox }: Me
           );
         }}
       >
-        {load.status === "loading" ? `Loading ${filename}…` : load.status === "error" ? `Could not load ${filename}` : filename}
+        {load.status === "loading" ? `טוען את ${filename}…` : load.status === "error" ? `לא הצלחנו לטעון את ${filename}` : filename}
       </button>
     );
   }

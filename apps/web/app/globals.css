@@ -68,10 +68,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   font: inherit;
 }
 
+/*
+ * A link that was turned off is an ordinary thing, not a failure: the owner stopped sharing, or
+ * the chat moved. Say so calmly — the owner's rule is no red for normal situations.
+ */
 .open-error {
-  color: #c4442e;
-  font-size: 0.9rem;
-  margin-top: -0.5rem;
+  color: var(--fg);
+  font-size: 1.05rem;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .viewer-header {

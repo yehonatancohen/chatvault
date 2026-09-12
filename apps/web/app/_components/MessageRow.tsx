@@ -30,7 +30,7 @@ export function MessageRow({ message, reader, onOpenLightbox }: MessageRowProps)
   return (
     <div className="message-row">
       <div className="message-meta">
-        <span className="message-sender">{message.sender ?? "Unknown"}</span>
+        <span className="message-sender">{message.sender ?? "לא ידוע"}</span>
         <span className="message-time">{time}</span>
       </div>
 
@@ -45,13 +45,13 @@ export function MessageRow({ message, reader, onOpenLightbox }: MessageRowProps)
 
       {message.kind === "omitted-media" && (
         <div className="message-body message-omitted" style={{ unicodeBidi: "plaintext" }}>
-          {message.attachment?.filename ?? "Media"} — not captured in this archive
+          {message.attachment?.filename ?? "מדיה"} — לא נשמר בארכיון
         </div>
       )}
 
       {message.kind === "deleted" && (
         <div className="message-body message-deleted" style={{ unicodeBidi: "plaintext" }}>
-          This message was deleted
+          ההודעה נמחקה
         </div>
       )}
 
@@ -67,7 +67,7 @@ export function MessageRow({ message, reader, onOpenLightbox }: MessageRowProps)
 function formatTime(ts: number): string {
   const date = new Date(ts);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString(undefined, {
+  return date.toLocaleString("he-IL", {
     year: "numeric",
     month: "short",
     day: "numeric",

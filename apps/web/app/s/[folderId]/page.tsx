@@ -38,7 +38,7 @@ export default function SharedChatPage({ params }: { params: Promise<{ folderId:
   if (stage.kind !== "viewing") {
     return (
       <main className="shared-status" dir="auto">
-        {stage.kind === "loading" ? <p>Opening the chat…</p> : <p className="open-error">{stage.message}</p>}
+        {stage.kind === "loading" ? <p>פותח את הצ׳אט…</p> : <p className="open-error">{stage.message}</p>}
         <GetTheApp />
       </main>
     );
@@ -49,9 +49,9 @@ export default function SharedChatPage({ params }: { params: Promise<{ folderId:
     <div className="open-shell">
       <header className="viewer-header">
         <div>
-          <div className="viewer-title">{manifest.chatTitle || "Chat"}</div>
+          <div className="viewer-title">{manifest.chatTitle || "צ׳אט"}</div>
           <div className="viewer-subtitle">
-            {manifest.messageCount.toLocaleString()} messages · {manifest.participants.length} people
+            {manifest.messageCount.toLocaleString("he-IL")} הודעות · {manifest.participants.length} משתתפים
           </div>
         </div>
         <div className="viewer-actions">
