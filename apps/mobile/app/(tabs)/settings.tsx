@@ -1,11 +1,18 @@
-import { ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import Constants from "expo-constants";
-import { createStyles, useApp } from "../../components/app/providers";
-import { Callout, CalloutText, ChoiceRow, LinkRow, Row, Section, SwitchRow } from "../../components/app/ui";
+import { useApp } from "../../components/app/providers";
+import {
+  Callout,
+  CalloutText,
+  ChoiceRow,
+  LinkRow,
+  Row,
+  Screen,
+  Section,
+  SwitchRow,
+} from "../../components/app/ui";
 import { directionNeedsRestart } from "../../lib/i18n/bootstrap";
 import { updateSettings } from "../../lib/settings/settings";
-import { space } from "../../lib/ui/theme";
 
 /**
  * Settings — and the way into Help, which is where every explanation in the app now lives.
@@ -19,10 +26,9 @@ import { space } from "../../lib/ui/theme";
 export default function SettingsScreen() {
   const router = useRouter();
   const { t, settings, setLanguage, setAppearance } = useApp();
-  const styles = useStyles();
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <Screen>
       <Section title={t("settings.chats.title")}>
         <SwitchRow
           label={t("settings.protectNewChats")}
@@ -91,10 +97,6 @@ export default function SettingsScreen() {
           />
         </Section>
       )}
-    </ScrollView>
+    </Screen>
   );
 }
-
-const useStyles = createStyles(() => ({
-  container: { padding: space.xl, paddingBottom: space.xxl + space.lg, gap: space.xs },
-}));

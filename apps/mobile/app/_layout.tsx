@@ -10,6 +10,7 @@ import { Pressable } from "react-native";
 import { ShareIntentProvider, useShareIntentContext } from "expo-share-intent";
 import { AppProvider, useApp } from "../components/app/providers";
 import { TabIcon } from "../components/app/TabIcon";
+import { type } from "../lib/ui/theme";
 
 /**
  * `(tabs)` is the anchor of the stack, not merely its first screen.
@@ -101,9 +102,12 @@ function Navigation() {
       <Stack
         screenOptions={{
           headerShadowVisible: false,
-          headerTintColor: theme.ink,
+          headerTintColor: theme.accent,
           headerStyle: { backgroundColor: theme.paper },
-          headerTitleStyle: { color: theme.ink },
+          // `type.heading` rather than the platform default: a stack header sits directly above
+          // a screen whose own headings are 17/600, and a 17/700 title above them reads as one
+          // scale instead of two.
+          headerTitleStyle: { color: theme.ink, ...type.heading },
           contentStyle: { backgroundColor: theme.paper },
           // Every screen below the tabs gets a way straight home — back, back, back is not a
           // way to get anywhere. The tabs draw their own headers and never show this one.

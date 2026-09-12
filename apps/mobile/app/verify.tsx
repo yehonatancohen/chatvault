@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { takeImportSession, type ImportSession } from "../lib/import/session";
 import { createStyles, useApp } from "../components/app/providers";
-import { Button } from "../components/app/ui";
+import { Actions, Body, Button, EmptyState, Row, Screen, Section, Stat } from "../components/app/ui";
 import { DriveBackup } from "../components/archive/DriveBackup";
 import { MediaNote } from "../components/archive/MediaNote";
 import { formatBytes, formatCount, formatRange } from "../lib/ui/format";
 import { explainMedia } from "../lib/ui/media-explanation";
-import { space } from "../lib/ui/theme";
+import { space, type } from "../lib/ui/theme";
 
 /**
  * A5 — Verify: the chat is saved, here is what's in it.
@@ -22,6 +22,11 @@ import { space } from "../lib/ui/theme";
  * 2. **Media the export didn't include is still said** — as one quiet sentence with "Learn
  *    more" (`MediaNote`), because it is normal, not alarming. The full explanation is computed
  *    in `explainMedia`, where it is tested, and is also in Settings → Help.
+ *
+ * **The counts are the screen.** They used to be a stack of body-copy lines, which is how you
+ * write a receipt, not how you show evidence: this is the moment a user decides whether it is
+ * safe to delete their only other copy, so the two numbers that answer that are set at
+ * `display` size and everything else defers to them.
  *
  * Nothing here claims to free storage or delete anything (root CLAUDE.md, invariant 1).
  */
@@ -38,52 +43,61 @@ export default function VerifyScreen() {
 
   if (!session) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.heading}>{t("verify.nothing.heading")}</Text>
-        <Button label={t("common.backToLibrary")} onPress={() => router.replace("/")} />
-      </View>
+      <Screen>
+        <EmptyState
+          heading={t("verify.nothing.heading")}
+          action={{ label: t("common.backToLibrary"), onPress: () => router.replace("/") }}
+        />
+      </Screen>
     );
   }
 
   const { outcome } = session;
   const { stats } = outcome;
   const media = explainMedia(stats, session.hadMedia, language);
+  const added = outcome.mode === "appended" && outcome.addedCount > 0;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.check}>✓</Text>
-      <Text style={styles.eyebrow}>
-        {outcome.mode === "created" || outcome.addedCount > 0
-          ? t("verify.saved")
-          : t("verify.nothingNew")}
-      </Text>
-      <Text style={styles.heading}>{session.chatTitle}</Text>
-
-      <View style={styles.facts}>
-        <Text style={styles.fact}>
-          {tp("common.messages", outcome.messageCount)}
-          {outcome.mode === "appended" && outcome.addedCount > 0
-            ? ` (${t("verify.added", { count: formatCount(outcome.addedCount) })})`
-            : ""}
+    <Screen>
+      <View style={styles.hero}>
+        <View style={styles.check}>
+          <Text style={styles.checkMark}>✓</Text>
+        </View>
+        <Text style={styles.eyebrow}>
+          {outcome.mode === "created" || outcome.addedCount > 0
+            ? t("verify.saved")
+            : t("verify.nothingNew")}
         </Text>
-        <Text style={styles.fact}>{formatRange(outcome.firstTs, outcome.lastTs)}</Text>
+        <Text style={styles.chat}>{session.chatTitle}</Text>
+      </View>
+
+      <View style={styles.stats}>
+        <Stat
+          value={formatCount(outcome.messageCount)}
+          label={
+            added
+              ? t("verify.added", { count: formatCount(outcome.addedCount) })
+              : t("verify.row.messages")
+          }
+        />
         {stats.uniqueBlobCount > 0 && (
-          <Text style={styles.fact}>
-            {tp("common.files", stats.uniqueBlobCount)} · {formatBytes(stats.totalBytes)}
-          </Text>
+          <Stat value={formatCount(stats.uniqueBlobCount)} label={t("verify.row.mediaFiles")} />
         )}
       </View>
 
+      <Section>
+        <Row label={t("info.size")} value={formatBytes(stats.totalBytes)} />
+        <Row label={t("verify.range")} value={formatRange(outcome.firstTs, outcome.lastTs)} />
+      </Section>
+
       <MediaNote explanation={media} missing={stats.notArchivedCount} />
       {outcome.issues.length > 0 && (
-        <Text style={styles.muted}>{t("verify.issues", { count: formatCount(outcome.issues.length) })}</Text>
+        <Body muted>{t("verify.issues", { count: formatCount(outcome.issues.length) })}</Body>
       )}
 
-      <View style={styles.drive}>
-        <DriveBackup archiveId={session.archiveId} updatedAt={outcome.manifest.updatedAt} autoStart />
-      </View>
+      <DriveBackup archiveId={session.archiveId} updatedAt={outcome.manifest.updatedAt} autoStart />
 
-      <View style={styles.buttons}>
+      <Actions>
         <Button
           label={t("verify.cta.read")}
           onPress={() => router.push({ pathname: "/archive/[id]", params: { id: session.archiveId } })}
@@ -99,25 +113,25 @@ export default function VerifyScreen() {
           }
         />
         <Button label={t("common.done")} tone="quiet" onPress={() => router.replace("/")} />
-      </View>
-    </ScrollView>
+      </Actions>
+    </Screen>
   );
 }
 
 const useStyles = createStyles((t) => ({
-  container: { padding: space.xl, paddingBottom: 48, gap: space.sm },
-  check: { fontSize: 40, color: t.good, textAlign: "center", marginTop: space.lg },
-  eyebrow: { fontSize: 14, fontWeight: "700", color: t.good, textAlign: "center" },
-  heading: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: t.ink,
-    textAlign: "center",
-    writingDirection: "auto",
+  hero: { alignItems: "center", gap: space.sm, paddingTop: space.md },
+  check: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: t.goodWash,
   },
-  facts: { alignItems: "center", gap: 2, marginVertical: space.sm },
-  fact: { fontSize: 15, color: t.body, writingDirection: "auto" },
-  muted: { fontSize: 13, color: t.muted, writingDirection: "auto" },
-  drive: { marginTop: space.md, marginBottom: space.md },
-  buttons: { gap: space.xs },
+  checkMark: { fontSize: 28, color: t.good, fontWeight: "700" },
+  eyebrow: { ...type.micro, color: t.good, writingDirection: "auto" },
+  chat: { ...type.display, color: t.ink, textAlign: "center", writingDirection: "auto" },
+  // Side by side, and the row is what makes them read as one claim about the archive rather
+  // than two unrelated figures.
+  stats: { flexDirection: "row", gap: space.xxl, paddingTop: space.sm },
 }));

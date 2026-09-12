@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Share, Text, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { mediaStats } from "@chatvault/core";
 import { readPreferences, updatePreferences } from "../../../lib/archive/preferences";
@@ -16,12 +16,12 @@ import { useChatStatus } from "../../../components/archive/useChatStatus";
 import { isChatShared, shareChat, stopSharingChat } from "../../../lib/drive/share";
 import { useChatPhoto } from "../../../components/archive/useChatPhoto";
 import { createStyles, useApp } from "../../../components/app/providers";
-import { LinkRow, Row, Section } from "../../../components/app/ui";
+import { Body, LinkRow, Row, Screen, Section, Title } from "../../../components/app/ui";
 import { buildMediaIndex, findChatPhoto, imagesOnly } from "../../../lib/ui/media-index";
 import { formatBytes, formatCount, formatRange } from "../../../lib/ui/format";
 import { colorForParticipant } from "../../../lib/ui/participants";
 import { explainMedia } from "../../../lib/ui/media-explanation";
-import { radius, space } from "../../../lib/ui/theme";
+import { radius, space, TAP, type } from "../../../lib/ui/theme";
 
 /**
  * Chat information — the screen behind the title, as every messaging app has.
@@ -133,21 +133,27 @@ export default function ArchiveInfoScreen() {
   }, [archiveId]);
 
   if (state.kind !== "ready") {
+    if (state.kind === "error") {
+      return (
+        <Screen>
+          <Stack.Screen options={{ title: t("info.title") }} />
+          <Title text={t("info.error.heading")} />
+          <Body muted>{state.message}</Body>
+        </Screen>
+      );
+    }
+    if (state.kind === "locked") {
+      return (
+        <Screen>
+          <Stack.Screen options={{ title: t("info.title") }} />
+          <Body>{t("info.locked")}</Body>
+        </Screen>
+      );
+    }
     return (
       <View style={styles.centered}>
         <Stack.Screen options={{ title: t("info.title") }} />
-        {state.kind === "error" ? (
-          <>
-            <Text style={styles.headingBad}>{t("info.error.heading")}</Text>
-            <Text style={styles.body} selectable>
-              {state.message}
-            </Text>
-          </>
-        ) : state.kind === "locked" ? (
-          <Text style={styles.body}>{t("info.locked")}</Text>
-        ) : (
-          <ActivityIndicator />
-        )}
+        <ActivityIndicator />
       </View>
     );
   }
@@ -166,7 +172,7 @@ export default function ArchiveInfoScreen() {
   const hiddenPeople = people.length - visiblePeople.length;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <Screen>
       <Stack.Screen options={{ title: t("info.title") }} />
 
       <View style={styles.hero}>
@@ -188,7 +194,7 @@ export default function ArchiveInfoScreen() {
         <StatusPill status={status} />
       </View>
 
-      <Section title={t("info.drive")}>
+      <Section title={t("info.drive")} footnote={shareProblem}>
         <DriveBackup archiveId={archiveId} updatedAt={manifest.updatedAt} />
         {(status.kind === "safe" || status.kind === "deleted") && (
           <LinkRow
@@ -197,7 +203,6 @@ export default function ArchiveInfoScreen() {
           />
         )}
         {shared && <LinkRow label={t("share.stop")} tone="danger" onPress={() => void unshare()} />}
-        {shareProblem !== undefined && <Text style={styles.hint}>{shareProblem}</Text>}
         {(status.kind === "safe" || status.kind === "deleted") && (
           <LinkRow
             label={t("verify.cta.delete")}
@@ -218,16 +223,19 @@ export default function ArchiveInfoScreen() {
               }
             : undefined
         }
+        footnote={
+          images.length > 0 && images.length <= PREVIEW_TILES && chatPhoto === undefined
+            ? t("chatPhoto.hint")
+            : undefined
+        }
       >
-        <MediaGrid items={images.slice(0, PREVIEW_TILES)} reader={state.reader} onOpen={setLightbox} />
-        {images.length > 0 && images.length <= PREVIEW_TILES && chatPhoto === undefined && (
-          <Text style={styles.hint}>{t("chatPhoto.hint")}</Text>
-        )}
+        <View style={styles.gridSlot}>
+          <MediaGrid items={images.slice(0, PREVIEW_TILES)} reader={state.reader} onOpen={setLightbox} />
+        </View>
         <MediaNote explanation={explanation} missing={stats.notArchivedCount} />
       </Section>
 
-      <Section title={tp("info.people", people.length)}>
-        <Text style={styles.hint}>{t("info.people.hint")}</Text>
+      <Section title={tp("info.people", people.length)} footnote={t("info.people.hint")}>
         {visiblePeople.map((participant) => {
           const isSelf = selfId === participant.id;
           return (
@@ -236,7 +244,7 @@ export default function ArchiveInfoScreen() {
               onPress={() => void chooseSelf(participant.id)}
               accessibilityRole="button"
               accessibilityState={{ selected: isSelf }}
-              style={({ pressed }) => [styles.person, isSelf && styles.personSelf, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.person, pressed && styles.pressed]}
             >
               <View style={[styles.avatar, { backgroundColor: colorForParticipant(participant.displayName) }]}>
                 <Text style={styles.avatarLetter}>{[...participant.displayName][0]?.toUpperCase() ?? "?"}</Text>
@@ -282,45 +290,27 @@ export default function ArchiveInfoScreen() {
           router.replace("/");
         }}
       />
-    </ScrollView>
+    </Screen>
   );
 }
 
 const useStyles = createStyles((t) => ({
-  container: { padding: space.xl - 4, paddingBottom: 48, gap: space.xs + 2 },
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: space.xl,
-    gap: space.sm + 2,
-  },
-  hero: { alignItems: "center", paddingVertical: space.lg, gap: space.xs },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: t.ink,
-    textAlign: "center",
-    writingDirection: "auto",
-  },
-  subtitle: { fontSize: 13.5, color: t.muted, writingDirection: "auto" },
-  photoLink: { fontSize: 13, fontWeight: "600", color: t.accent, writingDirection: "auto" },
-  photoHint: { fontSize: 12.5, color: t.muted, textAlign: "center", writingDirection: "auto" },
-  headingBad: { fontSize: 20, fontWeight: "700", color: t.bad, writingDirection: "auto" },
-  body: { fontSize: 14.5, lineHeight: 21, color: t.body, writingDirection: "auto" },
-  hint: { fontSize: 13, lineHeight: 19, color: t.muted, writingDirection: "auto" },
-  mediaFacts: { paddingTop: space.sm },
-  mediaFactsText: { fontSize: 13, color: t.body, writingDirection: "auto" },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: space.xl },
+  hero: { alignItems: "center", paddingTop: space.sm, gap: space.sm },
+  title: { ...type.title, color: t.ink, textAlign: "center", writingDirection: "auto" },
+  subtitle: { ...type.caption, color: t.muted, textAlign: "center", writingDirection: "auto" },
+  photoLink: { ...type.micro, color: t.accent, writingDirection: "auto" },
+  // The grid is the one child of a section that brings its own rhythm, so it gets the padding
+  // a row would have given it rather than sitting flush against the separators.
+  gridSlot: { paddingVertical: space.md },
   person: {
     flexDirection: "row",
     alignItems: "center",
     gap: space.md,
+    minHeight: TAP,
     paddingVertical: space.sm,
-    paddingHorizontal: 6,
-    borderRadius: radius.chip,
   },
-  personSelf: { backgroundColor: t.goodWash },
-  pressed: { opacity: 0.65 },
+  pressed: { opacity: 0.6 },
   avatar: {
     width: 36,
     height: 36,
@@ -328,58 +318,19 @@ const useStyles = createStyles((t) => ({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarLetter: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  personText: { flex: 1, gap: 1 },
-  personName: { fontSize: 15.5, color: t.ink, writingDirection: "auto" },
-  personAliases: { fontSize: 12, color: t.muted, writingDirection: "auto" },
-  youBadge: { fontSize: 12, fontWeight: "700", color: t.good },
-  moreRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.md,
-    paddingVertical: space.sm + 2,
-    paddingHorizontal: 6,
-    marginTop: 2,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: t.hairline,
+  avatarLetter: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  personName: { flex: 1, ...type.label, fontWeight: "400", color: t.ink, writingDirection: "auto" },
+  // The one participant marked as the reader. `good` rather than `accent`: it is a fact about
+  // the chat, not something to tap.
+  youBadge: {
+    ...type.micro,
+    color: t.good,
+    backgroundColor: t.goodWash,
+    paddingHorizontal: space.sm,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    overflow: "hidden",
   },
-  moreChevron: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: t.hairline,
-  },
-  moreChevronText: { fontSize: 11, color: t.body },
-  moreLabel: { fontSize: 15, fontWeight: "600", color: t.ink, writingDirection: "auto" },
-  gap: {
-    marginTop: space.sm + 2,
-    padding: space.md,
-    gap: space.xs + 2,
-    borderRadius: radius.chip,
-    backgroundColor: t.badWash,
-  },
-  gapHeading: { fontSize: 14, fontWeight: "700", color: t.bad, writingDirection: "auto" },
-  gapBody: { fontSize: 13, lineHeight: 19, color: t.body, writingDirection: "auto" },
-  source: { paddingVertical: 6, gap: 2 },
-  sourceWhen: { fontSize: 14, color: t.ink, fontWeight: "500" },
-  sourceWhat: { fontSize: 12.5, color: t.muted, writingDirection: "auto" },
-  pathBox: {
-    marginTop: space.xs,
-    padding: space.sm + 2,
-    borderRadius: radius.chip,
-    backgroundColor: t.paper,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: t.hairline,
-  },
-  // A filesystem path is never RTL, and letting it mirror puts the leading slash on the wrong
-  // end of something the user may be reading against a real path.
-  pathText: {
-    fontFamily: "Menlo",
-    fontSize: 11,
-    color: t.muted,
-    textAlign: "left",
-    writingDirection: "ltr",
-  },
+  moreRow: { minHeight: TAP, justifyContent: "center", paddingVertical: space.md },
+  moreLabel: { ...type.label, color: t.accent, writingDirection: "auto" },
 }));

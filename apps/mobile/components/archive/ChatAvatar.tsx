@@ -97,7 +97,7 @@ const useStyles = createStyles((t) => ({
   // The placeholder tint behind a photo that has not decrypted yet. It has to differ from
   // `paper` in both palettes, or the row looks like it is missing an avatar rather than
   // waiting for one.
-  image: { backgroundColor: t.hairline },
+  image: { backgroundColor: t.sunken },
   fallback: { alignItems: "center", justifyContent: "center" },
   initials: { color: "#fff", fontWeight: "700" },
 }));

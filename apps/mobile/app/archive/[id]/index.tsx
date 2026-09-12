@@ -1,13 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import type { ArchiveReader } from "@chatvault/core";
 import { readPreferences } from "../../../lib/archive/preferences";
@@ -19,10 +11,10 @@ import {
   type ChatRow,
 } from "../../../lib/ui/chat";
 import { createStyles, useApp } from "../../../components/app/providers";
-import { Button } from "../../../components/app/ui";
+import { Actions, Body, Button, Field, Screen, Title } from "../../../components/app/ui";
 import { formatCount, formatRange } from "../../../lib/ui/format";
 import { summarizeParticipants } from "../../../lib/ui/participants";
-import { radius, space } from "../../../lib/ui/theme";
+import { gutter, radius, space, type } from "../../../lib/ui/theme";
 import { MessageBubble } from "../../../components/archive/MessageBubble";
 import { Lightbox, type LightboxSubject } from "../../../components/archive/Lightbox";
 
@@ -48,7 +40,7 @@ export default function ArchiveChatScreen() {
   const router = useRouter();
   const archiveId = params.id ?? "";
 
-  const { t, tp, theme, language } = useApp();
+  const { t, tp, language } = useApp();
   const styles = useStyles();
 
   const { state, unlock } = useArchive(archiveId);
@@ -80,7 +72,7 @@ export default function ArchiveChatScreen() {
       <View style={styles.centered}>
         <Stack.Screen options={{ title: t("reader.title") }} />
         <ActivityIndicator />
-        <Text style={styles.body}>
+        <Text style={styles.centeredLabel}>
           {state.kind === "unlocking" ? t("reader.deriving") : t("reader.opening")}
         </Text>
       </View>
@@ -89,44 +81,40 @@ export default function ArchiveChatScreen() {
 
   if (state.kind === "locked") {
     return (
-      <View style={styles.form}>
+      <Screen keyboard>
         <Stack.Screen options={{ title: t("reader.locked.title") }} />
-        <Text style={styles.heading}>{t("reader.locked.heading")}</Text>
-        <Text style={styles.body}>{t("reader.locked.body")}</Text>
-        <TextInput
+        <Title text={t("reader.locked.heading")} note={t("reader.locked.body")} />
+        <Field
+          secure
           value={passphrase}
-          onChangeText={setPassphrase}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={styles.input}
+          onChange={setPassphrase}
           placeholder={t("import.field.passphrase")}
-          placeholderTextColor={theme.muted}
-          keyboardAppearance={theme.dark ? "dark" : "light"}
-          accessibilityLabel={t("import.field.passphrase")}
-          onSubmitEditing={() => void unlock(passphrase)}
+          error={state.error}
+          onSubmit={() => void unlock(passphrase)}
         />
-        {state.error !== undefined && <Text style={styles.fieldError}>{state.error}</Text>}
-        <Button
-          label={t("reader.locked.unlock")}
-          onPress={() => void unlock(passphrase)}
-          disabled={passphrase.length === 0}
-        />
-      </View>
+        <Actions>
+          <Button
+            label={t("reader.locked.unlock")}
+            onPress={() => void unlock(passphrase)}
+            disabled={passphrase.length === 0}
+          />
+        </Actions>
+      </Screen>
     );
   }
 
   if (state.kind === "error") {
     return (
-      <View style={styles.form}>
+      <Screen>
         <Stack.Screen options={{ title: t("reader.title") }} />
-        <Text style={styles.headingBad}>{t("reader.error.heading")}</Text>
-        <Text style={styles.body} selectable>
-          {state.message}
-        </Text>
-        <Text style={styles.body}>{t("reader.error.warning")}</Text>
-        <Button label={t("common.backToLibrary")} onPress={() => router.replace("/")} />
-      </View>
+        {/* The warning is the subtitle: someone whose archive did not open needs to be told
+            not to delete the original before they read anything else. */}
+        <Title text={t("reader.error.heading")} note={t("reader.error.warning")} />
+        <Body muted>{state.message}</Body>
+        <Actions>
+          <Button label={t("common.backToLibrary")} onPress={() => router.replace("/")} />
+        </Actions>
+      </Screen>
     );
   }
 
@@ -255,49 +243,34 @@ function Row({
 const useStyles = createStyles((t) => ({
   chat: { flex: 1, backgroundColor: t.paper },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.md },
-  form: { padding: space.xl, gap: space.md },
-  list: { paddingVertical: space.sm + 2 },
-  heading: { fontSize: 22, fontWeight: "700", color: t.ink, writingDirection: "auto" },
-  headingBad: { fontSize: 22, fontWeight: "700", color: t.bad, writingDirection: "auto" },
-  body: { fontSize: 15, lineHeight: 22, color: t.body, writingDirection: "auto" },
-  input: {
-    borderWidth: 1,
-    borderColor: t.hairline,
-    borderRadius: radius.chip,
-    paddingHorizontal: space.md,
-    paddingVertical: space.md,
-    fontSize: 16,
-    color: t.ink,
-    backgroundColor: t.field,
-    textAlign: "left",
-    writingDirection: "ltr",
-  },
-  fieldError: { fontSize: 13, color: t.bad, writingDirection: "auto" },
-  pressed: { opacity: 0.65 },
+  centeredLabel: { ...type.caption, color: t.muted, writingDirection: "auto" },
+  list: { paddingVertical: space.md },
+  pressed: { opacity: 0.6 },
   infoButton: { paddingHorizontal: space.sm, paddingVertical: space.xs },
-  infoButtonLabel: { fontSize: 16, color: t.accent, fontWeight: "700" },
+  infoButtonLabel: { ...type.label, color: t.accent },
   subheader: {
-    paddingHorizontal: space.lg,
-    paddingVertical: space.sm,
+    paddingHorizontal: gutter,
+    paddingVertical: space.sm + 2,
     gap: 2,
-    backgroundColor: t.raised,
+    backgroundColor: t.panel,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: t.hairline,
   },
-  subheaderStats: { fontSize: 12.5, color: t.muted, writingDirection: "auto" },
+  subheaderStats: { ...type.micro, fontWeight: "400", color: t.muted, writingDirection: "auto" },
   subheaderStrong: { color: t.ink, fontWeight: "700" },
-  subheaderText: { fontSize: 12.5, color: t.muted, writingDirection: "auto" },
-  dayRow: { alignItems: "center", paddingVertical: space.sm + 2 },
+  subheaderText: { ...type.micro, fontWeight: "400", color: t.faint, writingDirection: "auto" },
+  dayRow: { alignItems: "center", paddingVertical: space.md },
   dayLabel: {
-    fontSize: 11.5,
-    fontWeight: "700",
+    ...type.micro,
     color: t.muted,
     backgroundColor: t.panel,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: t.hairline,
     paddingHorizontal: space.md,
     paddingVertical: 5,
-    borderRadius: radius.chip,
+    borderRadius: radius.pill,
     overflow: "hidden",
   },
-  beginning: { alignItems: "center", paddingVertical: 18, paddingHorizontal: 40 },
-  beginningText: { fontSize: 11.5, color: t.muted, textAlign: "center" },
+  beginning: { alignItems: "center", paddingVertical: space.xl, paddingHorizontal: space.xxl },
+  beginningText: { ...type.micro, fontWeight: "400", color: t.faint, textAlign: "center" },
 }));

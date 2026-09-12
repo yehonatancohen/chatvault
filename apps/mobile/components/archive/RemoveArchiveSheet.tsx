@@ -31,7 +31,7 @@ import { useApp, createStyles } from "../app/providers";
 import { Button, CheckRow } from "../app/ui";
 import { deleteArchive } from "../../lib/archive/vault";
 import type { LibraryEntry } from "../../lib/archive/library";
-import { radius, space } from "../../lib/ui/theme";
+import { radius, space, type } from "../../lib/ui/theme";
 
 export function RemoveArchiveSheet({
   entry,
@@ -129,7 +129,7 @@ export function RemoveArchiveSheet({
               <Text style={styles.workingLabel}>{t("remove.working")}</Text>
             </View>
           ) : (
-            <>
+            <View style={styles.buttons}>
               <Button
                 label={t("remove.cta")}
                 tone="danger"
@@ -137,7 +137,7 @@ export function RemoveArchiveSheet({
                 disabled={!canRemove}
               />
               <Button label={t("common.cancel")} tone="quiet" onPress={onClose} />
-            </>
+            </View>
           )}
         </Pressable>
       </Pressable>
@@ -146,38 +146,34 @@ export function RemoveArchiveSheet({
 }
 
 const useStyles = createStyles((t) => ({
-  scrim: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "flex-end",
-  },
+  scrim: { flex: 1, backgroundColor: t.scrim, justifyContent: "flex-end" },
   sheet: {
     backgroundColor: t.paper,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
     padding: space.xl,
-    paddingBottom: space.xxl + space.sm,
-    gap: space.sm,
+    paddingBottom: space.xxxl,
+    gap: space.md,
   },
   grabber: {
     alignSelf: "center",
-    width: 38,
+    width: 40,
     height: 4,
     borderRadius: 2,
     backgroundColor: t.hairline,
     marginBottom: space.sm,
   },
-  title: { fontSize: 20, fontWeight: "700", color: t.ink, writingDirection: "auto" },
-  chat: { fontSize: 15, fontWeight: "600", color: t.accent, writingDirection: "auto" },
-  body: { fontSize: 15, lineHeight: 22, color: t.body, writingDirection: "auto" },
-  note: { fontSize: 13, lineHeight: 19, color: t.muted, writingDirection: "auto" },
+  title: { ...type.title, color: t.ink, writingDirection: "auto" },
+  chat: { ...type.label, color: t.accent, writingDirection: "auto" },
+  body: { ...type.body, color: t.body, writingDirection: "auto" },
+  note: { ...type.caption, color: t.muted, writingDirection: "auto" },
   failure: {
-    fontSize: 13,
-    lineHeight: 19,
+    ...type.caption,
     color: t.bad,
     backgroundColor: t.badWash,
     padding: space.md,
     borderRadius: radius.chip,
+    writingDirection: "auto",
   },
   working: {
     flexDirection: "row",
@@ -185,5 +181,6 @@ const useStyles = createStyles((t) => ({
     gap: space.md,
     paddingVertical: space.lg,
   },
-  workingLabel: { fontSize: 15, color: t.body },
+  workingLabel: { ...type.body, color: t.body, writingDirection: "auto" },
+  buttons: { gap: space.md, paddingTop: space.sm },
 }));

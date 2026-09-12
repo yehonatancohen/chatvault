@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { MediaExplanation } from "../../lib/ui/media-explanation";
 import { updateSettings } from "../../lib/settings/settings";
-import { space } from "../../lib/ui/theme";
+import { space, type } from "../../lib/ui/theme";
 import { createStyles, useApp } from "../app/providers";
 
 /**
@@ -47,10 +47,12 @@ export function MediaNote({ explanation, missing }: { explanation: MediaExplanat
 }
 
 const useStyles = createStyles((t) => ({
-  box: { gap: space.xs, paddingVertical: space.xs },
-  line: { fontSize: 13.5, lineHeight: 20, color: t.muted, writingDirection: "auto" },
-  actions: { flexDirection: "row", gap: space.lg },
-  link: { fontSize: 13, fontWeight: "600", color: t.accent },
-  quiet: { fontSize: 13, color: t.muted },
-  detail: { fontSize: 13, lineHeight: 19, color: t.body, writingDirection: "auto" },
+  box: { gap: space.sm, paddingVertical: space.md },
+  line: { ...type.caption, color: t.muted, writingDirection: "auto" },
+  actions: { flexDirection: "row", gap: space.xl },
+  // Both are quiet on purpose. This note is about something normal, and a filled button here
+  // would make an ordinary fact look like a problem to resolve.
+  link: { ...type.micro, color: t.accent },
+  quiet: { ...type.micro, fontWeight: "400", color: t.faint },
+  detail: { ...type.caption, color: t.body, writingDirection: "auto" },
 }));

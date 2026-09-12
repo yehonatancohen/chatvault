@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   completeImport,
@@ -10,9 +10,18 @@ import type { ImportStage } from "../lib/import/run-import";
 import { setImportSession } from "../lib/import/session";
 import { WrongPassphraseError } from "../lib/crypto/key-wrapping";
 import { createStyles, useApp } from "../components/app/providers";
-import { Button, SwitchRow } from "../components/app/ui";
+import {
+  Actions,
+  Body,
+  Button,
+  Field,
+  Screen,
+  Section,
+  SwitchRow,
+  Title,
+} from "../components/app/ui";
 import { formatBytes } from "../lib/ui/format";
-import { radius, space } from "../lib/ui/theme";
+import { space, type } from "../lib/ui/theme";
 import type { StringKey } from "../lib/i18n/strings";
 
 /**
@@ -146,7 +155,7 @@ export default function ImportScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <Screen keyboard>
       {phase.kind === "reading" && <Working label={t("import.reading")} />}
 
       {phase.kind === "writing" && <Working label={t(stageKey(phase.stage))} />}
@@ -159,18 +168,22 @@ export default function ImportScreen() {
         ))}
 
       {phase.kind === "error" && (
-        <View style={styles.block}>
-          <Text style={styles.errorHeading}>{phase.message}</Text>
-          <Text style={styles.body}>{t("import.error.reassurance")}</Text>
+        <>
+          {/* The reassurance is the subtitle, not a paragraph below the fold: a user reading
+              "the import did not finish" needs "nothing changed in WhatsApp" in the same
+              glance, not after it. */}
+          <Title text={phase.message} note={t("import.error.reassurance")} />
           {phase.detail !== undefined && (
             <Text style={styles.errorDetail} selectable>
               {phase.detail}
             </Text>
           )}
-          <Button label={t("common.backToLibrary")} onPress={goBack} />
-        </View>
+          <Actions>
+            <Button label={t("common.backToLibrary")} onPress={goBack} />
+          </Actions>
+        </>
       )}
-    </ScrollView>
+    </Screen>
   );
 }
 
@@ -196,26 +209,39 @@ function SaveForm({
   const ready = !protect || (passphrase.length >= 8 && confirmation === passphrase);
 
   return (
-    <View style={styles.block}>
-      <Text style={styles.heading}>{prepared.chatTitle}</Text>
-      <Text style={styles.muted}>
-        {tp("common.messages", prepared.parsed.messages.length)} · {formatBytes(prepared.byteLength)}
-      </Text>
+    <>
+      <Title
+        text={prepared.chatTitle}
+        note={`${tp("common.messages", prepared.parsed.messages.length)} · ${formatBytes(prepared.byteLength)}`}
+      />
 
-      <SwitchRow label={t("import.protect")} value={protect} onChange={setProtect} />
+      <Section footnote={protect ? t("import.protect.warning") : undefined}>
+        <SwitchRow label={t("import.protect")} value={protect} onChange={setProtect} />
+      </Section>
 
       {protect && (
-        <>
-          <PassphraseField value={passphrase} onChange={setPassphrase} placeholder={t("import.field.passphrase")} />
-          {tooShort && <Text style={styles.fieldError}>{t("import.field.tooShort")}</Text>}
-          <PassphraseField value={confirmation} onChange={setConfirmation} placeholder={t("import.field.again")} />
-          {mismatch && <Text style={styles.fieldError}>{t("import.field.mismatch")}</Text>}
-          <Text style={styles.muted}>{t("import.protect.warning")}</Text>
-        </>
+        <View style={styles.fields}>
+          <Field
+            secure
+            value={passphrase}
+            onChange={setPassphrase}
+            placeholder={t("import.field.passphrase")}
+            error={tooShort ? t("import.field.tooShort") : undefined}
+          />
+          <Field
+            secure
+            value={confirmation}
+            onChange={setConfirmation}
+            placeholder={t("import.field.again")}
+            error={mismatch ? t("import.field.mismatch") : undefined}
+          />
+        </View>
       )}
 
-      <Button label={t("import.save")} onPress={() => onSubmit(protect ? passphrase : undefined)} disabled={!ready} />
-    </View>
+      <Actions>
+        <Button label={t("import.save")} onPress={() => onSubmit(protect ? passphrase : undefined)} disabled={!ready} />
+      </Actions>
+    </>
   );
 }
 
@@ -228,110 +254,47 @@ function UnlockForm({
   onSubmit: (passphrase: string) => void;
 }) {
   const { t } = useApp();
-  const styles = useStyles();
   const [passphrase, setPassphrase] = useState("");
+  const submit = () => onSubmit(passphrase);
 
   return (
-    <View style={styles.block}>
-      <Text style={styles.heading}>{t("import.unlock.heading", { chat: prepared.chatTitle })}</Text>
-      <PassphraseField value={passphrase} onChange={setPassphrase} placeholder={t("import.field.passphrase")} />
-      <Button label={t("import.submit.merge")} onPress={() => onSubmit(passphrase)} disabled={passphrase.length === 0} />
-    </View>
+    <>
+      <Title text={t("import.unlock.heading", { chat: prepared.chatTitle })} />
+      <Field
+        secure
+        value={passphrase}
+        onChange={setPassphrase}
+        placeholder={t("import.field.passphrase")}
+        onSubmit={submit}
+      />
+      <Actions>
+        <Button label={t("import.submit.merge")} onPress={submit} disabled={passphrase.length === 0} />
+      </Actions>
+    </>
   );
 }
 
-function PassphraseField({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-}) {
-  const { theme } = useApp();
-  const styles = useStyles();
-  return (
-    <TextInput
-      value={value}
-      onChangeText={onChange}
-      secureTextEntry
-      autoCapitalize="none"
-      autoCorrect={false}
-      style={styles.input}
-      placeholder={placeholder}
-      placeholderTextColor={theme.muted}
-      // Without this the system keyboard stays light behind a dark app.
-      keyboardAppearance={theme.dark ? "dark" : "light"}
-      accessibilityLabel={placeholder}
-    />
-  );
-}
-
+/** What the import is doing right now. A stuck import must say which step it is stuck on. */
 function Working({ label }: { label: string }) {
   const styles = useStyles();
   return (
-    <View style={styles.workingRow}>
+    <View style={styles.working}>
       <ActivityIndicator />
-      <Text style={styles.body}>{label}</Text>
+      <Body>{label}</Body>
     </View>
   );
 }
 
 const useStyles = createStyles((t) => ({
-  container: { padding: space.xl, gap: space.xs },
-  block: { gap: space.md, paddingVertical: space.sm },
-  heading: {
-    flex: 1,
-    fontSize: 22,
-    fontWeight: "700",
-    color: t.ink,
-    letterSpacing: -0.3,
-    writingDirection: "auto",
-  },
-  body: { fontSize: 15, lineHeight: 22, color: t.body, writingDirection: "auto" },
-  reassurance: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: t.muted,
-    marginTop: space.xs,
-    writingDirection: "auto",
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: t.muted,
-    marginTop: space.sm,
-    writingDirection: "auto",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: t.hairline,
-    borderRadius: radius.chip,
-    paddingHorizontal: space.md,
-    paddingVertical: space.md,
-    fontSize: 16,
-    color: t.ink,
-    backgroundColor: t.field,
-    // A passphrase is never RTL text and mirroring the caret makes it feel broken while typing.
-    textAlign: "left",
-    writingDirection: "ltr",
-  },
-  fieldError: { fontSize: 13, color: t.bad, lineHeight: 19, writingDirection: "auto" },
-  summary: {
-    marginTop: space.lg,
-    backgroundColor: t.panel,
-    borderRadius: radius.card,
-    paddingHorizontal: space.md + 2,
-    paddingVertical: space.xs,
-  },
-  workingRow: {
+  fields: { gap: space.lg },
+  working: {
     flexDirection: "row",
     alignItems: "center",
     gap: space.md,
-    paddingVertical: space.sm,
+    paddingVertical: space.xxl,
   },
-  errorHeading: { fontSize: 20, fontWeight: "700", color: t.ink, writingDirection: "auto" },
-  muted: { fontSize: 14, lineHeight: 20, color: t.muted, writingDirection: "auto" },
-  errorDetail: { fontSize: 14, lineHeight: 21, color: t.body },
+  // Kept, small, and selectable: "it failed" is not a usable report, and this is expensive to
+  // reproduce. It is the one place in the app that shows a user text written for a developer,
+  // which is why it is set at the smallest step and never coloured as an error.
+  errorDetail: { ...type.caption, color: t.faint },
 }));

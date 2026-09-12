@@ -17,6 +17,6 @@ export function ProgressBar({ fraction, height = 6 }: { fraction: number; height
 }
 
 const useStyles = createStyles((t) => ({
-  track: { width: "100%", overflow: "hidden", backgroundColor: t.hairline },
+  track: { width: "100%", overflow: "hidden", backgroundColor: t.sunken },
   fill: { height: "100%", backgroundColor: t.accent },
 }));

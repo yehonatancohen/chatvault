@@ -305,6 +305,62 @@ all three are tested. Keep it that way. Logic that migrates into a screen become
   out. Use `updatePreferences`, which merges; a whole-object write from one screen erases the
   other's choice.
 
+## The design system (owner, 2026-09-12: "modern and clear, keep the warm identity")
+
+**`lib/ui/theme.ts` holds every token and screens invent none.** Before this, the app carried
+fifteen font sizes between 11 and 24 — 12.5, 13.5, 14.5, 15.5, 16.5 — and nine paddings, and no
+two screens started their content at the same place. That is what made it read as cute and
+hand-assembled rather than designed, far more than the palette did. The wood brown stayed; the
+structure around it is new.
+
+- **`type`** — seven steps: `display`, `title`, `heading`, `body`, `label`, `caption`, `micro`.
+  Spread one (`...type.caption`) rather than writing a `fontSize`. The only deliberate exception
+  is `MessageBubble.body`, a shade larger because that screen exists to be read.
+- **`space`, `gutter`, `TAP`** — `gutter` is the screen's side margin and `Screen` applies it,
+  so every screen's content lines up with every other's. Nothing pressable is shorter than `TAP`.
+- **Surfaces separate by lightness.** `paper` (page) → `panel` (card) → `raised` (bubble), plus
+  `sunken` for a well or a track. Light `panel` is white; the old palette's paper and panel were
+  a hair apart, so cards needed borders to be visible and screens grew more of them.
+- **`hairline` outlines a shape; `separator` divides rows inside one.** Not interchangeable.
+- **Colour is information.** `accent` = the interactive thing, or the number that is the point.
+  `good`/`bad`/`caution` are load-bearing on Verify and in the chat status. Nothing decorative
+  uses them, and an ordinary state gets no colour at all — which is why only "Safe to delete"
+  among the four chat statuses is tinted.
+
+**`components/app/ui.tsx` is where a screen starts.** `Screen`, `Title`, `Section`, `Row`,
+`LinkRow`, `ChoiceRow`, `SwitchRow`, `CheckRow`, `Field`, `Button`, `Actions`, `Step`, `Stat`,
+`Pill`, `EmptyState`, `Callout`, `Body`. Two are worth knowing before writing a screen:
+
+- **`Section` draws the separators between its own children**, so a row never knows whether it
+  is first or last, and a group can never end with a stray line under it. A note that is not a
+  row belongs in `footnote`, not as a child — otherwise it gets a separator of its own.
+- **`Field` is the only text input.** The two screens that ask for a passphrase had drifted into
+  two different fields, and only one of them kept the caret left-aligned in Hebrew and the
+  keyboard dark in the dark theme. Both rules now live in one place.
+
+The chat list is deliberately **not** built from `Section`: it is full-bleed rows divided by a
+line inset past the avatar, the way every messaging app is, because eight rounded cards with
+gaps between them says a chat list is eight things rather than one list.
+
+### Hebrew is checked by a person, not only by the compiler
+
+The compiler proves every English key has a Hebrew one; it cannot tell you the Hebrew is any
+good. Four kinds of fault were fixed on 2026-09-12 and are worth not reintroducing:
+
+- **Translator's coinages.** "סיסמת מעבר" for passphrase is not what anyone says — it is
+  "סיסמה". Likewise "מחזיק המפתחות" for Keychain (Apple's Hebrew is "צרור המפתחות") and
+  "הצפיין באינטרנט" for the web viewer.
+- **Untranslated jargon.** "גוזרים את המפתח" ("deriving the key") told a user nothing. What a
+  wait says should name what they are waiting for, not what the code is doing.
+- **Gender.** וואטסאפ and בוידעם are both masculine; the catalogue had them feminine throughout
+  ("וואטסאפ השאירה", "{app} לא מוחקת"), which a Hebrew speaker notices immediately.
+- **One voice.** The app narrates in the plural — "קוראים", "שומרים", "מורידים" — never as "I"
+  ("מוריד") and never as "we did not manage" ("לא הצלחנו"), which invents a company where the
+  screen should just state what happened.
+
+Two typographic rules: a Latin word joins with a maqaf (`ב־Drive`, not `ב-Drive`), and an
+ellipsis is `…`, never three dots.
+
 **Minimal text is a product rule (owner, 2026-09-11).** Screens carry actions and the facts
 needed to act; every explanation lives in Settings → Help (`app/help.tsx`, `help.*` strings).
 Before adding a sentence to a screen, put it in Help instead.

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { ScrollView, Text } from "react-native";
-import { createStyles, useApp } from "../../components/app/providers";
-import { Button, Row, Section } from "../../components/app/ui";
+import { useApp } from "../../components/app/providers";
+import { Actions, Body, Button, Row, Screen, Section } from "../../components/app/ui";
 import {
   connectGoogleDrive,
   disconnectGoogleDrive,
@@ -10,7 +9,6 @@ import {
 } from "../../lib/drive/google-auth";
 import { backupAll, listRestorable, restoreArchive } from "../../lib/drive/device-sync";
 import { formatCount } from "../../lib/ui/format";
-import { space } from "../../lib/ui/theme";
 
 /**
  * The Account tab: today, the Google account whose Drive keeps copies of the user's chats.
@@ -22,7 +20,6 @@ import { space } from "../../lib/ui/theme";
  */
 export default function AccountScreen() {
   const { t, tp } = useApp();
-  const styles = useStyles();
   const [google, setGoogle] = useState<GoogleConnection | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | undefined>(undefined);
@@ -85,48 +82,48 @@ export default function AccountScreen() {
 
   const connected = google?.hasDrive === true;
 
+  // Not connected: a sentence and one button — there is nothing to show a row for yet, so a
+  // card would be an empty frame around the only thing on the screen.
+  if (!connected) {
+    return (
+      <Screen>
+        <Body>{t("account.drive.pitch")}</Body>
+        <Button label={t("account.drive.connect")} onPress={() => void connect()} disabled={busy} />
+        {message !== undefined && <Body muted>{message}</Body>}
+      </Screen>
+    );
+  }
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Section title={t("account.drive.title")}>
-        {!connected ? (
-          <>
-            <Text style={styles.body}>{t("account.drive.pitch")}</Text>
-            <Button label={t("account.drive.connect")} onPress={() => void connect()} disabled={busy} />
-          </>
-        ) : (
-          <>
-            <Row label={t("account.drive.account")} value={google.email} />
-            <Button label={t("account.drive.backupAll")} onPress={() => void backUp()} disabled={busy} />
-            {restorable !== undefined && restorable.length > 0 && (
-              <Button
-                label={
-                  restoring !== undefined
-                    ? t("account.drive.restoring", {
-                        n: formatCount(restoring),
-                        count: formatCount(restorable.length),
-                      })
-                    : t("account.drive.restore", { count: tp("common.chats", restorable.length) })
-                }
-                tone="quiet"
-                onPress={() => void restore()}
-                disabled={busy}
-              />
-            )}
-            <Button label={t("account.drive.disconnect")} tone="quiet" onPress={() => void disconnect()} disabled={busy} />
-          </>
-        )}
-        {message !== undefined && (
-          <Text style={styles.muted} selectable>
-            {message}
-          </Text>
-        )}
+    <Screen>
+      <Section title={t("account.drive.title")} footnote={message}>
+        <Row label={t("account.drive.account")} value={google.email} />
       </Section>
-    </ScrollView>
+
+      <Actions>
+        <Button label={t("account.drive.backupAll")} onPress={() => void backUp()} disabled={busy} />
+        {restorable !== undefined && restorable.length > 0 && (
+          <Button
+            label={
+              restoring !== undefined
+                ? t("account.drive.restoring", {
+                    n: formatCount(restoring),
+                    count: formatCount(restorable.length),
+                  })
+                : t("account.drive.restore", { count: tp("common.chats", restorable.length) })
+            }
+            tone="quiet"
+            onPress={() => void restore()}
+            disabled={busy}
+          />
+        )}
+        <Button
+          label={t("account.drive.disconnect")}
+          tone="quiet"
+          onPress={() => void disconnect()}
+          disabled={busy}
+        />
+      </Actions>
+    </Screen>
   );
 }
-
-const useStyles = createStyles((t) => ({
-  container: { padding: space.xl, paddingBottom: space.xxl, gap: space.md },
-  body: { fontSize: 15, lineHeight: 22, color: t.body, writingDirection: "auto" },
-  muted: { fontSize: 13.5, lineHeight: 20, color: t.muted, writingDirection: "auto" },
-}));

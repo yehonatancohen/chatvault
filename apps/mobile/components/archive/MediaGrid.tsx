@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 import type { ArchiveReader } from "@chatvault/core";
 import type { MediaItem } from "../../lib/ui/media-index";
 import { createStyles, useApp } from "../app/providers";
-import { space } from "../../lib/ui/theme";
+import { radius, space, type } from "../../lib/ui/theme";
 import type { LightboxSubject } from "./Lightbox";
 import { fullUri, previewUri } from "../../lib/ui/media-uri";
 
@@ -135,11 +135,11 @@ export function MediaTile({
 const useStyles = createStyles((t) => ({
   grid: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -2 },
   cell: { padding: 2 },
-  tile: { aspectRatio: 1, borderRadius: 8, overflow: "hidden", backgroundColor: t.hairline },
+  tile: { aspectRatio: 1, borderRadius: radius.chip, overflow: "hidden", backgroundColor: t.sunken },
   pressed: { opacity: 0.8 },
   image: { width: "100%", height: "100%" },
   placeholder: { flex: 1, alignItems: "center", justifyContent: "center" },
-  failed: { fontSize: 18, fontWeight: "700", color: t.bad },
+  failed: { fontSize: 18, fontWeight: "700", color: t.faint },
   empty: { paddingVertical: space.lg, paddingHorizontal: space.xs },
-  emptyText: { fontSize: 13.5, lineHeight: 20, color: t.muted, writingDirection: "auto" },
+  emptyText: { ...type.caption, color: t.muted, writingDirection: "auto" },
 }));

@@ -162,8 +162,8 @@ const styles = StyleSheet.create({
     gap: 2,
     backgroundColor: "#000000aa",
   },
-  captionPrimary: { color: "#fff", fontSize: 14, fontWeight: "600" },
-  captionSecondary: { color: "#cfcbc4", fontSize: 12 },
+  captionPrimary: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  captionSecondary: { color: "#cfcbc4", fontSize: 13 },
   close: {
     position: "absolute",
     top: 60,
@@ -178,5 +178,5 @@ const styles = StyleSheet.create({
   settled: { opacity: 0.55 },
   pressed: { opacity: 0.6 },
   loadingFull: { position: "absolute", top: 64, alignSelf: "center" },
-  closeLabel: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  closeLabel: { color: "#fff", fontSize: 16, fontWeight: "600" },
 });

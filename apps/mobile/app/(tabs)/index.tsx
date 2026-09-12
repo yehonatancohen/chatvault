@@ -4,6 +4,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
   View,
 } from "react-native";
@@ -15,18 +16,24 @@ import { RemoveArchiveSheet } from "../../components/archive/RemoveArchiveSheet"
 import { StatusPill } from "../../components/archive/StatusPill";
 import { useChatStatus } from "../../components/archive/useChatStatus";
 import { createStyles, useApp } from "../../components/app/providers";
-import { Button } from "../../components/app/ui";
+import { EmptyState } from "../../components/app/ui";
 import { formatBytes, formatDate } from "../../lib/ui/format";
-import { radius, space } from "../../lib/ui/theme";
+import { gutter, space, type } from "../../lib/ui/theme";
 
 /**
  * The chat list. Deliberately spare: each row is the chat, its last message, and one status —
  * On this phone / Uploading / Safe to delete / Deleted — which is the only thing a user needs to
  * decide what to do next. Everything explanatory lives in Settings → Help.
  *
+ * **Rows are full-bleed and divided by an inset line, not stacked as cards.** Every messaging
+ * app a user has ever opened looks like this, and it is also the honest shape: a chat list is
+ * one list, and eight rounded rectangles with gaps between them says it is eight things.
+ *
  * Opening the list also backs up, in the background, any chat whose latest version is not in
  * the user's Drive yet (`backupPending`), so statuses advance by themselves.
  */
+
+const AVATAR = 52;
 
 function archiveMediaBytes(entry: LibraryEntry): number {
   return entry.manifest === undefined ? 0 : archiveBytes(entry.manifest);
@@ -79,9 +86,11 @@ export default function LibraryScreen() {
             <ActivityIndicator />
           </View>
         ) : entries.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.heading}>{t("library.empty.heading")}</Text>
-            <Button label={t("library.empty.cta")} onPress={() => router.push("/add")} />
+          <View style={styles.emptyWrap}>
+            <EmptyState
+              heading={t("library.empty.heading")}
+              action={{ label: t("library.empty.cta"), onPress: () => router.push("/add") }}
+            />
           </View>
         ) : (
           <>
@@ -89,14 +98,18 @@ export default function LibraryScreen() {
               {tp("library.count", entries.length)}
               {totalMediaBytes > 0 ? ` · ${formatBytes(totalMediaBytes)}` : ""}
             </Text>
-            <View style={styles.list}>
-              {entries.map((entry) => (
-                <ArchiveRow
-                  key={entry.archiveId}
-                  entry={entry}
-                  onPress={() => router.push({ pathname: "/archive/[id]", params: { id: entry.archiveId } })}
-                  onRemove={() => setRemoving(entry)}
-                />
+            <View>
+              {entries.map((entry, index) => (
+                <View key={entry.archiveId}>
+                  {/* Inset past the avatar, the way every chat list is divided: a line running
+                      the full width cuts the avatars off from their own rows. */}
+                  {index > 0 && <View style={styles.separator} />}
+                  <ArchiveRow
+                    entry={entry}
+                    onPress={() => router.push({ pathname: "/archive/[id]", params: { id: entry.archiveId } })}
+                    onRemove={() => setRemoving(entry)}
+                  />
+                </View>
               ))}
             </View>
           </>
@@ -137,7 +150,7 @@ function ArchiveRow({
         style={({ pressed }) => [styles.row, pressed && styles.pressed]}
       >
         <View style={styles.text}>
-          <Text style={locked ? styles.title : styles.titleBad}>
+          <Text style={locked ? styles.title : styles.titleBad} numberOfLines={1}>
             {locked ? t("library.locked") : t("library.unreadable")}
           </Text>
           <Text style={styles.preview} numberOfLines={1} selectable={!locked}>
@@ -174,7 +187,7 @@ function ChatRow({
       accessibilityRole="button"
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
-      <ChatAvatar title={manifest.chatTitle} reader={entry.reader} thumbnail={entry.thumbnail} />
+      <ChatAvatar title={manifest.chatTitle} reader={entry.reader} thumbnail={entry.thumbnail} size={AVATAR} />
       <View style={styles.text}>
         <View style={styles.topLine}>
           <Text style={styles.title} numberOfLines={1}>
@@ -204,29 +217,36 @@ function ChatRow({
 }
 
 const useStyles = createStyles((t) => ({
-  container: { padding: space.lg, paddingBottom: space.xxl, gap: space.md },
-  loading: { paddingVertical: 48, alignItems: "center" },
-  empty: { paddingTop: space.xxl, gap: space.lg, alignItems: "stretch" },
-  heading: { fontSize: 22, fontWeight: "700", color: t.ink, textAlign: "center", writingDirection: "auto" },
-  summary: { fontSize: 13, color: t.muted, writingDirection: "auto" },
-  list: { gap: space.sm },
-  pressed: { opacity: 0.65 },
+  container: { paddingTop: space.sm, paddingBottom: space.xxxl },
+  loading: { paddingVertical: space.xxxl, alignItems: "center" },
+  emptyWrap: { paddingHorizontal: gutter },
+  summary: {
+    ...type.micro,
+    color: t.muted,
+    paddingHorizontal: gutter,
+    paddingBottom: space.md,
+    writingDirection: "auto",
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: t.separator,
+    marginStart: gutter + AVATAR + space.md,
+  },
+  pressed: { backgroundColor: t.accentWash },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: space.md,
-    paddingVertical: space.sm + 2,
-    paddingHorizontal: space.md,
-    borderRadius: radius.card,
-    backgroundColor: t.panel,
+    paddingVertical: space.md,
+    paddingHorizontal: gutter,
   },
-  text: { flex: 1, gap: 4 },
+  text: { flex: 1, gap: 3 },
   topLine: { flexDirection: "row", alignItems: "baseline", gap: space.sm },
-  title: { flex: 1, fontSize: 16.5, fontWeight: "600", color: t.ink, writingDirection: "auto" },
-  titleBad: { fontSize: 16, fontWeight: "600", color: t.bad, writingDirection: "auto" },
-  when: { fontSize: 12, color: t.muted },
-  statusLine: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  title: { flex: 1, ...type.heading, color: t.ink, writingDirection: "auto" },
+  titleBad: { ...type.heading, color: t.bad, writingDirection: "auto" },
+  when: { ...type.micro, fontWeight: "400", color: t.faint },
+  statusLine: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingTop: 2 },
   statusSlot: { flex: 1 },
-  size: { fontSize: 12, color: t.muted },
-  preview: { fontSize: 14, color: t.body, writingDirection: "auto" },
+  size: { ...type.micro, fontWeight: "400", color: t.faint },
+  preview: { ...type.caption, color: t.muted, writingDirection: "auto" },
 }));

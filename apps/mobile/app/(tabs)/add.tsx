@@ -1,6 +1,6 @@
-import { ScrollView, Text, View } from "react-native";
+import { View } from "react-native";
 import { createStyles, useApp } from "../../components/app/providers";
-import { Step } from "../../components/app/ui";
+import { Body, Screen, Step } from "../../components/app/ui";
 import { space } from "../../lib/ui/theme";
 
 /**
@@ -12,7 +12,7 @@ export default function AddScreen() {
   const styles = useStyles();
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <Screen>
       <View style={styles.steps}>
         <Step index={1} text={t("add.step.1")} />
         <Step index={2} text={t("add.step.2")} />
@@ -20,13 +20,11 @@ export default function AddScreen() {
         <Step index={4} text={t("add.step.4")} />
         <Step index={5} text={t("add.step.5")} />
       </View>
-      <Text style={styles.note}>{t("add.after")}</Text>
-    </ScrollView>
+      <Body muted>{t("add.after")}</Body>
+    </Screen>
   );
 }
 
-const useStyles = createStyles((t) => ({
-  container: { padding: space.xl, paddingBottom: space.xxl, gap: space.xl },
-  steps: { gap: space.lg },
-  note: { fontSize: 14, lineHeight: 21, color: t.muted, writingDirection: "auto" },
+const useStyles = createStyles(() => ({
+  steps: { gap: space.xl },
 }));

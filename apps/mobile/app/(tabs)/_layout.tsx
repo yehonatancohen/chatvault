@@ -4,6 +4,7 @@
 import { Tabs } from "expo-router/js-tabs";
 import { useApp } from "../../components/app/providers";
 import { TabIcon } from "../../components/app/TabIcon";
+import { space, type } from "../../lib/ui/theme";
 
 /**
  * The bottom bar.
@@ -33,18 +34,23 @@ export default function TabsLayout() {
         headerShadowVisible: false,
         headerTintColor: theme.ink,
         headerStyle: { backgroundColor: theme.paper },
-        headerTitleStyle: { color: theme.ink, fontSize: 17, fontWeight: "700" },
+        // A tab's header names the whole screen, so it is the app's `title` step — one above
+        // the `heading` a stack header uses, and the only place that size appears in chrome.
+        headerTitleStyle: { color: theme.ink, ...type.title },
         sceneStyle: { backgroundColor: theme.paper },
         tabBarActiveTintColor: theme.accent,
-        tabBarInactiveTintColor: theme.muted,
+        tabBarInactiveTintColor: theme.faint,
         tabBarStyle: {
-          backgroundColor: theme.raised,
+          backgroundColor: theme.paper,
           borderTopColor: theme.hairline,
           // The default is a hairline that disappears entirely against the dark palette's
           // panels; one point is the least that stays visible in both.
           borderTopWidth: 1,
+          // Padding, not `height`: the bar measures its own safe-area inset, and giving it a
+          // fixed height throws that away and tucks the labels under the home indicator.
+          paddingTop: space.sm,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        tabBarLabelStyle: { ...type.micro, letterSpacing: 0 },
       }}
     >
       <Tabs.Screen
@@ -53,7 +59,7 @@ export default function TabsLayout() {
           title: t("tabs.chats"),
           headerTitle: t("library.title"),
           tabBarIcon: ({ color }) => (
-            <TabIcon name="chats" color={color} background={theme.raised} />
+            <TabIcon name="chats" color={color} background={theme.paper} />
           ),
         }}
       />
@@ -63,7 +69,7 @@ export default function TabsLayout() {
           title: t("tabs.add"),
           headerTitle: t("add.title"),
           tabBarIcon: ({ color }) => (
-            <TabIcon name="add" color={color} background={theme.raised} />
+            <TabIcon name="add" color={color} background={theme.paper} />
           ),
         }}
       />
@@ -73,7 +79,7 @@ export default function TabsLayout() {
           title: t("tabs.account"),
           headerTitle: t("account.title"),
           tabBarIcon: ({ color }) => (
-            <TabIcon name="account" color={color} background={theme.raised} />
+            <TabIcon name="account" color={color} background={theme.paper} />
           ),
         }}
       />
@@ -83,7 +89,7 @@ export default function TabsLayout() {
           title: t("tabs.settings"),
           headerTitle: t("settings.title"),
           tabBarIcon: ({ color }) => (
-            <TabIcon name="settings" color={color} background={theme.raised} />
+            <TabIcon name="settings" color={color} background={theme.paper} />
           ),
         }}
       />

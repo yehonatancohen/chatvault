@@ -1,12 +1,11 @@
 import { memo, useEffect, useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import type { ArchiveReader, MergedMessage } from "@chatvault/core";
-import { toBase64 } from "../../lib/crypto/base64";
-import { mediaKindOf, mimeTypeOf } from "../../lib/ui/mime";
+import { mediaKindOf } from "../../lib/ui/mime";
 import { messageTime } from "../../lib/ui/chat";
 import { colorForParticipant } from "../../lib/ui/participants";
 import { createStyles, useApp } from "../app/providers";
-import { radius, space } from "../../lib/ui/theme";
+import { radius, space, type } from "../../lib/ui/theme";
 import type { LightboxSubject } from "./Lightbox";
 import { fullUri, previewUri } from "../../lib/ui/media-uri";
 
@@ -235,18 +234,21 @@ function NotHere({ label, bad }: { label: string; bad?: boolean }) {
   );
 }
 
+/** The bubble corner. Named because the tail styles have to square exactly one of them. */
+const BUBBLE_RADIUS = 18;
+
 const useStyles = createStyles((t) => ({
-  row: { flexDirection: "row", paddingHorizontal: 12 },
+  row: { flexDirection: "row", paddingHorizontal: space.md },
   rowSelf: { justifyContent: "flex-end" },
   rowOther: { justifyContent: "flex-start" },
   rowGrouped: { marginTop: 2 },
-  rowGroupEnd: { marginTop: 2, marginBottom: 8 },
+  rowGroupEnd: { marginTop: 2, marginBottom: space.sm },
   bubble: {
     maxWidth: "82%",
-    paddingHorizontal: 10,
-    paddingTop: 7,
-    paddingBottom: 5,
-    borderRadius: 16,
+    paddingHorizontal: space.md,
+    paddingTop: space.sm,
+    paddingBottom: 6,
+    borderRadius: BUBBLE_RADIUS,
     gap: 3,
   },
   // The design leans flatter than a bubble, but self-messages still sit on their own side (the
@@ -260,59 +262,62 @@ const useStyles = createStyles((t) => ({
   bubbleSelf: { backgroundColor: t.selfBubble },
   // Squared on the side the run ends against. The logical properties mirror under RTL, which
   // is what keeps the tail on the speaker's side in a Hebrew chat rather than across from it.
-  tailOther: { borderStartStartRadius: 16, borderEndStartRadius: 4 },
-  tailSelf: { borderEndEndRadius: 4 },
-  sender: { fontSize: 13, fontWeight: "700", writingDirection: "auto" },
-  body: { fontSize: 15.5, lineHeight: 21, color: t.ink, writingDirection: "auto" },
-  time: { fontSize: 11, color: t.muted, alignSelf: "flex-end" },
+  tailOther: { borderStartStartRadius: BUBBLE_RADIUS, borderEndStartRadius: 5 },
+  tailSelf: { borderEndEndRadius: 5 },
+  sender: { ...type.micro, letterSpacing: 0, writingDirection: "auto" },
+  // A shade larger than the app's body step: this is the one screen whose entire purpose is
+  // reading, often on an old conversation someone is going through line by line.
+  body: { fontSize: 16, lineHeight: 23, color: t.ink, writingDirection: "auto" },
+  time: { ...type.micro, fontWeight: "400", letterSpacing: 0, color: t.faint, alignSelf: "flex-end" },
   timeSelf: { color: t.dark ? "#c7a683" : "#8a6a48" },
-  deleted: { fontSize: 15, fontStyle: "italic", color: t.muted },
-  systemRow: { paddingVertical: 6, paddingHorizontal: 40, alignItems: "center" },
+  deleted: { ...type.body, fontStyle: "italic", color: t.muted, writingDirection: "auto" },
+  systemRow: { paddingVertical: space.sm, paddingHorizontal: space.xxxl, alignItems: "center" },
   systemText: {
-    fontSize: 12,
-    lineHeight: 18,
+    ...type.caption,
     color: t.muted,
     textAlign: "center",
     writingDirection: "auto",
     backgroundColor: t.panel,
-    paddingHorizontal: 10,
+    paddingHorizontal: space.md,
     paddingVertical: 5,
-    borderRadius: radius.chip,
+    borderRadius: radius.pill,
     overflow: "hidden",
   },
-  imagePress: { borderRadius: 10, overflow: "hidden" },
+  imagePress: { borderRadius: radius.chip, overflow: "hidden" },
   pressed: { opacity: 0.85 },
-  image: { width: 232, height: 232, backgroundColor: t.hairline },
+  image: { width: 232, height: 232, backgroundColor: t.sunken },
   imagePlaceholder: {
     width: 232,
     height: 232,
-    borderRadius: 10,
-    backgroundColor: t.hairline,
+    borderRadius: radius.chip,
+    backgroundColor: t.sunken,
     alignItems: "center",
     justifyContent: "center",
   },
   fileChip: {
     paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
+    paddingVertical: space.md,
     gap: 2,
-    borderRadius: 10,
+    borderRadius: radius.chip,
     backgroundColor: t.panel,
     minWidth: 180,
   },
-  fileChipKind: { fontSize: 12, fontWeight: "700", color: t.muted, writingDirection: "auto" },
-  fileChipName: { fontSize: 13, color: t.ink },
-  fileChipNote: { fontSize: 11, color: t.muted, writingDirection: "auto" },
+  fileChipKind: { ...type.micro, color: t.muted, writingDirection: "auto" },
+  fileChipName: { ...type.caption, color: t.ink },
+  fileChipNote: { ...type.micro, fontWeight: "400", letterSpacing: 0, color: t.faint, writingDirection: "auto" },
   notHere: {
-    paddingHorizontal: 10,
+    paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    borderRadius: 10,
+    borderRadius: radius.chip,
     borderWidth: 1,
     borderStyle: "dashed",
     borderColor: t.hairline,
     backgroundColor: t.panel,
     maxWidth: 240,
   },
+  // Solid and coloured only for a photo that failed its content-address check — a real fault.
+  // Media WhatsApp simply left out of the export keeps the dashed neutral outline.
   notHereBad: { borderColor: t.bad, borderStyle: "solid" },
-  notHereText: { fontSize: 12, lineHeight: 17, color: t.muted, writingDirection: "auto" },
+  notHereText: { ...type.micro, fontWeight: "400", letterSpacing: 0, color: t.muted, writingDirection: "auto" },
   notHereTextBad: { color: t.bad },
 }));

@@ -10,7 +10,7 @@ import {
 } from "../../lib/drive/device-sync";
 import { readBackupState } from "../../lib/drive/backup-state";
 import { progressFraction } from "../../lib/ui/chat-status";
-import { space } from "../../lib/ui/theme";
+import { space, TAP, type } from "../../lib/ui/theme";
 import { createStyles, useApp } from "../app/providers";
 import { ProgressBar } from "../app/ProgressBar";
 
@@ -119,9 +119,18 @@ export function DriveBackup({
 }
 
 const useStyles = createStyles((t) => ({
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.md },
-  stack: { gap: space.xs + 2 },
-  muted: { fontSize: 14, color: t.muted, writingDirection: "auto", flexShrink: 1 },
-  link: { fontSize: 14, fontWeight: "600", color: t.accent },
-  good: { fontSize: 14, fontWeight: "600", color: t.good, writingDirection: "auto" },
+  // `minHeight: TAP` because this sits as a row inside a `Section` on two screens, and a row
+  // that is shorter than the ones around it makes the group look mis-set.
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: space.md,
+    minHeight: TAP,
+    paddingVertical: space.md,
+  },
+  stack: { gap: space.sm, minHeight: TAP, justifyContent: "center", paddingVertical: space.md },
+  muted: { ...type.caption, color: t.muted, writingDirection: "auto", flexShrink: 1 },
+  link: { ...type.micro, color: t.accent },
+  good: { ...type.caption, fontWeight: "600", color: t.good, writingDirection: "auto", flexShrink: 1 },
 }));

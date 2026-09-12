@@ -8,7 +8,7 @@ import { Lightbox, type LightboxSubject } from "../../../components/archive/Ligh
 import { buildMediaIndex, imagesOnly, type MediaItem } from "../../../lib/ui/media-index";
 import { createStyles, useApp } from "../../../components/app/providers";
 import { formatBytes, formatCount, formatDate } from "../../../lib/ui/format";
-import { space } from "../../../lib/ui/theme";
+import { gutter, space, type } from "../../../lib/ui/theme";
 
 /**
  * Every photo in the archive, newest first — the "Media" screen every messaging app has.
@@ -133,16 +133,16 @@ const useStyles = createStyles((t) => ({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: space.xl,
+    padding: gutter,
     gap: space.md,
   },
-  list: { padding: space.md + 2, paddingBottom: 40 },
+  list: { padding: space.md, paddingBottom: space.xxxl },
   row: { flexDirection: "row" },
   filler: { width: `${100 / COLUMNS}%` },
-  header: { paddingBottom: space.md, gap: 6 },
-  headerText: { fontSize: 14, color: t.body, writingDirection: "auto" },
-  headerNote: { fontSize: 12.5, lineHeight: 18, color: t.muted, writingDirection: "auto" },
-  body: { fontSize: 15, lineHeight: 22, color: t.body, textAlign: "center" },
-  error: { fontSize: 14, lineHeight: 21, color: t.bad },
-  empty: { fontSize: 14, lineHeight: 21, color: t.muted, paddingVertical: 20 },
+  header: { paddingHorizontal: space.md, paddingBottom: space.lg, gap: space.xs },
+  headerText: { ...type.caption, color: t.body, writingDirection: "auto" },
+  headerNote: { ...type.caption, color: t.muted, writingDirection: "auto" },
+  body: { ...type.body, color: t.body, textAlign: "center", writingDirection: "auto" },
+  error: { ...type.caption, color: t.muted, writingDirection: "auto" },
+  empty: { ...type.body, color: t.muted, padding: space.xl, textAlign: "center", writingDirection: "auto" },
 }));
