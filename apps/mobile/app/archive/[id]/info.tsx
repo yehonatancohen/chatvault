@@ -18,7 +18,7 @@ import { useChatPhoto } from "../../../components/archive/useChatPhoto";
 import { createStyles, useApp } from "../../../components/app/providers";
 import { LinkRow, Row, Section } from "../../../components/app/ui";
 import { buildMediaIndex, findChatPhoto, imagesOnly } from "../../../lib/ui/media-index";
-import { formatCount, formatRange } from "../../../lib/ui/format";
+import { formatBytes, formatCount, formatRange } from "../../../lib/ui/format";
 import { colorForParticipant } from "../../../lib/ui/participants";
 import { explainMedia } from "../../../lib/ui/media-explanation";
 import { radius, space } from "../../../lib/ui/theme";
@@ -262,6 +262,9 @@ export default function ArchiveInfoScreen() {
       </Section>
 
       <Section>
+        {/* What this chat is holding. The same number the chat list shows on each row, and the
+            one a user weighing "should I keep this?" is actually asking about. */}
+        <Row label={t("info.size")} value={formatBytes(stats.totalBytes)} />
         <Row
           label={t("info.passphrase")}
           value={state.reader.encrypted ? t("info.passphrase.on") : t("info.passphrase.off")}

@@ -106,6 +106,22 @@ export async function readLibrary(
   return entries.sort((a, b) => (b.manifest?.updatedAt ?? 0) - (a.manifest?.updatedAt ?? 0));
 }
 
+/**
+ * How much room this chat takes, in bytes.
+ *
+ * The sum over the archive's *unique* blobs — the same number `mediaStats().totalBytes` reports,
+ * counted straight off the manifest so a row can show it without opening anything. Messages are
+ * left out because they are noise beside the media (a year of text is a fraction of one video),
+ * and because counting them would mean reading every chunk to draw a list.
+ *
+ * It is the size of the **archive**, not of what happens to be on this phone right now: photos
+ * move to Drive after a backup (`offloadMedia`) and come back when they are looked at, so an
+ * on-disk figure would shrink for reasons that have nothing to do with the chat.
+ */
+export function archiveBytes(manifest: Manifest): number {
+  return manifest.media.reduce((sum, ref) => sum + ref.byteLength, 0);
+}
+
 /** The one-line preview, naming what a media message is rather than showing an empty line. */
 function previewTextFor(message: { kind: string; body: string }, language: Language): string {
   if (message.body.length > 0) return message.body;

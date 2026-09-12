@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
-import { readLibrary, type LibraryEntry } from "../../lib/archive/library";
+import { archiveBytes, readLibrary, type LibraryEntry } from "../../lib/archive/library";
 import { backupPending } from "../../lib/drive/device-sync";
 import { ChatAvatar } from "../../components/archive/ChatAvatar";
 import { RemoveArchiveSheet } from "../../components/archive/RemoveArchiveSheet";
@@ -29,7 +29,7 @@ import { radius, space } from "../../lib/ui/theme";
  */
 
 function archiveMediaBytes(entry: LibraryEntry): number {
-  return entry.manifest?.media.reduce((sum, ref) => sum + ref.byteLength, 0) ?? 0;
+  return entry.manifest === undefined ? 0 : archiveBytes(entry.manifest);
 }
 
 export default function LibraryScreen() {
@@ -165,6 +165,7 @@ function ChatRow({
   const styles = useStyles();
   const status = useChatStatus(entry.archiveId, manifestUpdatedAt);
   const manifest = entry.manifest!;
+  const bytes = archiveBytes(manifest);
 
   return (
     <Pressable
@@ -187,7 +188,16 @@ function ChatRow({
             {entry.lastMessage.text}
           </Text>
         )}
-        <StatusPill status={status} />
+        {/* Status and size on one line: together they are the two facts that decide what to do
+            with a chat — whether it is safe to delete, and how much it is holding. */}
+        <View style={styles.statusLine}>
+          {/* The pill keeps the free width so its progress bar, while a chat uploads, still has
+              a row to stretch across. */}
+          <View style={styles.statusSlot}>
+            <StatusPill status={status} />
+          </View>
+          {bytes > 0 && <Text style={styles.size}>{formatBytes(bytes)}</Text>}
+        </View>
       </View>
     </Pressable>
   );
@@ -215,5 +225,8 @@ const useStyles = createStyles((t) => ({
   title: { flex: 1, fontSize: 16.5, fontWeight: "600", color: t.ink, writingDirection: "auto" },
   titleBad: { fontSize: 16, fontWeight: "600", color: t.bad, writingDirection: "auto" },
   when: { fontSize: 12, color: t.muted },
+  statusLine: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  statusSlot: { flex: 1 },
+  size: { fontSize: 12, color: t.muted },
   preview: { fontSize: 14, color: t.body, writingDirection: "auto" },
 }));
