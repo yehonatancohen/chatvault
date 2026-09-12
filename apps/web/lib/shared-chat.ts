@@ -19,7 +19,23 @@ export class ChatUnavailableError extends Error {
   }
 }
 
-export async function openSharedChat(folderId: string, hash: string): Promise<ArchiveReader> {
+/**
+ * An open shared chat: the reader the viewer draws from, and the storage it came out of.
+ *
+ * The storage is kept because saving a copy into the visitor's own Drive is a file-for-file
+ * copy of this folder (`save-to-drive.ts` → `pullArchive`), not a re-encode of what the reader
+ * decrypted. A protected chat is therefore copied still sealed, and its key never leaves this
+ * browser — the copy stays exactly as private as the original.
+ */
+export interface SharedChat {
+  readonly reader: ArchiveReader;
+  readonly storage: GoogleDriveStorageAdapter;
+  readonly archiveId: string;
+  /** True for a chat the owner protected with a passphrase (sealed, format v1). */
+  readonly protected: boolean;
+}
+
+export async function openSharedChat(folderId: string, hash: string): Promise<SharedChat> {
   if (GOOGLE_API_KEY === "") throw new Error("שיתוף צ׳אטים עדיין לא מוגדר באתר הזה.");
   const browserFetch: DriveFetch = (url, init) =>
     fetch(url, {
@@ -50,9 +66,13 @@ export async function openSharedChat(folderId: string, hash: string): Promise<Ar
   }
 
   const header = await readHeader(storage, archiveId);
-  if (isPlainHeader(header)) return ArchiveReader.open({ crypto, storage, archiveId });
+  if (isPlainHeader(header)) {
+    const reader = await ArchiveReader.open({ crypto, storage, archiveId });
+    return { reader, storage, archiveId, protected: false };
+  }
   const key = readKeyFromFragment(hash); // throws MissingKeyError for a link without its key
-  return ArchiveReader.open({ crypto, storage, key, archiveId });
+  const reader = await ArchiveReader.open({ crypto, storage, key, archiveId });
+  return { reader, storage, archiveId, protected: true };
 }
 
 export { MissingKeyError };

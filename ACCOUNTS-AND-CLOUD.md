@@ -80,6 +80,12 @@ same chat), **viewer** (read only).
 - **Signed-out viewers on the website are a main path, not an edge case.** A group member opens a
   link, reads the chat in the browser with no account, and ends on "Add your own export of this
   chat" → sign up. That is probably the main way new users arrive.
+- **A viewer can keep the chat without an account** *(built 2026-09-12)*. "שמירה אצלי" copies the
+  archive folder into the viewer's **own** Google Drive, in the browser, with `pullArchive` — the
+  same copy the app performs on a restore, so the app picks it up from Drive afterwards. It is a
+  Drive token, not a Boydem session: the website still has no sign-in. Protected chats copy still
+  sealed; the key stays in the tab. The copy **counts as one of that user's chats** — the dialog
+  says so, and enforcement stays where it can be enforced, in the app and the API.
 - **How a viewer gets the bytes:** from the owner's storage, directly into the browser — never
   through us. For Drive and Dropbox that means the archive folder is shared by link in the
   owner's account, and the viewer's browser downloads the sealed files from there.
@@ -190,6 +196,14 @@ a phone) still comes first — everything below syncs what that pipeline produce
   protected chat); the site reads it straight from Drive with a public API key. "Stop sharing"
   removes the permission. Needs the API key, a Vercel deployment and `extra.webUrl` in the app.
   Release (non-dev) app build verified on device.
+
+- **The shared chat reads like a chat, and can be kept (2026-09-12).** The web viewer got the
+  app's chat shape — bubbles grouped into turns, day separators, a name and colour per speaker,
+  opening at the last message, a jump-to-bottom button — plus chat info (participants, range,
+  media, **size**), a dismissible "get the app" bar, and "keep this chat" into the reader's own
+  Drive (`NEXT_PUBLIC_GOOGLE_CLIENT_ID`, owner's action: a Web OAuth client whose redirect URIs
+  include `<site>/connect`). The app now shows each chat's size on its row and in chat info.
+  **Not yet exercised with two real Google accounts.**
 
 ### Next — Phase 1, remaining
 
