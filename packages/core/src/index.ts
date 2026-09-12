@@ -112,6 +112,7 @@ export {
 export {
   ArchiveIntegrityError,
   ArchiveReader,
+  CHUNK_CONCURRENCY,
   MalformedHeaderError,
   readHeader,
   UnknownChunkError,

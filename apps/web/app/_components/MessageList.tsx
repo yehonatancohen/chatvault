@@ -17,7 +17,21 @@ interface MessageListProps {
    * half of their own messages on the other side of the screen.
    */
   readonly selfNames?: ReadonlySet<string> | undefined;
+  /** True while chunks older than what is on screen are still arriving from Drive. */
+  readonly loadingOlder?: boolean | undefined;
 }
+
+/**
+ * The virtual index the *last* row always sits just below.
+ *
+ * `firstItemIndex` is how Virtuoso is told that a list grew at the top rather than the bottom,
+ * and it must stay positive. Deriving it as `PREPEND_BASE - rows.length` anchors the list to its
+ * end: the newest row keeps the index `PREPEND_BASE - 1` for the whole session however many
+ * older chunks arrive, so a reader mid-scroll stays exactly where they were. It also absorbs the
+ * one case a plain counter gets wrong — a prepended chunk that merges into the run or the day
+ * already at the top, which adds fewer rows than it has messages.
+ */
+const PREPEND_BASE = 1_000_000;
 
 interface LightboxState {
   readonly url: string;
@@ -42,7 +56,7 @@ interface LightboxState {
  * system notice — and archives run to tens of thousands of messages (root CLAUDE.md), so *some*
  * virtualization is not optional.
  */
-export function MessageList({ messages, reader, selfNames }: MessageListProps) {
+export function MessageList({ messages, reader, selfNames, loadingOlder = false }: MessageListProps) {
   const [lightbox, setLightbox] = useState<LightboxState | null>(null);
   const [atBottom, setAtBottom] = useState(true);
   const virtuoso = useRef<VirtuosoHandle>(null);
@@ -55,11 +69,13 @@ export function MessageList({ messages, reader, selfNames }: MessageListProps) {
         ref={virtuoso}
         style={{ height: "100%" }}
         data={rows}
-        initialTopMostItemIndex={{ index: Math.max(rows.length - 1, 0), align: "end" }}
+        firstItemIndex={Math.max(PREPEND_BASE - rows.length, 0)}
+        initialTopMostItemIndex={{ index: "LAST", align: "end" }}
         computeItemKey={(_index, row) => row.key}
         atBottomThreshold={140}
         atBottomStateChange={setAtBottom}
         increaseViewportBy={{ top: 600, bottom: 600 }}
+        {...(loadingOlder ? { components: { Header: OlderLoading } } : {})}
         itemContent={(_index, row) =>
           row.kind === "day" ? (
             <div className="day-row">
@@ -83,7 +99,7 @@ export function MessageList({ messages, reader, selfNames }: MessageListProps) {
           type="button"
           className="jump-down"
           aria-label="לתחתית הצ׳אט"
-          onClick={() => virtuoso.current?.scrollToIndex({ index: rows.length - 1, align: "end" })}
+          onClick={() => virtuoso.current?.scrollToIndex({ index: "LAST", align: "end" })}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M6 9l6 6 6-6" />
@@ -94,6 +110,22 @@ export function MessageList({ messages, reader, selfNames }: MessageListProps) {
       {lightbox && (
         <Lightbox url={lightbox.url} filename={lightbox.filename} onClose={() => setLightbox(null)} />
       )}
+    </div>
+  );
+}
+
+/**
+ * The strip above the oldest message that has arrived so far.
+ *
+ * It is a statement about the archive, not a warning: the conversation continues further back
+ * and is still coming down. Once the last chunk lands the strip is gone, and the top of the
+ * list is the true beginning of the chat.
+ */
+function OlderLoading() {
+  return (
+    <div className="older-loading" dir="auto">
+      <span className="older-loading-dot" aria-hidden="true" />
+      טוענים הודעות קודמות…
     </div>
   );
 }

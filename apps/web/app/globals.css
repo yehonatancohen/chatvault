@@ -592,3 +592,31 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   .band-inner { padding: 2.25rem; }
   .price.featured { order: -1; }
 }
+
+/* ── The strip above the oldest message that has arrived so far ─────────────────────────── */
+.older-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.older-loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: older-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes older-pulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50%      { opacity: 1;    transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .older-loading-dot { animation: none; opacity: 0.6; }
+}

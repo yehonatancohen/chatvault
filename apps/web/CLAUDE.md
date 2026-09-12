@@ -49,6 +49,29 @@ the permission and the link stops working.
 - Photos draw their small previews; full photos load when opened; videos and files load only
   when tapped — every byte shown is a Drive download.
 
+### Opening is latency-bound — keep it shallow
+
+Every step is a Drive round trip from the visitor's browser, and what costs time is how many of
+them are stacked one behind another, not how many there are. Three rules hold the current
+opening cost down to five round trips before the first message paints, and each is easy to undo
+by accident:
+
+1. **`header.json` is read once.** `metadataCache` in `lib/shared-chat.ts` memoizes it — the open
+   path asks for it three times (archive id, `readHeader`, then `ArchiveReader.open`) and each
+   would otherwise be its own request. Only the fixed metadata paths are cached; caching chunks
+   would hold the whole chat's ciphertext in memory beside the messages decoded from it.
+2. **The viewer paints on the newest chunk.** `loadNewestFirst` reads the last chunk, hands it
+   over, then reads the rest backwards six at a time and prepends each. `reader.readAll()` on
+   this page is a regression: it is one round trip per 2,000 messages before anything is on
+   screen. This is honest rather than a trick only because the viewer opens at the end anyway.
+3. **Prepending must not re-key the list.** `MessageList` derives `firstItemIndex` as
+   `PREPEND_BASE - rows.length`, and `buildChatRows` keys rows by each id's occurrence counted
+   *from the end*. Keyed by array position instead, every prepend re-keys every row and the
+   whole list remounts under the reader's finger.
+
+`packages/storage`'s Drive adapter contributes the fourth: `list("")` walks the archive's folders
+a level at a time, so `chunks`/`media`/`thumbs` cost one round trip between them, not three.
+
 ## The rule for pages that carry a key
 
 **The key lives in the URL fragment and must never leave the browser.** Browsers do not send

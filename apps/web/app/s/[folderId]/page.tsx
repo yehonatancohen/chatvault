@@ -8,12 +8,18 @@ import { SaveChat } from "../../_components/SaveChat";
 import { AppBanner } from "../../_components/AppBanner";
 import { GetTheApp } from "../../_components/GetTheApp";
 import { colorForParticipant, countLabel } from "../../../lib/chat";
-import { openSharedChat, type SharedChat } from "../../../lib/shared-chat";
+import { loadNewestFirst, openSharedChat, type SharedChat } from "../../../lib/shared-chat";
 import { GOOGLE_CLIENT_ID } from "../../../lib/site";
 
 type Stage =
   | { readonly kind: "loading" }
-  | { readonly kind: "viewing"; readonly chat: SharedChat; readonly messages: MergedMessage[] }
+  | {
+      readonly kind: "viewing";
+      readonly chat: SharedChat;
+      readonly messages: MergedMessage[];
+      /** False once every older chunk has arrived. Drives the "loading older" strip. */
+      readonly loadingOlder: boolean;
+    }
   | { readonly kind: "error"; readonly message: string };
 
 /**
@@ -32,12 +38,29 @@ export default function SharedChatPage({ params }: { params: Promise<{ folderId:
 
   const selfKey = `boydem.self.${folderId}`;
 
+  // The chat appears as soon as its newest messages land, and the rest of the conversation is
+  // prepended behind it. Reading the whole archive first meant one Drive round trip per 2,000
+  // messages before anything was on screen, which on a long chat is most of a minute of nothing.
   useEffect(() => {
     let stale = false;
     openSharedChat(folderId, window.location.hash)
       .then(async (chat) => {
-        const messages = await chat.reader.readAll();
-        if (!stale) setStage({ kind: "viewing", chat, messages });
+        await loadNewestFirst(
+          chat.reader,
+          (messages) => {
+            if (!stale) setStage({ kind: "viewing", chat, messages, loadingOlder: true });
+          },
+          (older) => {
+            if (stale) return;
+            setStage((current) =>
+              current.kind === "viewing" ? { ...current, messages: [...older, ...current.messages] } : current,
+            );
+          },
+          () => stale,
+        );
+        if (!stale) {
+          setStage((current) => (current.kind === "viewing" ? { ...current, loadingOlder: false } : current));
+        }
       })
       .catch((error: unknown) => {
         if (!stale) setStage({ kind: "error", message: error instanceof Error ? error.message : String(error) });
@@ -111,7 +134,12 @@ export default function SharedChatPage({ params }: { params: Promise<{ folderId:
       </header>
 
       <div className="viewer-body">
-        <MessageList messages={stage.messages} reader={stage.chat.reader} selfNames={selfNames} />
+        <MessageList
+          messages={stage.messages}
+          reader={stage.chat.reader}
+          selfNames={selfNames}
+          loadingOlder={stage.loadingOlder}
+        />
       </div>
 
       <AppBanner />

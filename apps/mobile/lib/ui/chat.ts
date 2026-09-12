@@ -32,6 +32,19 @@ export type ChatRow =
 
 export function buildChatRows(messages: readonly MergedMessage[]): ChatRow[] {
   const rows: ChatRow[] = [];
+  // The id alone is not safe as a key: identity is content-derived, so a person sending the
+  // same word twice in one minute produces two messages with one id. Counting each id's
+  // occurrences **from the end** disambiguates them without using the array position, which
+  // matters because the web viewer loads the newest chunk first and prepends the rest: keyed
+  // by position, every existing row would be re-keyed on each prepend and the whole list would
+  // remount under the reader's finger.
+  const seen = new Map<string, number>();
+  const suffixes = new Array<number>(messages.length);
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const count = seen.get(messages[i]!.id) ?? 0;
+    suffixes[i] = count;
+    seen.set(messages[i]!.id, count + 1);
+  }
 
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i]!;
@@ -39,14 +52,13 @@ export function buildChatRows(messages: readonly MergedMessage[]): ChatRow[] {
     const next = messages[i + 1];
 
     if (previous === undefined || !sameDay(previous.ts, message.ts)) {
-      rows.push({ kind: "day", key: `day-${message.ts}-${i}`, ts: message.ts });
+      // A day's first message fixes the separator's identity; no two days can share it.
+      rows.push({ kind: "day", key: `day-${message.ts}`, ts: message.ts });
     }
 
     rows.push({
       kind: "message",
-      // The id alone is not safe as a key: identity is content-derived, so a person sending
-      // the same word twice in one minute produces two messages with one id.
-      key: `${message.id}-${i}`,
+      key: `${message.id}~${suffixes[i]!}`,
       message,
       startsGroup: !continues(previous, message),
       endsGroup: !continues(message, next),

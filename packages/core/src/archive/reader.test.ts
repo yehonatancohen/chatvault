@@ -80,6 +80,50 @@ describe("ArchiveReader", () => {
     expect(await reader.readAll()).toEqual(mergeBatches([batch("s1", messages)]));
   });
 
+  it("returns concurrently-read chunks in the order they were asked for", async () => {
+    const storage = new MemoryStorageAdapter();
+    const messages = Array.from({ length: 9 }, (_, i) => message(i, "Dana", `m${i}`));
+    await writerFor(storage, 3).write(content({ batches: [batch("s1", messages)] }));
+
+    const reader = await open(storage);
+
+    // Newest first is the order the web viewer reads in, and the whole point of the method is
+    // that the responses may land in any order without disturbing it.
+    expect((await reader.readChunks([2, 1, 0])).map((chunk) => chunk.map((m) => m.body))).toEqual([
+      ["m6", "m7", "m8"],
+      ["m3", "m4", "m5"],
+      ["m0", "m1", "m2"],
+    ]);
+  });
+
+  it("never has more than `concurrency` chunk reads in flight", async () => {
+    const storage = new MemoryStorageAdapter();
+    const messages = Array.from({ length: 12 }, (_, i) => message(i, "Dana", `m${i}`));
+    await writerFor(storage, 2).write(content({ batches: [batch("s1", messages)] }));
+
+    let inFlight = 0;
+    let peak = 0;
+    const plainGet = storage.get.bind(storage);
+    storage.get = async (path: string) => {
+      if (!path.startsWith("chunks/")) return plainGet(path);
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      try {
+        // Yield twice, so a bounded pool cannot finish one read before the next is started.
+        await Promise.resolve();
+        await Promise.resolve();
+        return await plainGet(path);
+      } finally {
+        inFlight--;
+      }
+    };
+
+    const reader = await open(storage);
+    expect(reader.manifest.chunks).toHaveLength(6);
+    expect((await reader.readAll(2)).map((m) => m.body)).toEqual(messages.map((_, i) => `m${i}`));
+    expect(peak).toBe(2);
+  });
+
   it("reassembles messages that span several chunks", async () => {
     const storage = new MemoryStorageAdapter();
     const messages = Array.from({ length: 7 }, (_, i) => message(i, "Dana", `m${i}`));

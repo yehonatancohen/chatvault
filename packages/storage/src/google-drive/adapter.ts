@@ -157,26 +157,38 @@ export class GoogleDriveStorageAdapter implements StorageAdapter {
     if (startId === undefined) return [];
 
     const found = new Set<string>();
-    const queue: { id: string; dir: string }[] = [{ id: startId, dir: startDir }];
-    while (queue.length > 0) {
-      const { id, dir } = queue.shift()!;
-      const children = await this.client.listFiles(
-        `${quote(id)} in parents and trashed = false`,
-        "modifiedTime desc",
+    // Breadth-first, but a whole level at a time: an archive's folders (`chunks`, `media`,
+    // `thumbs`) are siblings, so listing them one after another makes the walk three round
+    // trips deep for no reason. Depth is what costs latency here, not the number of requests.
+    let level: { id: string; dir: string }[] = [{ id: startId, dir: startDir }];
+    while (level.length > 0) {
+      const listings = await Promise.all(
+        level.map(async (folder) => ({
+          folder,
+          children: await this.client.listFiles(
+            `${quote(folder.id)} in parents and trashed = false`,
+            "modifiedTime desc",
+          ),
+        })),
       );
-      this.completeDirs.add(dir);
-      for (const child of children) {
-        const childPath = dir === "" ? child.name : `${dir}/${child.name}`;
-        if (child.mimeType === FOLDER_MIME) {
-          if (!this.folders.has(childPath)) this.folders.set(childPath, Promise.resolve(child.id));
-          queue.push({ id: child.id, dir: childPath });
-        } else if (!found.has(childPath)) {
-          // Newest first, so the id cached for a duplicated name is the one reads should use.
-          found.add(childPath);
-          this.fileIds.set(childPath, child.id);
-          if (child.size !== undefined) this.sizes.set(childPath, Number(child.size));
+
+      const next: { id: string; dir: string }[] = [];
+      for (const { folder, children } of listings) {
+        this.completeDirs.add(folder.dir);
+        for (const child of children) {
+          const childPath = folder.dir === "" ? child.name : `${folder.dir}/${child.name}`;
+          if (child.mimeType === FOLDER_MIME) {
+            if (!this.folders.has(childPath)) this.folders.set(childPath, Promise.resolve(child.id));
+            next.push({ id: child.id, dir: childPath });
+          } else if (!found.has(childPath)) {
+            // Newest first, so the id cached for a duplicated name is the one reads should use.
+            found.add(childPath);
+            this.fileIds.set(childPath, child.id);
+            if (child.size !== undefined) this.sizes.set(childPath, Number(child.size));
+          }
         }
       }
+      level = next;
     }
     return [...found].filter((path) => path.startsWith(prefix));
   }

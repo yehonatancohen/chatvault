@@ -117,6 +117,14 @@ function asKeyWrapping(value: unknown): KeyWrapping {
   return { algorithm, saltBase64, iterations, wrappedKeyBase64, ivBase64 };
 }
 
+/**
+ * How many chunks `readAll`/`readChunks` fetch at once by default.
+ *
+ * Six is Drive's own per-host connection ceiling in a browser, so asking for more buys nothing
+ * and only raises peak memory.
+ */
+export const CHUNK_CONCURRENCY = 6;
+
 export class UnknownChunkError extends Error {
   constructor(readonly index: number) {
     super(`Archive has no chunk ${index}`);
@@ -192,13 +200,50 @@ export class ArchiveReader {
     return decodeChunk(decodeUtf8(await this.openChunk(ref)));
   }
 
-  /** Every message, in the archive's canonical order. Chunks are read one at a time. */
-  async readAll(): Promise<MergedMessage[]> {
-    const messages: MergedMessage[] = [];
-    for (const ref of [...this.manifest.chunks].sort((a, b) => a.index - b.index)) {
-      messages.push(...decodeChunk(decodeUtf8(await this.openChunk(ref))));
-    }
-    return messages;
+  /**
+   * The archive's chunk indices, oldest first.
+   *
+   * Public because a viewer that wants to paint before the whole chat has arrived needs to
+   * choose its own order — the newest chunk first, then backwards — and `readAll` cannot
+   * express that.
+   */
+  get chunkIndices(): number[] {
+    return this.manifest.chunks.map((ref) => ref.index).sort((a, b) => a - b);
+  }
+
+  /**
+   * Several chunks at once, returned in the order asked for.
+   *
+   * Chunks are independent — each is its own ciphertext with its own tag — so nothing about
+   * the format requires reading them one at a time, and over a network round-trip latency
+   * dominates: a 20-chunk archive read serially is twenty round trips deep, and the same read
+   * six at a time is four. Concurrency is bounded rather than unlimited because each in-flight
+   * chunk holds its ciphertext *and* its plaintext in memory, and the mobile Share Extension's
+   * ~120 MB ceiling is not far away.
+   *
+   * Results keep the requested order however the responses interleave, so a caller can rely on
+   * `readChunks([3, 2, 1])` coming back newest-first.
+   */
+  async readChunks(indices: readonly number[], concurrency = CHUNK_CONCURRENCY): Promise<MergedMessage[][]> {
+    if (concurrency < 1) throw new RangeError("concurrency must be at least 1");
+    const results: MergedMessage[][] = new Array<MergedMessage[]>(indices.length);
+    let next = 0;
+
+    const worker = async (): Promise<void> => {
+      while (next < indices.length) {
+        const slot = next++;
+        results[slot] = await this.readChunk(indices[slot]!);
+      }
+    };
+
+    await Promise.all(Array.from({ length: Math.min(concurrency, indices.length) }, worker));
+    return results;
+  }
+
+  /** Every message, in the archive's canonical order. */
+  async readAll(concurrency = CHUNK_CONCURRENCY): Promise<MergedMessage[]> {
+    const chunks = await this.readChunks(this.chunkIndices, concurrency);
+    return chunks.flat();
   }
 
   /** Message id -> chunk index. Read once and kept; it is small and every lookup wants it. */
