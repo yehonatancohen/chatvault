@@ -417,6 +417,23 @@ describe("ArchiveWriter", () => {
       expect(appended.updatedAt).toBe(2_000);
     });
 
+    it("keeps the chat's original title on append, even when the new export guesses another", async () => {
+      // chatTitle is a per-import guess from the export's filename (mobile's
+      // `chatTitleFromFilename`), and it also names the archive's Drive folder. Letting a later
+      // append overwrite it renamed a chat's folder out from under the user on every re-export.
+      const { writer } = setup();
+      await writer.write(content({ chatTitle: "Dana" }));
+      const manifest = await writer.append(
+        content({
+          chatTitle: "WhatsApp Chat - Dana (1)",
+          sources: [testSource("s2")],
+          batches: [batch("s2", [message(3, "R", "x")])],
+        }),
+      );
+
+      expect(manifest.chatTitle).toBe("Dana");
+    });
+
     it("does not duplicate a source or a participant on re-import", async () => {
       const { writer } = setup();
       await writer.write(content());

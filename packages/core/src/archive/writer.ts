@@ -290,20 +290,25 @@ export class ArchiveWriter {
     const media = await this.writeMedia(content.media ?? [], existing?.media ?? []);
     await this.sealTo(this.layout.index, encodeUtf8(JSON.stringify(index satisfies ArchiveIndex)));
 
+    // An append's chatTitle is only ever a guess from that one export's filename (see
+    // `chatTitleFromFilename` in the mobile app) — cosmetic on its own, but this is also what
+    // names the archive's Drive folder (`folderNameFor` → `ensureArchiveFolder`). Taking the
+    // newest guess unconditionally meant every re-export could rename a chat's folder out from
+    // under the user, which reads as data loss even though nothing was deleted. The title an
+    // archive was *created* with wins; only a fresh archive takes the incoming one.
+    const chatTitle = existing?.chatTitle ?? content.chatTitle;
+
     if (!this.layout.sealed) {
       // The readable copy of the chat, for someone opening the folder without this app.
       const paths = new Map(media.map((ref) => [ref.sha256, ref.path ?? this.layout.media(ref.sha256)]));
-      await this.storage.put(
-        TRANSCRIPT_PATH,
-        encodeUtf8(renderTranscript(content.chatTitle, messages, paths)),
-      );
+      await this.storage.put(TRANSCRIPT_PATH, encodeUtf8(renderTranscript(chatTitle, messages, paths)));
     }
 
     const createdAt = existing?.createdAt ?? this.now();
     const manifest: Manifest = {
       formatVersion: this.layout.formatVersion,
       archiveId: this.archiveId,
-      chatTitle: content.chatTitle,
+      chatTitle,
       participants: mergeParticipants(existing?.participants ?? [], content.participants),
       sources: mergeSources(existing?.sources ?? [], content.sources),
       chunks,
