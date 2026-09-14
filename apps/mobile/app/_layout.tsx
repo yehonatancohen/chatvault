@@ -116,6 +116,11 @@ function Navigation() {
       >
         {/* The tab bar draws its own headers, so the stack must not draw a second one above it. */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        {/* A sheet, not a destination someone navigates deep into — see `(tabs)/_layout.tsx`. */}
+        <Stack.Screen
+          name="add-chat"
+          options={{ title: t("add.title"), presentation: "modal" }}
+        />
         <Stack.Screen name="import" options={{ title: t("import.title") }} />
         {/*
           Verify is the trust moment and is reached with `replace` from Import, so there is

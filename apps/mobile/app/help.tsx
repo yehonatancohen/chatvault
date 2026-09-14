@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import { createStyles, useApp } from "../components/app/providers";
-import { Screen } from "../components/app/ui";
+import { LinkRow, Screen, Section } from "../components/app/ui";
 import type { StringKey } from "../lib/i18n/strings";
 import { radius, space, TAP, type } from "../lib/ui/theme";
 
@@ -23,11 +24,16 @@ const TOPICS = ["how", "privacy", "media", "drive", "delete", "merge", "limits",
 
 export default function HelpScreen() {
   const { t } = useApp();
+  const router = useRouter();
   const styles = useStyles();
   const [open, setOpen] = useState<string | undefined>(undefined);
 
   return (
-    <Screen gap={0}>
+    <Screen>
+      <Section>
+        <LinkRow label={t("add.title")} onPress={() => router.push("/add-chat")} />
+      </Section>
+
       <View style={styles.card}>
         {TOPICS.map((topic, index) => {
           const expanded = open === topic;

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { useApp } from "../../components/app/providers";
+import { Image, Text, View } from "react-native";
+import { createStyles, useApp } from "../../components/app/providers";
 import { Actions, Body, Button, Row, Screen, Section } from "../../components/app/ui";
 import {
   connectGoogleDrive,
@@ -9,6 +10,8 @@ import {
 } from "../../lib/drive/google-auth";
 import { backupAll, listRestorable, restoreArchive } from "../../lib/drive/device-sync";
 import { formatCount } from "../../lib/ui/format";
+import { radius, space, type } from "../../lib/ui/theme";
+import appMark from "../../assets/images/icon.png";
 
 /**
  * The Account tab: today, the Google account whose Drive keeps copies of the user's chats.
@@ -20,6 +23,7 @@ import { formatCount } from "../../lib/ui/format";
  */
 export default function AccountScreen() {
   const { t, tp } = useApp();
+  const styles = useStyles();
   const [google, setGoogle] = useState<GoogleConnection | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | undefined>(undefined);
@@ -82,13 +86,28 @@ export default function AccountScreen() {
 
   const connected = google?.hasDrive === true;
 
-  // Not connected: a sentence and one button — there is nothing to show a row for yet, so a
-  // card would be an empty frame around the only thing on the screen.
+  // Not connected: this is the app's account/sign-in moment, so it reads like one — a mark, a
+  // headline, what connecting actually gets you, and a single primary action. Not a card: there
+  // is nothing to group into rows yet, and a bordered panel around the only thing on the screen
+  // would read as an empty frame.
   if (!connected) {
     return (
       <Screen>
-        <Body>{t("account.drive.pitch")}</Body>
-        <Button label={t("account.drive.connect")} onPress={() => void connect()} disabled={busy} />
+        <View style={styles.hero}>
+          <Image source={appMark} style={styles.mark} accessibilityLabel="" />
+          <Text style={styles.headline}>{t("account.drive.pitch")}</Text>
+          <Text style={styles.sub}>{t("account.drive.onlyDrive")}</Text>
+        </View>
+
+        <View style={styles.benefits}>
+          <BenefitRow text={t("account.drive.benefit.scope")} />
+          <BenefitRow text={t("account.drive.benefit.control")} />
+          <BenefitRow text={t("account.drive.benefit.private")} />
+        </View>
+
+        <Actions>
+          <Button label={t("account.drive.connect")} onPress={() => void connect()} disabled={busy} />
+        </Actions>
         {message !== undefined && <Body muted>{message}</Body>}
       </Screen>
     );
@@ -127,3 +146,32 @@ export default function AccountScreen() {
     </Screen>
   );
 }
+
+/** One line of what connecting gets you — a plain dot rather than a checkmark: this is a fact
+ * about the product, not a completed step in a checklist. */
+function BenefitRow({ text }: { text: string }) {
+  const styles = useStyles();
+  return (
+    <View style={styles.benefitRow}>
+      <View style={styles.benefitDot} />
+      <Text style={styles.benefitText}>{text}</Text>
+    </View>
+  );
+}
+
+const useStyles = createStyles((t) => ({
+  hero: { alignItems: "center", gap: space.sm, paddingTop: space.xl, paddingBottom: space.md },
+  mark: { width: 88, height: 88, borderRadius: radius.card, marginBottom: space.sm },
+  headline: { ...type.title, color: t.ink, textAlign: "center", writingDirection: "auto" },
+  sub: {
+    ...type.body,
+    color: t.muted,
+    textAlign: "center",
+    maxWidth: 320,
+    writingDirection: "auto",
+  },
+  benefits: { gap: space.md, paddingHorizontal: space.xs },
+  benefitRow: { flexDirection: "row", alignItems: "center", gap: space.md },
+  benefitDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: t.accent },
+  benefitText: { flex: 1, ...type.caption, color: t.body, writingDirection: "auto" },
+}));

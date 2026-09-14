@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -9,12 +9,15 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
+import { useShareIntentContext } from "expo-share-intent";
 import { archiveBytes, readLibrary, type LibraryEntry } from "../../lib/archive/library";
 import { backupPending } from "../../lib/drive/device-sync";
+import { updateSettings } from "../../lib/settings/settings";
 import { ChatAvatar } from "../../components/archive/ChatAvatar";
 import { RemoveArchiveSheet } from "../../components/archive/RemoveArchiveSheet";
 import { StatusPill } from "../../components/archive/StatusPill";
 import { useChatStatus } from "../../components/archive/useChatStatus";
+import { Onboarding } from "../../components/app/Onboarding";
 import { createStyles, useApp } from "../../components/app/providers";
 import { EmptyState } from "../../components/app/ui";
 import { formatBytes, formatDate } from "../../lib/ui/format";
@@ -41,12 +44,27 @@ function archiveMediaBytes(entry: LibraryEntry): number {
 
 export default function LibraryScreen() {
   const router = useRouter();
-  const { t, tp, language } = useApp();
+  const { t, tp, language, settings } = useApp();
   const styles = useStyles();
+  const { hasShareIntent } = useShareIntentContext();
 
   const [entries, setEntries] = useState<readonly LibraryEntry[] | undefined>(undefined);
   const [refreshing, setRefreshing] = useState(false);
   const [removing, setRemoving] = useState<LibraryEntry | undefined>(undefined);
+  const [tutorial, setTutorial] = useState(false);
+
+  // First launch only (the empty dependency array is deliberate), and never over a cold start
+  // into a share hand-off (`+native-intent.ts` sends that straight to `/import` — this screen
+  // still mounts underneath as the stack's anchor, and a tutorial popping up over it would fight
+  // the import for attention).
+  useEffect(() => {
+    if (!settings.sawTutorial && !hasShareIntent) setTutorial(true);
+  }, []);
+
+  const closeTutorial = useCallback(() => {
+    setTutorial(false);
+    updateSettings({ sawTutorial: true });
+  }, []);
 
   const load = useCallback(async (): Promise<void> => {
     const next = await readLibrary(language);
@@ -89,7 +107,9 @@ export default function LibraryScreen() {
           <View style={styles.emptyWrap}>
             <EmptyState
               heading={t("library.empty.heading")}
-              action={{ label: t("library.empty.cta"), onPress: () => router.push("/add") }}
+              graphic={<EmptyGraphic />}
+              actionTone="help"
+              action={{ label: t("library.empty.cta"), onPress: () => setTutorial(true) }}
             />
           </View>
         ) : (
@@ -124,8 +144,18 @@ export default function LibraryScreen() {
           void load();
         }}
       />
+
+      {tutorial && <Onboarding onClose={closeTutorial} />}
     </>
   );
+}
+
+/** A large, ghosted chat bubble — the same silhouette `TabIcon`'s chats icon uses, scaled up and
+ * tinted quiet, so an empty library reads as "chats go here" rather than a page that failed to
+ * load. */
+function EmptyGraphic() {
+  const styles = useStyles();
+  return <View style={styles.emptyGraphic} />;
 }
 
 function ArchiveRow({
@@ -217,9 +247,22 @@ function ChatRow({
 }
 
 const useStyles = createStyles((t) => ({
-  container: { paddingTop: space.sm, paddingBottom: space.xxxl },
+  // `flexGrow` rather than `flex`, and only on the content container: a `ScrollView` needs its
+  // content to be told to grow, not the scroll view itself, or a short empty state just sits at
+  // the top with nothing making the container claim the screen's full height.
+  container: { flexGrow: 1, paddingTop: space.sm, paddingBottom: space.xxxl },
   loading: { paddingVertical: space.xxxl, alignItems: "center" },
-  emptyWrap: { paddingHorizontal: gutter },
+  emptyWrap: { flex: 1, justifyContent: "center", paddingHorizontal: gutter },
+  // The same silhouette as `TabIcon`'s `ChatsIcon` — including its un-mirrored tail corner,
+  // matching that icon rather than introducing a different convention at a bigger size.
+  emptyGraphic: {
+    width: 96,
+    height: 78,
+    borderWidth: 3,
+    borderColor: t.hairline,
+    borderRadius: 26,
+    borderBottomLeftRadius: 4,
+  },
   summary: {
     ...type.micro,
     color: t.muted,

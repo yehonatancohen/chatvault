@@ -211,26 +211,49 @@ export function Pill({
  *
  * Centred and vertically generous, because an empty library is the first screen a new user
  * sees and a heading pinned to the top of a blank page reads as a failure rather than a start.
+ *
+ * `graphic`, when given, is a large ghosted illustration above the heading — it is what tells a
+ * new user "something is supposed to go here" rather than "this text is loading" — and softens
+ * the heading to `muted` to match. `actionTone: "help"` swaps the primary `Button` for a quiet
+ * pill, for a screen whose action is "learn how" rather than "do the thing that fixes this" —
+ * `app/verify.tsx`'s fallback keeps the default so it still reads as a normal action.
  */
 export function EmptyState({
   heading,
   body,
+  graphic,
   action,
+  actionTone = "primary",
 }: {
   heading: string;
   body?: string | undefined;
+  graphic?: ReactNode;
   action?: { label: string; onPress: () => void } | undefined;
+  actionTone?: "primary" | "help";
 }) {
   const styles = useStyles();
   return (
     <View style={styles.empty}>
-      <Text style={styles.emptyHeading}>{heading}</Text>
+      {graphic}
+      <Text style={[styles.emptyHeading, graphic !== undefined && styles.emptyHeadingSoft]}>
+        {heading}
+      </Text>
       {body !== undefined && <Text style={styles.emptyBody}>{body}</Text>}
-      {action && (
-        <View style={styles.emptyAction}>
-          <Button label={action.label} onPress={action.onPress} />
-        </View>
-      )}
+      {action &&
+        (actionTone === "help" ? (
+          <Pressable
+            onPress={action.onPress}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.helpPill, pressed && styles.pressedRow]}
+          >
+            <Text style={styles.helpPillMark}>?</Text>
+            <Text style={styles.helpPillLabel}>{action.label}</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.emptyAction}>
+            <Button label={action.label} onPress={action.onPress} />
+          </View>
+        ))}
     </View>
   );
 }
@@ -360,8 +383,19 @@ export function LinkRow({
  *
  * The number is an outlined disc rather than a filled accent one: five filled accent circles
  * down a screen make the accent decorative, and it is supposed to mean "this is the action".
+ *
+ * `icon`, when given, sits at the row's end — the add-chat sheet passes one per step
+ * (`StepArt.tsx`); the guided delete's steps omit it and are unchanged.
  */
-export function Step({ index, text }: { index: number; text: string }) {
+export function Step({
+  index,
+  text,
+  icon,
+}: {
+  index: number;
+  text: string;
+  icon?: ReactNode;
+}) {
   const styles = useStyles();
   return (
     <View style={styles.step}>
@@ -369,6 +403,7 @@ export function Step({ index, text }: { index: number; text: string }) {
         <Text style={styles.stepNumber}>{index}</Text>
       </View>
       <Text style={styles.stepText}>{text}</Text>
+      {icon}
     </View>
   );
 }
@@ -597,6 +632,7 @@ const useStyles = createStyles((t) => ({
 
   empty: { paddingTop: space.xxxl, alignItems: "center", gap: space.md },
   emptyHeading: { ...type.display, color: t.ink, textAlign: "center", writingDirection: "auto" },
+  emptyHeadingSoft: { color: t.muted },
   emptyBody: {
     ...type.body,
     color: t.muted,
@@ -605,6 +641,30 @@ const useStyles = createStyles((t) => ({
     writingDirection: "auto",
   },
   emptyAction: { alignSelf: "stretch", paddingTop: space.md },
+  helpPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
+    marginTop: space.sm,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: t.hairline,
+    minHeight: TAP,
+  },
+  helpPillMark: {
+    ...type.micro,
+    color: t.accent,
+    borderWidth: 1.5,
+    borderColor: t.accent,
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    textAlign: "center",
+    lineHeight: 15,
+  },
+  helpPillLabel: { ...type.label, color: t.accent, writingDirection: "auto" },
 
   button: {
     minHeight: 52,

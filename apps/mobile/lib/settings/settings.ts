@@ -33,6 +33,8 @@ export interface Settings {
    * is normal — the note is a one-line heads-up, and someone who has read it once may hide it.
    */
   readonly hideMediaNote: boolean;
+  /** The first-launch tutorial has been shown. It stays reachable afterward from the empty state. */
+  readonly sawTutorial: boolean;
 }
 
 /**
@@ -48,6 +50,7 @@ export const DEFAULT_SETTINGS: Settings = {
   appearance: "system",
   protectNewChats: false,
   hideMediaNote: false,
+  sawTutorial: false,
 };
 
 const DIRECTORY = "settings";
@@ -59,10 +62,12 @@ function settingsFile(): File {
 
 function coerce(raw: unknown): Settings {
   if (typeof raw !== "object" || raw === null) return DEFAULT_SETTINGS;
-  const { language, appearance, protectNewChats, hideMediaNote } = raw as Record<string, unknown>;
+  const { language, appearance, protectNewChats, hideMediaNote, sawTutorial } =
+    raw as Record<string, unknown>;
   return {
     protectNewChats: protectNewChats === true,
     hideMediaNote: hideMediaNote === true,
+    sawTutorial: sawTutorial === true,
     language: language === "en" || language === "he" ? language : DEFAULT_SETTINGS.language,
     appearance:
       appearance === "light" || appearance === "dark" || appearance === "system"

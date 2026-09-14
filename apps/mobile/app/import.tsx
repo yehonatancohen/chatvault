@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   completeImport,
@@ -203,6 +203,7 @@ function SaveForm({
   const [protect, setProtect] = useState(settings.protectNewChats);
   const [passphrase, setPassphrase] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  const [explain, setExplain] = useState(false);
 
   const tooShort = passphrase.length > 0 && passphrase.length < 8;
   const mismatch = confirmation.length > 0 && confirmation !== passphrase;
@@ -218,6 +219,16 @@ function SaveForm({
       <Section footnote={protect ? t("import.protect.warning") : undefined}>
         <SwitchRow label={t("import.protect")} value={protect} onChange={setProtect} />
       </Section>
+
+      {/* Never dumped on every user — one tap for whoever is actually deciding. */}
+      <View style={styles.explainRow}>
+        <Pressable onPress={() => setExplain((value) => !value)} accessibilityRole="button" hitSlop={8}>
+          <Text style={styles.explainLink}>
+            {explain ? t("common.showLess") : t("common.learnMore")}
+          </Text>
+        </Pressable>
+        {explain && <Text style={styles.explainBody}>{t("import.protect.explain")}</Text>}
+      </View>
 
       {protect && (
         <View style={styles.fields}>
@@ -287,6 +298,9 @@ function Working({ label }: { label: string }) {
 
 const useStyles = createStyles((t) => ({
   fields: { gap: space.lg },
+  explainRow: { gap: space.sm, paddingHorizontal: space.xs, marginTop: -space.sm },
+  explainLink: { ...type.micro, color: t.accent, writingDirection: "auto" },
+  explainBody: { ...type.caption, color: t.body, writingDirection: "auto" },
   working: {
     flexDirection: "row",
     alignItems: "center",
