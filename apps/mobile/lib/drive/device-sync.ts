@@ -18,7 +18,7 @@
  */
 
 import { Directory } from "expo-file-system";
-import { ArchiveReader, ArchiveWriter, toHex } from "@chatvault/core";
+import { ArchiveReader, ArchiveWriter, HEADER_PATH, toHex } from "@chatvault/core";
 import {
   ensureAppFolder,
   GoogleDriveStorageAdapter,
@@ -221,9 +221,17 @@ export async function backupAll(): Promise<{ ok: number; failed: number }> {
 export async function listRestorable(): Promise<string[]> {
   const appFolder = await ensureAppFolder(driveClient());
   const here = new Set(listArchiveIds());
-  return (await listArchiveFolders(driveClient(), appFolder))
-    .map((folder) => folder.archiveId)
-    .filter((archiveId) => !here.has(archiveId));
+  const folders = (await listArchiveFolders(driveClient(), appFolder)).filter((f) => !here.has(f.archiveId));
+  // A folder with no header is a backup that never got as far as writing one — nothing in it to
+  // restore, and offering it only ends in "incomplete".
+  const started = await Promise.all(
+    folders.map((f) =>
+      new GoogleDriveStorageAdapter({ client: driveClient(), rootFolderId: f.folderId })
+        .has(HEADER_PATH)
+        .catch(() => true),
+    ),
+  );
+  return folders.filter((_, i) => started[i]).map((f) => f.archiveId);
 }
 
 /**
