@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -20,8 +21,10 @@ import { useChatStatus } from "../../components/archive/useChatStatus";
 import { Onboarding } from "../../components/app/Onboarding";
 import { createStyles, useApp } from "../../components/app/providers";
 import { EmptyState } from "../../components/app/ui";
+import { Icon } from "../../components/app/Icon";
 import { formatBytes, formatDate } from "../../lib/ui/format";
-import { gutter, space, type } from "../../lib/ui/theme";
+import { gutter, radius, space, type } from "../../lib/ui/theme";
+import mark from "../../assets/images/mark.png";
 
 /**
  * The chat list. Deliberately spare: each row is the chat, its last message, and one status —
@@ -150,12 +153,11 @@ export default function LibraryScreen() {
   );
 }
 
-/** A large, ghosted chat bubble — the same silhouette `TabIcon`'s chats icon uses, scaled up and
- * tinted quiet, so an empty library reads as "chats go here" rather than a page that failed to
- * load. */
+/** The Boydem sign, large — an empty list is the first screen a new user sees, so it says whose
+ * attic this is rather than showing a ghosted placeholder that reads as "failed to load". */
 function EmptyGraphic() {
   const styles = useStyles();
-  return <View style={styles.emptyGraphic} />;
+  return <Image source={mark} style={styles.emptyGraphic} accessibilityIgnoresInvertColors />;
 }
 
 function ArchiveRow({
@@ -219,28 +221,25 @@ function ChatRow({
     >
       <ChatAvatar title={manifest.chatTitle} reader={entry.reader} thumbnail={entry.thumbnail} size={AVATAR} />
       <View style={styles.text}>
-        <View style={styles.topLine}>
-          <Text style={styles.title} numberOfLines={1}>
-            {manifest.chatTitle}
-          </Text>
-          <Text style={styles.when}>{formatDate(manifest.lastTs)}</Text>
-        </View>
+        <Text style={styles.title} numberOfLines={1}>
+          {manifest.chatTitle}
+        </Text>
         {entry.lastMessage && (
           <Text style={styles.preview} numberOfLines={1}>
             {entry.lastMessage.sender !== null ? `${entry.lastMessage.sender}: ` : ""}
             {entry.lastMessage.text}
           </Text>
         )}
-        {/* Status and size on one line: together they are the two facts that decide what to do
-            with a chat — whether it is safe to delete, and how much it is holding. */}
-        <View style={styles.statusLine}>
-          {/* The pill keeps the free width so its progress bar, while a chat uploads, still has
-              a row to stretch across. */}
-          <View style={styles.statusSlot}>
-            <StatusPill status={status} />
-          </View>
-          {bytes > 0 && <Text style={styles.size}>{formatBytes(bytes)}</Text>}
-        </View>
+        <Text style={styles.meta} numberOfLines={1}>
+          {formatDate(manifest.lastTs)}
+          {bytes > 0 ? ` · ${formatBytes(bytes)}` : ""}
+        </Text>
+      </View>
+      {/* One column at every row's trailing edge, the same width all the way down: the status is
+          what decides what to do with a chat, so it is read by sweeping this column, not by
+          finding it inside each row. Wide enough for an upload's bar to mean something. */}
+      <View style={styles.statusColumn}>
+        <StatusPill status={status} />
       </View>
     </Pressable>
   );
@@ -255,19 +254,13 @@ const useStyles = createStyles((t) => ({
   emptyWrap: { flex: 1, justifyContent: "center", paddingHorizontal: gutter },
   // The same silhouette as `TabIcon`'s `ChatsIcon` — including its un-mirrored tail corner,
   // matching that icon rather than introducing a different convention at a bigger size.
-  emptyGraphic: {
-    width: 96,
-    height: 78,
-    borderWidth: 3,
-    borderColor: t.hairline,
-    borderRadius: 26,
-    borderBottomLeftRadius: 4,
-  },
+  emptyGraphic: { width: 112, height: 112, borderRadius: radius.card, marginBottom: space.md },
   summary: {
     ...type.micro,
     color: t.muted,
     paddingHorizontal: gutter,
-    paddingBottom: space.md,
+    paddingTop: space.sm,
+    paddingBottom: space.sm,
     writingDirection: "auto",
   },
   separator: {
@@ -280,16 +273,14 @@ const useStyles = createStyles((t) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: space.md,
+    minHeight: 76,
     paddingVertical: space.md,
     paddingHorizontal: gutter,
   },
-  text: { flex: 1, gap: 3 },
-  topLine: { flexDirection: "row", alignItems: "baseline", gap: space.sm },
-  title: { flex: 1, ...type.heading, color: t.ink, writingDirection: "auto" },
+  text: { flex: 1, gap: 2 },
+  title: { ...type.heading, color: t.ink, writingDirection: "auto" },
   titleBad: { ...type.heading, color: t.bad, writingDirection: "auto" },
-  when: { ...type.micro, fontWeight: "400", color: t.faint },
-  statusLine: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingTop: 2 },
-  statusSlot: { flex: 1 },
-  size: { ...type.micro, fontWeight: "400", color: t.faint },
+  meta: { ...type.micro, fontWeight: "400", color: t.faint, writingDirection: "auto" },
+  statusColumn: { width: 104, alignItems: "flex-end", justifyContent: "center" },
   preview: { ...type.caption, color: t.muted, writingDirection: "auto" },
 }));

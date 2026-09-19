@@ -1,0 +1,287 @@
+<!doctype html>
+<!--
+  Tutorial screenshots: drawn recreations of WhatsApp's own export steps on iOS, in Hebrew and
+  English. Not real screenshots — the WhatsApp logo is never drawn, and every name and message is
+  invented. Rendered by render.sh to apps/mobile/assets/tutorial/ and apps/web/public/tutorial/.
+
+  Open as screens.html?step=1..4&lang=he|en at a 390x520 window.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --label: #000000;
+    --secondary: #8a8a8e;
+    --separator: #d9d9de;
+    --grouped: #f2f2f7;
+    --cell: #ffffff;
+    --tint: #007aff;
+    --wa: #1faa59;
+    --danger: #ff3b30;
+    --wall: #efe7dc;
+    --out: #d9fdd3;
+    --ring: #ffd23f;
+    --ink: #111114;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; overflow: hidden; background: transparent; }
+  .frame {
+    position: absolute; left: 0; top: 0; width: 390px; height: 520px; overflow: hidden;
+    font-family: system-ui, -apple-system, "SF Hebrew", "Arial Hebrew", sans-serif;
+    color: var(--label);
+    background: var(--grouped);
+    -webkit-font-smoothing: antialiased;
+  }
+  .screen { position: absolute; inset: 0; display: none; }
+  .screen.on { display: block; }
+
+  /* Callout: a sun-yellow ring on the exact control, a short leader, and a numbered plate. */
+  .ring {
+    position: absolute;
+    border: 4px solid var(--ring);
+    box-shadow: 0 0 0 1.5px var(--ink), inset 0 0 0 1.5px var(--ink);
+    border-radius: 14px;
+    pointer-events: none;
+  }
+  .plate {
+    position: absolute;
+    width: 30px; height: 30px;
+    background: var(--ring);
+    color: var(--ink);
+    font: 800 18px/30px system-ui, sans-serif;
+    text-align: center;
+    box-shadow: 0 0 0 1.5px var(--ink);
+  }
+  .leader { position: absolute; background: var(--ink); }
+
+  /* ---------- 1: the chat, name at the top ---------- */
+  .status { height: 50px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px 0 34px; font-weight: 600; font-size: 16px; background: #f6f6f6; direction: ltr; }
+  .status .icons { display: flex; gap: 6px; align-items: center; }
+  .status .bars { display: flex; gap: 2px; align-items: flex-end; height: 11px; }
+  .status .bars i { width: 3px; background: #000; border-radius: 1px; display: block; }
+  .status .batt { width: 25px; height: 12px; border: 1.5px solid #000; border-radius: 4px; padding: 1.5px; opacity: .9; }
+  .status .batt b { display: block; height: 100%; width: 70%; background: #000; border-radius: 1.5px; }
+  .nav { height: 58px; background: #f6f6f6; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-bottom: 0.5px solid var(--separator); }
+  .back { color: var(--tint); font-size: 30px; line-height: 1; width: 22px; text-align: center; font-weight: 300; }
+  .back { display: inline-block; }
+  [dir="rtl"] .back { transform: scaleX(-1); }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 16px; flex: none; }
+  .who { flex: 1; min-width: 0; }
+  .who b { display: block; font-size: 17px; font-weight: 600; }
+  .who span { display: block; font-size: 12.5px; color: var(--secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .navicons { display: flex; gap: 20px; color: var(--tint); padding-inline-end: 6px; }
+  .navicons svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+  .wall { background: var(--wall); position: absolute; top: 108px; left: 0; right: 0; bottom: 0; padding: 14px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .day { align-self: center; background: #fff; color: #54656f; font-size: 12.5px; padding: 4px 10px; border-radius: 8px; margin-bottom: 4px; box-shadow: 0 1px 0.5px rgba(0,0,0,.08); }
+  .msg { max-width: 76%; padding: 6px 9px 5px; border-radius: 10px; font-size: 16px; line-height: 1.3; box-shadow: 0 1px 0.5px rgba(0,0,0,.1); background: #fff; align-self: flex-start; }
+  .msg.out { background: var(--out); align-self: flex-end; }
+  .msg .from { font-size: 13px; font-weight: 600; margin-bottom: 1px; }
+  .msg time { display: block; text-align: end; font-size: 11px; color: #667781; margin-top: 1px; }
+  .photo { width: 210px; height: 130px; border-radius: 7px; margin-bottom: 3px; background: linear-gradient(160deg, #8fb3d9 0%, #cfe0ef 45%, #e9d7b8 46%, #d8b98a 100%); }
+
+  /* ---------- 2: info screen, scrolled to the bottom ---------- */
+  .navplain { height: 52px; background: var(--grouped); display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 17px; }
+  .navplain .t { font-weight: 600; }
+  .navplain .l { color: var(--tint); min-width: 60px; }
+  .group { margin: 0 16px 22px; background: var(--cell); border-radius: 12px; overflow: hidden; }
+  .cell { height: 48px; display: flex; align-items: center; gap: 12px; padding-inline: 14px; font-size: 17px; position: relative; }
+  .cell + .cell::before { content: ""; position: absolute; top: 0; inset-inline-start: 50px; inset-inline-end: 0; height: 0.5px; background: var(--separator); }
+  .cell.plain + .cell.plain::before { inset-inline-start: 14px; }
+  .cell .ic { width: 26px; height: 26px; border-radius: 6px; display: grid; place-items: center; flex: none; }
+  .cell .ic svg { width: 17px; height: 17px; fill: none; stroke: #fff; stroke-width: 2; }
+  .cell .grow { flex: 1; }
+  .cell .val { color: var(--secondary); }
+  .cell .chev { color: #c4c4c7; font-size: 20px; }
+  [dir="rtl"] .cell .chev { transform: scaleX(-1); }
+  .tint { color: var(--wa); }
+  .danger { color: var(--danger); }
+  .caption { margin: -12px 30px 22px; font-size: 13px; color: var(--secondary); }
+
+  /* ---------- 3: the export choice ---------- */
+  .dim { position: absolute; inset: 0; background: rgba(0,0,0,.36); }
+  .sheet { position: absolute; left: 10px; right: 10px; bottom: 44px; display: grid; gap: 8px; }
+  .sheet .box { background: rgba(250,250,250,.97); border-radius: 14px; overflow: hidden; }
+  .sheet .head { padding: 15px 18px 13px; text-align: center; font-size: 13px; color: var(--secondary); line-height: 1.35; }
+  .sheet .opt { height: 57px; display: grid; place-items: center; font-size: 20px; color: var(--tint); border-top: 0.5px solid var(--separator); }
+  .sheet .cancel { background: #fff; border-radius: 14px; height: 57px; display: grid; place-items: center; font-size: 20px; font-weight: 600; color: var(--tint); }
+
+  /* ---------- 4: the share sheet ---------- */
+  .share { position: absolute; left: 0; right: 0; bottom: 0; top: 64px; background: #f2f2f7; border-radius: 14px 14px 0 0; box-shadow: 0 -2px 16px rgba(0,0,0,.18); }
+  .share .file { display: flex; align-items: center; gap: 12px; padding: 18px 18px 16px; border-bottom: 0.5px solid var(--separator); }
+  .share .doc { width: 44px; height: 54px; border-radius: 5px; background: #fff; border: 1px solid #d6d6db; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #6f6f75; direction: ltr; }
+  .share .fname b { display: block; font-size: 15px; font-weight: 600; }
+  .share .fname span { display: block; font-size: 13px; color: var(--secondary); margin-top: 2px; direction: ltr; text-align: start; }
+  [dir="rtl"] .share .fname span { text-align: right; }
+  .share .x { margin-inline-start: auto; width: 30px; height: 30px; border-radius: 50%; background: #e3e3e8; display: grid; place-items: center; color: #7d7d82; font-size: 15px; font-weight: 700; }
+  .people { display: flex; gap: 18px; padding: 16px 18px 6px; }
+  .person { width: 66px; text-align: center; font-size: 11.5px; color: #3c3c43; }
+  .person i { display: grid; place-items: center; width: 60px; height: 60px; margin: 0 auto 6px; border-radius: 50%; font-style: normal; color: #fff; font-size: 22px; font-weight: 600; }
+  .apps { display: flex; gap: 14px; padding: 12px 18px 16px; border-top: 0.5px solid var(--separator); margin-top: 10px; }
+  .app { width: 66px; text-align: center; font-size: 11.5px; color: #1c1c1e; position: relative; }
+  .app .icon { width: 62px; height: 62px; margin: 0 auto 7px; border-radius: 14px; display: grid; place-items: center; overflow: hidden; }
+  .app .icon svg { width: 34px; height: 34px; }
+  .app .icon img { width: 100%; height: 100%; display: block; }
+  .actions { margin: 4px 16px; background: #fff; border-radius: 12px; overflow: hidden; }
+</style>
+</head>
+<body>
+<div class="frame" id="frame">
+
+<!-- ============ 1 ============ -->
+<section class="screen" id="s1">
+  <div class="status"><span>9:41</span><span class="icons"><span class="bars"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:11px"></i></span><span class="batt"><b></b></span></span></div>
+  <div class="nav">
+    <span class="back">‹</span>
+    <span class="avatar" style="background:#6f8fb8" data-t="initial"></span>
+    <div class="who"><b data-t="chat"></b><span data-t="tapInfo"></span></div>
+    <span class="navicons">
+      <svg viewBox="0 0 24 24"><rect x="2.5" y="6.5" width="13" height="11" rx="2.5"/><path d="M15.5 10.5l6-3.5v10l-6-3.5z"/></svg>
+      <svg viewBox="0 0 24 24"><path d="M5 3.5h3.5l2 5-2.5 1.5a11 11 0 0 0 6 6l1.5-2.5 5 2V19a2 2 0 0 1-2 2A17 17 0 0 1 3 5.5a2 2 0 0 1 2-2z"/></svg>
+    </span>
+  </div>
+  <div class="wall">
+    <span class="day" data-t="today"></span>
+    <div class="msg"><div class="from" style="color:#c2185b" data-t="mom"></div><span data-t="m1"></span><time>18:02</time></div>
+    <div class="msg out"><span data-t="m2"></span><time>18:05 ✓✓</time></div>
+    <div class="msg"><div class="from" style="color:#1565c0" data-t="dani"></div><div class="photo"></div><time>18:11</time></div>
+    <div class="msg"><div class="from" style="color:#1565c0" data-t="dani"></div><span data-t="m3"></span><time>18:12</time></div>
+  </div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section class="screen" id="s2">
+  <div class="navplain"><span class="l" data-t="back"></span><span class="t" data-t="groupInfo"></span><span class="l" style="text-align:end" data-t="edit"></span></div>
+  <div style="height:8px"></div>
+  <div class="group">
+    <div class="cell"><span class="ic" style="background:#8e8e93"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></span><span class="grow" data-t="disappearing"></span><span class="val" data-t="off"></span><span class="chev">›</span></div>
+    <div class="cell"><span class="ic" style="background:#0a84ff"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span><span class="grow" data-t="encryption"></span><span class="chev">›</span></div>
+  </div>
+  <div class="group">
+    <div class="cell plain"><span class="grow tint" data-t="share"></span></div>
+    <div class="cell plain"><span class="grow tint" id="t2" data-t="export"></span></div>
+    <div class="cell plain"><span class="grow danger" data-t="clear"></span></div>
+  </div>
+  <div class="group">
+    <div class="cell plain"><span class="grow danger" data-t="exitGroup"></span></div>
+    <div class="cell plain"><span class="grow danger" data-t="report"></span></div>
+  </div>
+  <p class="caption" data-t="created"></p>
+</section>
+
+<!-- ============ 3 ============ -->
+<section class="screen" id="s3">
+  <div class="navplain"><span class="l" data-t="back"></span><span class="t" data-t="groupInfo"></span><span class="l"></span></div>
+  <div class="group" style="margin-top:8px">
+    <div class="cell plain"><span class="grow tint" data-t="share"></span></div>
+    <div class="cell plain"><span class="grow tint" data-t="export"></span></div>
+    <div class="cell plain"><span class="grow danger" data-t="clear"></span></div>
+  </div>
+  <div class="dim"></div>
+  <div class="sheet">
+    <div class="box">
+      <div class="head" data-t="sheetHead"></div>
+      <div class="opt" data-t="without"></div>
+      <div class="opt" id="t3" data-t="attach"></div>
+    </div>
+    <div class="cancel" data-t="cancel"></div>
+  </div>
+</section>
+
+<!-- ============ 4 ============ -->
+<section class="screen" id="s4">
+  <div class="dim" style="background:rgba(0,0,0,.25)"></div>
+  <div class="share">
+    <div class="file">
+      <span class="doc">ZIP</span>
+      <div class="fname"><b data-t="zipName"></b><span>12.4 MB</span></div>
+      <span class="x">✕</span>
+    </div>
+    <div class="people">
+      <div class="person"><i style="background:#c7a17a" data-t="p1i"></i><span data-t="p1"></span></div>
+      <div class="person"><i style="background:#7fa0c9" data-t="p2i"></i><span data-t="p2"></span></div>
+      <div class="person"><i style="background:#a08ac4" data-t="p3i"></i><span data-t="p3"></span></div>
+    </div>
+    <div class="apps">
+      <div class="app"><div class="icon" style="background:#1aa1f2"><svg viewBox="0 0 34 34"><circle cx="17" cy="17" r="11" fill="none" stroke="#fff" stroke-width="2.6"/><circle cx="17" cy="17" r="5.5" fill="none" stroke="#fff" stroke-width="2.6"/></svg></div><span>AirDrop</span></div>
+      <div class="app"><div class="icon" style="background:#34c759"><svg viewBox="0 0 34 34"><path d="M17 6c7 0 12.5 4.4 12.5 10S24 26 17 26c-1.4 0-2.7-.2-3.9-.5L7 28l1.8-4.7C6.1 21.5 4.5 18.9 4.5 16 4.5 10.4 10 6 17 6z" fill="#fff"/></svg></div><span data-t="messages"></span></div>
+      <div class="app" id="t4"><div class="icon"><img src="../brand/mark.svg" alt=""></div><span data-t="boydem"></span></div>
+      <div class="app"><div class="icon" style="background:#1e7cf2"><svg viewBox="0 0 34 34"><rect x="5" y="9" width="24" height="17" rx="3" fill="#fff"/><path d="M6 10.5l11 8 11-8" fill="none" stroke="#1e7cf2" stroke-width="2.2"/></svg></div><span data-t="mail"></span></div>
+    </div>
+    <div class="actions">
+      <div class="cell plain"><span class="grow" data-t="copy"></span></div>
+      <div class="cell plain"><span class="grow" data-t="saveFiles"></span></div>
+    </div>
+  </div>
+</section>
+
+</div>
+<script>
+  const T = {
+    he: {
+      initial: "מ", chat: "משפחה", tapInfo: "יש להקיש כאן לפרטי הקבוצה", today: "היום",
+      mom: "אמא", dani: "דני", m1: "מי מגיע בשבת?", m2: "אנחנו! נביא עוגה 🎂", m3: "התמונות מהטיול 😍",
+      back: "הקודם", groupInfo: "פרטי הקבוצה", edit: "עריכה",
+      disappearing: "הודעות זמניות", off: "כבוי", encryption: "הצפנה",
+      share: "שיתוף איש קשר", export: "ייצוא צ׳אט", clear: "ניקוי צ׳אט",
+      exitGroup: "יציאה מהקבוצה", report: "דיווח על הקבוצה", created: "הקבוצה נוצרה על ידי אמא.",
+      sheetHead: "צירוף מדיה ייצור ארכיון צ׳אט גדול יותר.", without: "ללא מדיה", attach: "צירוף מדיה", cancel: "ביטול",
+      zipName: "צ׳אט WhatsApp - משפחה", p1i: "א", p1: "אמא", p2i: "ד", p2: "דני", p3i: "נ", p3: "נועה",
+      messages: "הודעות", boydem: "בוידעם", mail: "דואר", copy: "העתקה", saveFiles: "שמירה ב״קבצים״"
+    },
+    en: {
+      initial: "F", chat: "Family", tapInfo: "tap here for group info", today: "Today",
+      mom: "Mom", dani: "Danny", m1: "Who's coming Saturday?", m2: "We are! Bringing cake 🎂", m3: "Photos from the trip 😍",
+      back: "Back", groupInfo: "Group Info", edit: "Edit",
+      disappearing: "Disappearing Messages", off: "Off", encryption: "Encryption",
+      share: "Share Contact", export: "Export Chat", clear: "Clear Chat",
+      exitGroup: "Exit Group", report: "Report Group", created: "Group created by Mom.",
+      sheetHead: "Attaching media will generate a larger chat archive.", without: "Without Media", attach: "Attach Media", cancel: "Cancel",
+      zipName: "WhatsApp Chat - Family", p1i: "M", p1: "Mom", p2i: "D", p2: "Danny", p3i: "N", p3: "Noa",
+      messages: "Messages", boydem: "Boydem", mail: "Mail", copy: "Copy", saveFiles: "Save to Files"
+    }
+  };
+  const q = new URLSearchParams(location.search);
+  const step = q.get("step") || "1";
+  const lang = q.get("lang") || "he";
+  document.documentElement.dir = lang === "he" ? "rtl" : "ltr";
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = T[lang][el.dataset.t]; });
+  document.getElementById("s" + step).classList.add("on");
+
+  const frame = document.getElementById("frame");
+  frame.dir = lang === "he" ? "rtl" : "ltr";
+  frame.lang = lang;
+
+  // Ring the control, and pin the step's number plate on the ring's end corner, where a row
+  // is empty (values and chevrons sit there), so the plate never covers a neighbouring control.
+  function callout(r, pad) {
+    const ring = document.createElement("div");
+    ring.className = "ring";
+    const box = { left: r.left - pad, top: r.top - pad, width: r.width + pad * 2, height: r.height + pad * 2 };
+    Object.assign(ring.style, { left: box.left + "px", top: box.top + "px", width: box.width + "px", height: box.height + "px" });
+    frame.append(ring);
+    const plate = document.createElement("div");
+    plate.className = "plate";
+    plate.textContent = step;
+    const endX = lang === "he" ? box.left - 15 : box.left + box.width - 15;
+    Object.assign(plate.style, { left: Math.max(4, Math.min(356, endX)) + "px", top: Math.max(4, box.top - 15) + "px" });
+    frame.append(plate);
+  }
+  document.fonts.ready.then(() => {
+    if (step === "1") {
+      const who = document.querySelector("#s1 .who");
+      // The name and subtitle are block elements as wide as the bar; ring the words themselves.
+      const inked = (el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect(); };
+      const b = inked(who.querySelector("b"));
+      const s = inked(who.querySelector("span"));
+      const left = Math.min(b.left, s.left), right = Math.max(b.left + b.width, s.left + s.width);
+      callout({ left, top: b.top, width: right - left, height: s.top + s.height - b.top }, 8);
+    }
+    if (step === "2") callout(document.getElementById("t2").parentElement.getBoundingClientRect(), 0);
+    if (step === "3") callout(document.getElementById("t3").getBoundingClientRect(), -3);
+    if (step === "4") callout(document.querySelector("#t4 .icon").getBoundingClientRect(), 6);
+  });
+</script>
+</body>
+</html>

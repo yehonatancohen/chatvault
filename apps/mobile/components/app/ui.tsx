@@ -14,8 +14,13 @@
  * - **Nothing tappable is shorter than `TAP`.** Every pressable here sets `minHeight`, which is
  *   why rows can hold one line or three without the screen changing character.
  * - **Sizes come from `type`.** No component here names a font size of its own.
- * - **One primary action per screen.** `Button` defaults to `primary`; a screen with three
- *   filled buttons has no primary action, so the secondary ones take `tone="quiet"`.
+ * - **One primary action per screen.** `Button` defaults to `primary` — the signal-orange one;
+ *   a screen with three orange buttons has no primary action, so the others take
+ *   `tone="quiet"`, which is iOS's tinted button: a wash of the tint with the tint as its label.
+ *
+ * - **Text that can wrap sets `textAlign: "left"`.** React Native swaps left and right under an
+ *   RTL layout, so "left" is the start edge in both languages; left at its natural default, a
+ *   wrapped Hebrew paragraph sets flush left on iOS.
  *
  * Everything is theme-driven through `createStyles`, so these restyle with the setting rather
  * than needing a relaunch — unlike layout direction, which is native and does.
@@ -23,6 +28,7 @@
 
 import { Children, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Icon } from "./Icon";
 import { createStyles, useTheme } from "./providers";
 import { gutter, radius, space, TAP, type } from "../../lib/ui/theme";
 
@@ -161,14 +167,15 @@ export function Row({
  * A number that is the point of the screen, with what it counts underneath.
  *
  * Verify's whole job is to state what was captured, and a count set in body copy does not read
- * as evidence. The number takes `display` and the accent; the label stays quiet.
+ * as evidence. The number is set as a sign — `numeral`, in the display face — and the label stays
+ * quiet. `onSign` is for a `Stat` standing on an ultramarine field.
  */
-export function Stat({ value, label, tone }: { value: string; label: string; tone?: "good" }) {
+export function Stat({ value, label, onSign }: { value: string; label: string; onSign?: boolean }) {
   const styles = useStyles();
   return (
     <View style={styles.stat}>
-      <Text style={[styles.statValue, tone === "good" && styles.goodText]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statValue, onSign === true && styles.statValueOnSign]}>{value}</Text>
+      <Text style={[styles.statLabel, onSign === true && styles.statLabelOnSign]}>{label}</Text>
     </View>
   );
 }
@@ -212,10 +219,10 @@ export function Pill({
  * Centred and vertically generous, because an empty library is the first screen a new user
  * sees and a heading pinned to the top of a blank page reads as a failure rather than a start.
  *
- * `graphic`, when given, is a large ghosted illustration above the heading — it is what tells a
- * new user "something is supposed to go here" rather than "this text is loading" — and softens
- * the heading to `muted` to match. `actionTone: "help"` swaps the primary `Button` for a quiet
- * pill, for a screen whose action is "learn how" rather than "do the thing that fixes this" —
+ * `graphic`, when given, sits above the heading — it is what tells a new user "something is
+ * supposed to go here" rather than "this text is loading". `actionTone: "help"` swaps the
+ * primary `Button` for a tinted pill, for a screen whose action is "learn how" rather than "do
+ * the thing that fixes this" —
  * `app/verify.tsx`'s fallback keeps the default so it still reads as a normal action.
  */
 export function EmptyState({
@@ -235,9 +242,7 @@ export function EmptyState({
   return (
     <View style={styles.empty}>
       {graphic}
-      <Text style={[styles.emptyHeading, graphic !== undefined && styles.emptyHeadingSoft]}>
-        {heading}
-      </Text>
+      <Text style={styles.emptyHeading}>{heading}</Text>
       {body !== undefined && <Text style={styles.emptyBody}>{body}</Text>}
       {action &&
         (actionTone === "help" ? (
@@ -246,7 +251,7 @@ export function EmptyState({
             accessibilityRole="button"
             style={({ pressed }) => [styles.helpPill, pressed && styles.pressedRow]}
           >
-            <Text style={styles.helpPillMark}>?</Text>
+            <Icon name="help" color={styles.helpPillLabel.color} size={20} />
             <Text style={styles.helpPillLabel}>{action.label}</Text>
           </Pressable>
         ) : (
@@ -263,8 +268,8 @@ export type ButtonTone = "primary" | "quiet" | "danger";
 /**
  * The one action, or one of the few.
  *
- * `quiet` is a bordered button rather than bare text so that a screen offering three things
- * still reads as three buttons; `primary` is the filled one and there should be at most one
+ * `quiet` is a tinted button rather than bare text so that a screen offering three things
+ * still reads as three buttons; `primary` is the orange one and there should be at most one
  * per screen.
  */
 export function Button({
@@ -345,12 +350,12 @@ export function ChoiceRow({
         <Text style={[styles.tapRowLabel, selected && styles.tapRowLabelSelected]}>{label}</Text>
         {note !== undefined && <Text style={styles.tapRowNote}>{note}</Text>}
       </View>
-      {selected && <Text style={styles.check}>✓</Text>}
+      {selected && <Icon name="check" color={styles.check.color} size={18} weight="bold" />}
     </Pressable>
   );
 }
 
-/** A tappable row that leads somewhere. The chevron is a rotated box, for the reason in `TabIcon`. */
+/** A tappable row that leads somewhere, with the system's forward chevron at its end. */
 export function LinkRow({
   label,
   note,
@@ -373,7 +378,7 @@ export function LinkRow({
         <Text style={[styles.tapRowLabel, tone === "danger" && styles.dangerText]}>{label}</Text>
         {note !== undefined && <Text style={styles.tapRowNote}>{note}</Text>}
       </View>
-      <View style={styles.chevron} />
+      <Icon name="chevron" color={styles.chevron.color} size={14} weight="bold" />
     </Pressable>
   );
 }
@@ -381,11 +386,11 @@ export function LinkRow({
 /**
  * A numbered instruction. Used by Add and by the guided delete, which are both procedures.
  *
- * The number is an outlined disc rather than a filled accent one: five filled accent circles
- * down a screen make the accent decorative, and it is supposed to mean "this is the action".
+ * The number is a sign plate — sun yellow, ink numeral in the display face — the same plate the
+ * tutorial pins on each WhatsApp screenshot, so a step here and its picture there read as one.
  *
  * `icon`, when given, sits at the row's end — the add-chat sheet passes one per step
- * (`StepArt.tsx`); the guided delete's steps omit it and are unchanged.
+ * (its screenshot); the guided delete's steps omit it.
  */
 export function Step({
   index,
@@ -399,7 +404,7 @@ export function Step({
   const styles = useStyles();
   return (
     <View style={styles.step}>
-      <View style={styles.stepDisc}>
+      <View style={styles.stepPlate}>
         <Text style={styles.stepNumber}>{index}</Text>
       </View>
       <Text style={styles.stepText}>{text}</Text>
@@ -427,7 +432,7 @@ export function CheckRow({
       style={({ pressed }) => [styles.tapRow, pressed && styles.pressedRow]}
     >
       <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-        {checked && <Text style={styles.checkboxMark}>✓</Text>}
+        {checked && <Icon name="check" color={styles.checkboxMark.color} size={16} weight="bold" />}
       </View>
       <Text style={styles.checkLabel}>{label}</Text>
     </Pressable>
@@ -578,8 +583,8 @@ const useStyles = createStyles((t) => ({
   screen: { paddingHorizontal: gutter, paddingTop: space.lg, paddingBottom: space.xxxl },
 
   titleBlock: { gap: space.xs },
-  title: { ...type.title, color: t.ink, writingDirection: "auto" },
-  titleNote: { ...type.caption, color: t.muted, writingDirection: "auto" },
+  title: { ...type.title, color: t.ink, textAlign: "left", writingDirection: "auto" },
+  titleNote: { ...type.caption, color: t.muted, textAlign: "left", writingDirection: "auto" },
 
   section: { gap: space.sm },
   sectionHeader: {
@@ -593,14 +598,12 @@ const useStyles = createStyles((t) => ({
   sectionBody: {
     backgroundColor: t.panel,
     borderRadius: radius.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: t.hairline,
     paddingHorizontal: space.lg,
     overflow: "hidden",
   },
   sectionFlat: { gap: space.md },
   separator: { height: StyleSheet.hairlineWidth, backgroundColor: t.separator },
-  footnote: { ...type.caption, color: t.muted, paddingHorizontal: space.xs, writingDirection: "auto" },
+  footnote: { ...type.caption, color: t.muted, paddingHorizontal: space.xs, textAlign: "left", writingDirection: "auto" },
 
   row: {
     flexDirection: "row",
@@ -615,14 +618,16 @@ const useStyles = createStyles((t) => ({
   rowValueStrong: { ...type.heading, color: t.ink },
 
   stat: { gap: space.xs },
-  statValue: { ...type.display, color: t.accent, writingDirection: "auto" },
+  statValue: { ...type.numeral, color: t.accent, writingDirection: "auto" },
+  statValueOnSign: { color: t.onSign },
   statLabel: { ...type.caption, color: t.muted, writingDirection: "auto" },
+  statLabelOnSign: { color: t.onSignMuted },
 
   pill: {
     alignSelf: "flex-start",
-    paddingHorizontal: space.md,
-    paddingVertical: 5,
-    borderRadius: radius.pill,
+    paddingHorizontal: space.sm,
+    paddingVertical: 3,
+    borderRadius: radius.plate,
     backgroundColor: t.sunken,
   },
   pillGood: { backgroundColor: t.goodWash },
@@ -632,7 +637,6 @@ const useStyles = createStyles((t) => ({
 
   empty: { paddingTop: space.xxxl, alignItems: "center", gap: space.md },
   emptyHeading: { ...type.display, color: t.ink, textAlign: "center", writingDirection: "auto" },
-  emptyHeadingSoft: { color: t.muted },
   emptyBody: {
     ...type.body,
     color: t.muted,
@@ -649,41 +653,25 @@ const useStyles = createStyles((t) => ({
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
     borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: t.hairline,
+    backgroundColor: t.accentWash,
     minHeight: TAP,
   },
-  helpPillMark: {
-    ...type.micro,
-    color: t.accent,
-    borderWidth: 1.5,
-    borderColor: t.accent,
-    borderRadius: 8,
-    width: 16,
-    height: 16,
-    textAlign: "center",
-    lineHeight: 15,
-  },
-  helpPillLabel: { ...type.label, color: t.accent, writingDirection: "auto" },
+  helpPillLabel: { ...type.label, fontWeight: "600", color: t.accent, writingDirection: "auto" },
 
   button: {
     minHeight: 52,
-    paddingVertical: space.lg - 2,
+    paddingVertical: space.md,
     paddingHorizontal: space.lg,
     borderRadius: radius.button,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: t.accent,
+    backgroundColor: t.signal,
   },
-  buttonQuiet: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: t.hairline,
-  },
-  buttonDanger: { backgroundColor: "transparent", borderWidth: 1, borderColor: t.bad },
-  buttonDisabled: { opacity: 0.35 },
-  buttonLabel: { ...type.label, fontWeight: "600", color: t.onAccent, writingDirection: "auto" },
-  buttonLabelQuiet: { color: t.ink },
+  buttonQuiet: { backgroundColor: t.accentWash },
+  buttonDanger: { backgroundColor: t.badWash },
+  buttonDisabled: { opacity: 0.4 },
+  buttonLabel: { ...type.label, fontWeight: "600", color: t.onSignal, writingDirection: "auto" },
+  buttonLabelQuiet: { color: t.accent },
   buttonLabelDanger: { color: t.bad },
   pressed: { opacity: 0.6 },
   pressedRow: { backgroundColor: t.accentWash },
@@ -697,59 +685,49 @@ const useStyles = createStyles((t) => ({
     paddingVertical: space.md,
   },
   tapRowText: { flex: 1, gap: 2 },
-  tapRowLabel: { ...type.label, color: t.ink, writingDirection: "auto" },
+  tapRowLabel: { ...type.label, color: t.ink, textAlign: "left", writingDirection: "auto" },
   tapRowLabelSelected: { fontWeight: "600" },
-  tapRowNote: { ...type.caption, color: t.muted, writingDirection: "auto" },
-  check: { fontSize: 17, fontWeight: "700", color: t.accent },
-  chevron: {
-    width: 8,
-    height: 8,
-    borderTopWidth: 1.5,
-    borderRightWidth: 1.5,
-    borderColor: t.faint,
-    transform: [{ rotate: "45deg" }],
-  },
+  tapRowNote: { ...type.caption, color: t.muted, textAlign: "left", writingDirection: "auto" },
+  check: { color: t.accent },
+  chevron: { color: t.faint },
 
   step: { flexDirection: "row", gap: space.lg, alignItems: "flex-start" },
-  stepDisc: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: t.accent,
+  stepPlate: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.plate,
+    backgroundColor: t.sun,
     alignItems: "center",
     justifyContent: "center",
   },
-  stepNumber: { ...type.micro, color: t.accent, letterSpacing: 0 },
-  stepText: { flex: 1, ...type.body, color: t.body, writingDirection: "auto" },
+  stepNumber: { fontFamily: type.display.fontFamily, fontSize: 19, lineHeight: 24, color: t.onSun },
+  stepText: { flex: 1, ...type.body, color: t.body, paddingTop: 4, textAlign: "left", writingDirection: "auto" },
 
   checkbox: {
     width: 26,
     height: 26,
-    borderRadius: 8,
-    borderWidth: 1.5,
+    borderRadius: 7,
+    borderWidth: 2,
     borderColor: t.hairline,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: t.field,
   },
   checkboxChecked: { backgroundColor: t.good, borderColor: t.good },
-  checkboxMark: { color: t.dark ? "#0d1a13" : "#ffffff", fontSize: 15, fontWeight: "700" },
-  checkLabel: { flex: 1, ...type.label, color: t.ink, writingDirection: "auto" },
+  checkboxMark: { color: t.dark ? "#06140d" : "#ffffff" },
+  checkLabel: { flex: 1, ...type.label, color: t.ink, textAlign: "left", writingDirection: "auto" },
 
   callout: {
     padding: space.lg,
     gap: space.xs,
     borderRadius: radius.card,
     backgroundColor: t.panel,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: t.hairline,
   },
   calloutGood: { backgroundColor: t.goodWash, borderColor: "transparent" },
   calloutBad: { backgroundColor: t.badWash, borderColor: "transparent" },
   calloutCaution: { backgroundColor: t.cautionWash, borderColor: "transparent" },
-  calloutTitle: { ...type.heading, color: t.ink, writingDirection: "auto" },
-  calloutBody: { ...type.caption, color: t.body, writingDirection: "auto" },
+  calloutTitle: { ...type.heading, color: t.ink, textAlign: "left", writingDirection: "auto" },
+  calloutBody: { ...type.caption, color: t.body, textAlign: "left", writingDirection: "auto" },
 
   field: { gap: space.sm },
   input: {
@@ -767,9 +745,9 @@ const useStyles = createStyles((t) => ({
     writingDirection: "ltr",
   },
   inputBad: { borderColor: t.bad },
-  fieldError: { ...type.caption, color: t.bad, paddingHorizontal: space.xs, writingDirection: "auto" },
+  fieldError: { ...type.caption, color: t.bad, paddingHorizontal: space.xs, textAlign: "left", writingDirection: "auto" },
 
-  bodyText: { ...type.body, color: t.body, writingDirection: "auto" },
+  bodyText: { ...type.body, color: t.body, textAlign: "left", writingDirection: "auto" },
   bodyMuted: { ...type.caption, color: t.muted },
 
   goodText: { color: t.good },

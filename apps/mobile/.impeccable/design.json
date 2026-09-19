@@ -1,0 +1,1123 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-17T18:00:00Z",
+  "title": "Design System: Boydem (בוידעם) — iOS app",
+  "extensions": {
+    "colorMeta": {
+      "sign": {
+        "role": "primary",
+        "displayName": "Ultramarine Sign",
+        "canonical": "#2436c9",
+        "oklch": "oklch(43.6% 0.223 268.3)",
+        "tonalRamp": [
+          "#030037",
+          "#0b0870",
+          "#191ab2",
+          "#2d46d8",
+          "#4c6ff2",
+          "#7899f9",
+          "#acc3fd",
+          "#e8eefe"
+        ]
+      },
+      "on-sign": {
+        "role": "primary",
+        "displayName": "White on Sign",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#7d7d7d",
+          "#9e9e9e",
+          "#c4c4c4",
+          "#eeeeee"
+        ]
+      },
+      "on-sign-muted": {
+        "role": "primary",
+        "displayName": "Muted on Sign",
+        "canonical": "#cdd3fa",
+        "oklch": "oklch(87.5% 0.054 278.3)",
+        "tonalRamp": [
+          "#070721",
+          "#1e213e",
+          "#393d5c",
+          "#565b7c",
+          "#757a9e",
+          "#969cc0",
+          "#bbc1e8",
+          "#eaedff"
+        ]
+      },
+      "signal": {
+        "role": "secondary",
+        "displayName": "Signal Orange",
+        "canonical": "#ff5b24",
+        "oklch": "oklch(68.4% 0.209 37.3)",
+        "tonalRamp": [
+          "#220000",
+          "#460d00",
+          "#721e00",
+          "#a1330b",
+          "#d54511",
+          "#fc6a3e",
+          "#fdad96",
+          "#ffe9e3"
+        ]
+      },
+      "on-signal": {
+        "role": "secondary",
+        "displayName": "Ink on Orange",
+        "canonical": "#111114",
+        "oklch": "oklch(17.9% 0.006 285.8)",
+        "tonalRamp": [
+          "#0b0b0e",
+          "#242427",
+          "#3f3f43",
+          "#5d5d61",
+          "#7d7d81",
+          "#9e9ea2",
+          "#c3c3c8",
+          "#eeeef2"
+        ]
+      },
+      "sun": {
+        "role": "tertiary",
+        "displayName": "Sun Yellow",
+        "canonical": "#ffd23f",
+        "oklch": "oklch(87.9% 0.162 90.9)",
+        "tonalRamp": [
+          "#120a00",
+          "#2e2200",
+          "#4f3d00",
+          "#725b07",
+          "#987a0b",
+          "#bd9a28",
+          "#ebbf1f",
+          "#feeebf"
+        ]
+      },
+      "on-sun": {
+        "role": "tertiary",
+        "displayName": "Ink on Sun",
+        "canonical": "#111114",
+        "oklch": "oklch(17.9% 0.006 285.8)",
+        "tonalRamp": [
+          "#0b0b0e",
+          "#242427",
+          "#3f3f43",
+          "#5d5d61",
+          "#7d7d81",
+          "#9e9ea2",
+          "#c3c3c8",
+          "#eeeef2"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Ultramarine Tint",
+        "canonical": "#2436c9",
+        "oklch": "oklch(43.6% 0.223 268.3)",
+        "tonalRamp": [
+          "#030037",
+          "#0b0870",
+          "#191ab2",
+          "#2d46d8",
+          "#4c6ff2",
+          "#7899f9",
+          "#acc3fd",
+          "#e8eefe"
+        ]
+      },
+      "accent-soft": {
+        "role": "primary",
+        "displayName": "Soft Ultramarine",
+        "canonical": "#5363e0",
+        "oklch": "oklch(55.7% 0.189 273.1)",
+        "tonalRamp": [
+          "#050034",
+          "#160074",
+          "#2825a1",
+          "#404ac6",
+          "#5c6deb",
+          "#8095fd",
+          "#b2c1fa",
+          "#e9eeff"
+        ]
+      },
+      "accent-wash": {
+        "role": "primary",
+        "displayName": "Tint Wash",
+        "canonical": "#e6e9fb",
+        "oklch": "oklch(93.7% 0.024 278.4)",
+        "tonalRamp": [
+          "#090a15",
+          "#212330",
+          "#3d3f4d",
+          "#5a5d6c",
+          "#7a7c8c",
+          "#9b9dae",
+          "#c0c3d4",
+          "#ebedfe"
+        ]
+      },
+      "on-accent": {
+        "role": "primary",
+        "displayName": "On Tint",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#7d7d7d",
+          "#9e9e9e",
+          "#c4c4c4",
+          "#eeeeee"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Cool Paper",
+        "canonical": "#f2f3f7",
+        "oklch": "oklch(96.5% 0.005 275.0)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#232427",
+          "#3f4043",
+          "#5d5d61",
+          "#7c7d81",
+          "#9d9ea2",
+          "#c3c4c8",
+          "#edeef2"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel White",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#7d7d7d",
+          "#9e9e9e",
+          "#c4c4c4",
+          "#eeeeee"
+        ]
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Raised",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#7d7d7d",
+          "#9e9e9e",
+          "#c4c4c4",
+          "#eeeeee"
+        ]
+      },
+      "sunken": {
+        "role": "neutral",
+        "displayName": "Sunken",
+        "canonical": "#e4e6ee",
+        "oklch": "oklch(92.6% 0.011 274.9)",
+        "tonalRamp": [
+          "#0a0b10",
+          "#222429",
+          "#3e3f46",
+          "#5c5d64",
+          "#7b7d84",
+          "#9c9ea5",
+          "#c2c4cb",
+          "#eceef6"
+        ]
+      },
+      "field": {
+        "role": "neutral",
+        "displayName": "Field",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#7d7d7d",
+          "#9e9e9e",
+          "#c4c4c4",
+          "#eeeeee"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#111114",
+        "oklch": "oklch(17.9% 0.006 285.8)",
+        "tonalRamp": [
+          "#0b0b0e",
+          "#242427",
+          "#3f3f43",
+          "#5d5d61",
+          "#7d7d81",
+          "#9e9ea2",
+          "#c3c3c8",
+          "#eeeef2"
+        ]
+      },
+      "body": {
+        "role": "neutral",
+        "displayName": "Body",
+        "canonical": "#2c2e36",
+        "oklch": "oklch(30.2% 0.015 274.4)",
+        "tonalRamp": [
+          "#090b11",
+          "#22242b",
+          "#3d3f48",
+          "#5b5d66",
+          "#7a7d86",
+          "#9b9ea8",
+          "#c1c4ce",
+          "#ebeef9"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "canonical": "#555864",
+        "oklch": "oklch(46.2% 0.020 274.5)",
+        "tonalRamp": [
+          "#090a14",
+          "#21232e",
+          "#3c3f4a",
+          "#5a5d69",
+          "#797d89",
+          "#9a9eab",
+          "#c0c3d1",
+          "#eaeefc"
+        ]
+      },
+      "faint": {
+        "role": "neutral",
+        "displayName": "Faint",
+        "canonical": "#6c6f7b",
+        "oklch": "oklch(54.3% 0.019 274.6)",
+        "tonalRamp": [
+          "#090b13",
+          "#21232d",
+          "#3c3f4a",
+          "#5a5d69",
+          "#7a7d89",
+          "#9b9eab",
+          "#c0c3d1",
+          "#eaeefc"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#d9dce5",
+        "oklch": "oklch(89.5% 0.013 271.3)",
+        "tonalRamp": [
+          "#090b11",
+          "#22242a",
+          "#3d3f47",
+          "#5b5d65",
+          "#7a7d85",
+          "#9b9ea7",
+          "#c1c4cd",
+          "#ebeef7"
+        ]
+      },
+      "separator": {
+        "role": "neutral",
+        "displayName": "Separator",
+        "canonical": "#e4e6ee",
+        "oklch": "oklch(92.6% 0.011 274.9)",
+        "tonalRamp": [
+          "#0a0b10",
+          "#222429",
+          "#3e3f46",
+          "#5c5d64",
+          "#7b7d84",
+          "#9c9ea5",
+          "#c2c4cb",
+          "#eceef6"
+        ]
+      },
+      "self-bubble": {
+        "role": "neutral",
+        "displayName": "Own Bubble",
+        "canonical": "#dfe4fc",
+        "oklch": "oklch(92.2% 0.033 276.4)",
+        "tonalRamp": [
+          "#080919",
+          "#202334",
+          "#3b3e51",
+          "#585c71",
+          "#787c91",
+          "#999db3",
+          "#bec3da",
+          "#eaeefd"
+        ]
+      },
+      "good": {
+        "role": "information",
+        "displayName": "Record Green",
+        "canonical": "#0d7a48",
+        "oklch": "oklch(51.1% 0.120 156.0)",
+        "tonalRamp": [
+          "#001004",
+          "#002d16",
+          "#044d2b",
+          "#156f43",
+          "#32925e",
+          "#58b47f",
+          "#7fdba3",
+          "#c4ffd9"
+        ]
+      },
+      "good-wash": {
+        "role": "information",
+        "displayName": "Green Wash",
+        "canonical": "#e1f3ea",
+        "oklch": "oklch(94.8% 0.022 164.5)",
+        "tonalRamp": [
+          "#030e09",
+          "#1a2821",
+          "#35443d",
+          "#52625a",
+          "#72827a",
+          "#92a39b",
+          "#b8c9c0",
+          "#e2f4eb"
+        ]
+      },
+      "bad": {
+        "role": "information",
+        "displayName": "Brick",
+        "canonical": "#c23220",
+        "oklch": "oklch(53.9% 0.184 30.8)",
+        "tonalRamp": [
+          "#210000",
+          "#4c0000",
+          "#7c0500",
+          "#ad1906",
+          "#d44431",
+          "#fb6953",
+          "#fdad9e",
+          "#ffe9e5"
+        ]
+      },
+      "bad-wash": {
+        "role": "information",
+        "displayName": "Brick Wash",
+        "canonical": "#fbe9e6",
+        "oklch": "oklch(94.8% 0.020 28.9)",
+        "tonalRamp": [
+          "#130807",
+          "#2d201e",
+          "#4a3c3a",
+          "#695a57",
+          "#897976",
+          "#ab9a97",
+          "#d1c0bd",
+          "#fceae7"
+        ]
+      },
+      "caution": {
+        "role": "information",
+        "displayName": "Amber Ink",
+        "canonical": "#855f00",
+        "oklch": "oklch(51.2% 0.106 81.3)",
+        "tonalRamp": [
+          "#150800",
+          "#322100",
+          "#543b00",
+          "#79570a",
+          "#9d7627",
+          "#c0974c",
+          "#e7bd72",
+          "#feeccd"
+        ]
+      },
+      "caution-wash": {
+        "role": "information",
+        "displayName": "Amber Wash",
+        "canonical": "#fbf0d2",
+        "oklch": "oklch(95.6% 0.041 90.2)",
+        "tonalRamp": [
+          "#120a00",
+          "#2c230a",
+          "#483f26",
+          "#665d43",
+          "#877d62",
+          "#a89e82",
+          "#cec4a7",
+          "#f9eed0"
+        ]
+      },
+      "scrim": {
+        "role": "neutral",
+        "displayName": "Scrim",
+        "canonical": "rgba(10, 12, 30, 0.45)"
+      },
+      "signal-dark": {
+        "role": "secondary",
+        "displayName": "Signal Orange (dark)",
+        "canonical": "#ff6a36",
+        "oklch": "oklch(70.3% 0.193 38.7)",
+        "tonalRamp": [
+          "#220000",
+          "#431000",
+          "#6f2305",
+          "#a23100",
+          "#cf4d1d",
+          "#fe6935",
+          "#fead93",
+          "#feeae3"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "signal"
+      },
+      "accent-dark": {
+        "role": "primary",
+        "displayName": "Periwinkle Tint",
+        "canonical": "#97a3ff",
+        "oklch": "oklch(74.4% 0.133 277.0)",
+        "tonalRamp": [
+          "#070032",
+          "#1a1162",
+          "#313384",
+          "#4c53a7",
+          "#6a73cb",
+          "#8a95f0",
+          "#b5bffd",
+          "#eaeefe"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "accent"
+      },
+      "accent-soft-dark": {
+        "role": "primary",
+        "displayName": "Accent Soft Dark",
+        "canonical": "#6f7cf0",
+        "oklch": "oklch(63.3% 0.172 275.5)",
+        "tonalRamp": [
+          "#070034",
+          "#19056c",
+          "#2d2998",
+          "#474dbc",
+          "#636fe1",
+          "#8494fd",
+          "#b5c0fa",
+          "#eaeeff"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "accent-soft"
+      },
+      "accent-wash-dark": {
+        "role": "primary",
+        "displayName": "Accent Wash Dark",
+        "canonical": "#1a2050",
+        "oklch": "oklch(26.9% 0.087 273.6)",
+        "tonalRamp": [
+          "#05022f",
+          "#181e4d",
+          "#323b6d",
+          "#4e598f",
+          "#6d79b1",
+          "#8d9bd5",
+          "#b2c1fd",
+          "#e9eefe"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "accent-wash"
+      },
+      "on-accent-dark": {
+        "role": "primary",
+        "displayName": "On Accent Dark",
+        "canonical": "#0b0d16",
+        "oklch": "oklch(16.2% 0.019 274.4)",
+        "tonalRamp": [
+          "#090b13",
+          "#21232e",
+          "#3c3f4a",
+          "#5a5d69",
+          "#797d89",
+          "#9a9eab",
+          "#c0c3d1",
+          "#eaeefc"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "on-accent"
+      },
+      "paper-dark": {
+        "role": "neutral",
+        "displayName": "Paper Dark",
+        "canonical": "#0b0d16",
+        "oklch": "oklch(16.2% 0.019 274.4)",
+        "tonalRamp": [
+          "#090b13",
+          "#21232e",
+          "#3c3f4a",
+          "#5a5d69",
+          "#797d89",
+          "#9a9eab",
+          "#c0c3d1",
+          "#eaeefc"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "paper"
+      },
+      "panel-dark": {
+        "role": "neutral",
+        "displayName": "Panel Dark",
+        "canonical": "#161a27",
+        "oklch": "oklch(22.0% 0.026 270.9)",
+        "tonalRamp": [
+          "#070a16",
+          "#1f2331",
+          "#3a3f4e",
+          "#585d6d",
+          "#777d8d",
+          "#989eaf",
+          "#bec4d6",
+          "#e8eeff"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "panel"
+      },
+      "raised-dark": {
+        "role": "neutral",
+        "displayName": "Raised Dark",
+        "canonical": "#1f2433",
+        "oklch": "oklch(26.2% 0.029 270.1)",
+        "tonalRamp": [
+          "#070a17",
+          "#1e2332",
+          "#3a3f50",
+          "#575d6f",
+          "#767d8f",
+          "#979eb1",
+          "#bdc4d8",
+          "#e8eeff"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "raised"
+      },
+      "sunken-dark": {
+        "role": "neutral",
+        "displayName": "Sunken Dark",
+        "canonical": "#05060b",
+        "oklch": "oklch(12.4% 0.013 273.4)",
+        "tonalRamp": [
+          "#090b11",
+          "#22242a",
+          "#3d3f47",
+          "#5b5d65",
+          "#7b7d85",
+          "#9c9ea7",
+          "#c1c4cd",
+          "#ebeef7"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "sunken"
+      },
+      "field-dark": {
+        "role": "neutral",
+        "displayName": "Field Dark",
+        "canonical": "#161a27",
+        "oklch": "oklch(22.0% 0.026 270.9)",
+        "tonalRamp": [
+          "#070a16",
+          "#1f2331",
+          "#3a3f4e",
+          "#585d6d",
+          "#777d8d",
+          "#989eaf",
+          "#bec4d6",
+          "#e8eeff"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "field"
+      },
+      "ink-dark": {
+        "role": "neutral",
+        "displayName": "Ink Dark",
+        "canonical": "#f3f4f8",
+        "oklch": "oklch(96.8% 0.005 275.0)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#232427",
+          "#3f4043",
+          "#5d5d61",
+          "#7c7d81",
+          "#9d9ea2",
+          "#c3c4c8",
+          "#edeef2"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "ink"
+      },
+      "body-dark": {
+        "role": "neutral",
+        "displayName": "Body Dark",
+        "canonical": "#d5d8e1",
+        "oklch": "oklch(88.3% 0.013 271.3)",
+        "tonalRamp": [
+          "#090b11",
+          "#22242a",
+          "#3d3f47",
+          "#5b5d65",
+          "#7a7d85",
+          "#9b9ea7",
+          "#c1c4cd",
+          "#ebeef7"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "body"
+      },
+      "muted-dark": {
+        "role": "neutral",
+        "displayName": "Muted Dark",
+        "canonical": "#a2a6b4",
+        "oklch": "oklch(72.6% 0.021 273.1)",
+        "tonalRamp": [
+          "#080b14",
+          "#21232e",
+          "#3c3f4b",
+          "#5a5d6a",
+          "#797d8a",
+          "#9a9eac",
+          "#bfc4d2",
+          "#eaeefd"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "muted"
+      },
+      "faint-dark": {
+        "role": "neutral",
+        "displayName": "Faint Dark",
+        "canonical": "#868a99",
+        "oklch": "oklch(63.5% 0.023 273.9)",
+        "tonalRamp": [
+          "#080a15",
+          "#20232f",
+          "#3c3f4c",
+          "#595d6b",
+          "#797d8b",
+          "#9a9ead",
+          "#bfc3d3",
+          "#e9eefe"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "faint"
+      },
+      "hairline-dark": {
+        "role": "neutral",
+        "displayName": "Hairline Dark",
+        "canonical": "#2a2f40",
+        "oklch": "oklch(30.8% 0.032 271.7)",
+        "tonalRamp": [
+          "#070a18",
+          "#1e2333",
+          "#3a3f51",
+          "#575d70",
+          "#767d91",
+          "#979eb3",
+          "#bdc3d9",
+          "#e9eeff"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "hairline"
+      },
+      "separator-dark": {
+        "role": "neutral",
+        "displayName": "Separator Dark",
+        "canonical": "#212636",
+        "oklch": "oklch(27.1% 0.031 270.8)",
+        "tonalRamp": [
+          "#070a18",
+          "#1e2333",
+          "#393f50",
+          "#575d6f",
+          "#767d90",
+          "#979eb2",
+          "#bcc4d9",
+          "#e9eefe"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "separator"
+      },
+      "self-bubble-dark": {
+        "role": "neutral",
+        "displayName": "Self Bubble Dark",
+        "canonical": "#252c5c",
+        "oklch": "oklch(31.5% 0.085 274.2)",
+        "tonalRamp": [
+          "#05022e",
+          "#191e4c",
+          "#323b6c",
+          "#4f598e",
+          "#6e79b0",
+          "#8e9bd4",
+          "#b3c1fc",
+          "#eaeefe"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "self-bubble"
+      },
+      "good-dark": {
+        "role": "information",
+        "displayName": "Good Dark",
+        "canonical": "#4fd08f",
+        "oklch": "oklch(77.0% 0.148 157.9)",
+        "tonalRamp": [
+          "#001005",
+          "#002d18",
+          "#004d2d",
+          "#0e6f45",
+          "#14945e",
+          "#32b97a",
+          "#62e19f",
+          "#c8fedd"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "good"
+      },
+      "good-wash-dark": {
+        "role": "information",
+        "displayName": "Good Wash Dark",
+        "canonical": "#0e281c",
+        "oklch": "oklch(25.2% 0.040 161.6)",
+        "tonalRamp": [
+          "#001006",
+          "#102a1e",
+          "#2c4639",
+          "#4a6557",
+          "#698576",
+          "#89a797",
+          "#aecdbc",
+          "#d8f7e6"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "good-wash"
+      },
+      "bad-dark": {
+        "role": "information",
+        "displayName": "Bad Dark",
+        "canonical": "#ff8b75",
+        "oklch": "oklch(75.9% 0.145 31.9)",
+        "tonalRamp": [
+          "#210000",
+          "#4b0100",
+          "#751808",
+          "#9f3422",
+          "#c45643",
+          "#ea7863",
+          "#fcad9e",
+          "#fee9e5"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "bad"
+      },
+      "bad-wash-dark": {
+        "role": "information",
+        "displayName": "Bad Wash Dark",
+        "canonical": "#2d1512",
+        "oklch": "oklch(22.9% 0.040 28.1)",
+        "tonalRamp": [
+          "#190403",
+          "#351c19",
+          "#533834",
+          "#735551",
+          "#947570",
+          "#b69691",
+          "#ddbbb6",
+          "#fee9e6"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "bad-wash"
+      },
+      "caution-dark": {
+        "role": "information",
+        "displayName": "Caution Dark",
+        "canonical": "#efc24f",
+        "oklch": "oklch(83.3% 0.140 87.3)",
+        "tonalRamp": [
+          "#130900",
+          "#2f2200",
+          "#503d02",
+          "#745a10",
+          "#9a7818",
+          "#c39811",
+          "#ebbe4a",
+          "#feedc6"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "caution"
+      },
+      "caution-wash-dark": {
+        "role": "information",
+        "displayName": "Caution Wash Dark",
+        "canonical": "#2a220c",
+        "oklch": "oklch(25.5% 0.037 89.6)",
+        "tonalRamp": [
+          "#110a00",
+          "#2b230d",
+          "#483f28",
+          "#665d45",
+          "#867d64",
+          "#a89e84",
+          "#cec4a9",
+          "#f8eed3"
+        ],
+        "scheme": "dark",
+        "lightCounterpart": "caution-wash"
+      },
+      "scrim-dark": {
+        "role": "neutral",
+        "displayName": "Scrim (dark)",
+        "canonical": "rgba(0, 0, 0, 0.6)",
+        "scheme": "dark",
+        "lightCounterpart": "scrim"
+      }
+    },
+    "typographyMeta": {
+      "numeral": {
+        "displayName": "Numeral",
+        "purpose": "Verify's counts, white on the sign card."
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "Chat name on Verify, empty library headline; tutorial titles at 38/44, Account hero at 28/34."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Screen heading and tab header title."
+      },
+      "heading": {
+        "displayName": "Heading",
+        "purpose": "Card heading, chat row name, callout title."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Instructions and explanations."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Row labels and buttons; minimum for tappable text."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Notes under rows, last message preview."
+      },
+      "micro": {
+        "displayName": "Micro",
+        "purpose": "Timestamps, units, section headings, status plates; the floor."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "lift",
+        "value": "320ms Easing.out(Easing.exp), translateY 18 to 0, opacity 0.35 to 1",
+        "purpose": "Tutorial step picture settling into place."
+      },
+      {
+        "name": "stamp",
+        "value": "spring friction 5 tension 160, scale 0.6 to 1",
+        "purpose": "Tutorial number plate landing after the picture."
+      },
+      {
+        "name": "pressed",
+        "value": "opacity 0.6 (buttons), 0.7 (tutorial Next), accentWash ground (rows)",
+        "purpose": "Press feedback."
+      },
+      {
+        "name": "reduce-motion",
+        "value": "static; modal fades instead of slides; pager scrolls without animation",
+        "purpose": "AccessibilityInfo.isReduceMotionEnabled."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "iphone",
+        "value": "single column; 24pt gutter; iPhone only"
+      }
+    ],
+    "platform": {
+      "target": "iOS, iPhone",
+      "uiFont": "San Francisco (system), Dynamic Type",
+      "icons": "SF Symbols via expo-symbols; drawn TabIcon shapes on Android",
+      "tapMinimum": "48pt"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one Signal Orange action per screen, ink label.",
+      "html": "<button class=\"ds-btn\">Read the chat</button>",
+      "css": ".ds-btn { width: 100%; min-height: 52px; padding: 12px 16px; border-radius: 14px; border: none; background: #ff5b24; color: #111114; font: 600 17px/22px -apple-system, 'SF Pro Text', system-ui, sans-serif; cursor: pointer; } .ds-btn:active { opacity: 0.6; } .ds-btn:hover { filter: brightness(1.03); } .ds-btn:focus-visible { outline: 3px solid #2436c9; outline-offset: 2px; } .ds-btn:disabled { opacity: 0.4; }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "iOS tinted button: tint wash with tint label.",
+      "html": "<button class=\"ds-btn-quiet\">Done</button>",
+      "css": ".ds-btn-quiet { width: 100%; min-height: 52px; padding: 12px 16px; border-radius: 14px; border: none; background: #e6e9fb; color: #2436c9; font: 600 17px/22px -apple-system, 'SF Pro Text', system-ui, sans-serif; cursor: pointer; } .ds-btn-quiet:active { opacity: 0.6; } .ds-btn-quiet:hover { background: #dde1fa; } .ds-btn-quiet:focus-visible { outline: 3px solid #2436c9; outline-offset: 2px; }"
+    },
+    {
+      "name": "Grouped Section",
+      "kind": "card",
+      "refersTo": "section-group",
+      "description": "Micro heading over one panel surface with inserted separators and a link row.",
+      "html": "<div class=\"ds-sec\"><div class=\"ds-sec-h\">Chat</div><div class=\"ds-sec-body\"><div class=\"ds-row\"><span class=\"ds-row-l\">Size</span><span class=\"ds-row-v\">412 MB</span></div><div class=\"ds-sep\"></div><button class=\"ds-link\"><span>Help</span><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\"><path d=\"M9 5l7 7-7 7\" fill=\"none\" stroke=\"#6c6f7b\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></button></div></div>",
+      "css": ".ds-sec { display: grid; gap: 8px; background: #f2f3f7; padding: 16px 24px; font-family: -apple-system, system-ui, sans-serif; } .ds-sec-h { font: 500 13px/18px -apple-system, system-ui, sans-serif; color: #555864; padding: 0 4px; } .ds-sec-body { background: #ffffff; border-radius: 14px; padding: 0 16px; overflow: hidden; } .ds-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; min-height: 48px; padding: 12px 0; } .ds-row-l { font-size: 15px; color: #555864; } .ds-row-v { font-size: 17px; color: #111114; } .ds-sep { height: 0.5px; background: #e4e6ee; } .ds-link { display: flex; width: 100%; align-items: center; justify-content: space-between; min-height: 52px; padding: 12px 0; border: none; background: none; font: 400 17px/22px -apple-system, system-ui, sans-serif; color: #111114; cursor: pointer; } .ds-link:hover, .ds-link:active { background: #e6e9fb; } .ds-link:focus-visible { outline: 3px solid #2436c9; }"
+    },
+    {
+      "name": "Status Plates",
+      "kind": "chip",
+      "refersTo": "status-plate-safe",
+      "description": "Quiet grey 'on this phone', sun 'safe to delete', faint 'deleted'.",
+      "html": "<div class=\"ds-status\"><span class=\"ds-plate\">On this phone</span><span class=\"ds-plate ds-plate-safe\">Safe to delete</span><span class=\"ds-done\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\"><path d=\"M5 12l5 5 9-10\" fill=\"none\" stroke=\"#6c6f7b\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Deleted</span></div>",
+      "css": ".ds-status { display: flex; gap: 12px; align-items: center; font-family: -apple-system, system-ui, sans-serif; } .ds-plate { padding: 3px 8px; border-radius: 4px; background: #e4e6ee; color: #555864; font-size: 13px; line-height: 18px; font-weight: 500; } .ds-plate-safe { background: #ffd23f; color: #111114; font-weight: 700; } .ds-done { display: inline-flex; align-items: center; gap: 3px; color: #6c6f7b; font-size: 13px; line-height: 18px; font-weight: 500; }"
+    },
+    {
+      "name": "Verify Sign Card",
+      "kind": "card",
+      "refersTo": "sign-card",
+      "description": "Ultramarine proof: saved plate, chat name in display, counts as numerals.",
+      "html": "<div class=\"ds-sign\"><span class=\"ds-saved\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\"><path d=\"M5 12l5 5 9-10\" fill=\"none\" stroke=\"#2436c9\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Saved</span><div class=\"ds-chat\">Family</div><div class=\"ds-stats\"><div><div class=\"ds-num\">127</div><div class=\"ds-lab\">messages</div></div><div><div class=\"ds-num\">15</div><div class=\"ds-lab\">media files</div></div></div></div>",
+      "css": ".ds-sign { background: #2436c9; border-radius: 14px; padding: 24px; display: grid; gap: 24px; color: #ffffff; font-family: -apple-system, system-ui, sans-serif; } .ds-saved { justify-self: start; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 4px; background: #ffffff; color: #2436c9; font-size: 13px; line-height: 18px; font-weight: 700; } .ds-chat { font-family: 'Secular One', system-ui, sans-serif; font-size: 32px; line-height: 38px; } .ds-stats { display: flex; gap: 32px; flex-wrap: wrap; } .ds-num { font-family: 'Secular One', system-ui, sans-serif; font-size: 60px; line-height: 64px; } .ds-lab { font-size: 15px; line-height: 20px; color: #cdd3fa; }"
+    },
+    {
+      "name": "Step with Plate",
+      "kind": "custom",
+      "refersTo": "step-plate",
+      "description": "Numbered procedure step: sun plate with a display numeral, then body text.",
+      "html": "<div class=\"ds-step\"><span class=\"ds-step-plate\">2</span><span class=\"ds-step-text\">Scroll down and tap Export chat.</span></div>",
+      "css": ".ds-step { display: flex; gap: 16px; align-items: flex-start; font-family: -apple-system, system-ui, sans-serif; } .ds-step-plate { flex: none; width: 32px; height: 32px; border-radius: 4px; background: #ffd23f; color: #111114; display: grid; place-items: center; font-family: 'Secular One', system-ui, sans-serif; font-size: 19px; line-height: 24px; } .ds-step-text { padding-top: 4px; font-size: 17px; line-height: 24px; color: #2c2e36; }"
+    },
+    {
+      "name": "Passphrase Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "The only text input: hairline border, always LTR, brick border on error.",
+      "html": "<div class=\"ds-field\"><input class=\"ds-input\" type=\"password\" placeholder=\"Passphrase\" dir=\"ltr\"><span class=\"ds-err\">That passphrase doesn't open this chat.</span></div>",
+      "css": ".ds-field { display: grid; gap: 8px; font-family: -apple-system, system-ui, sans-serif; } .ds-input { min-height: 52px; border: 1px solid #d9dce5; border-radius: 12px; padding: 12px 16px; font-size: 17px; line-height: 24px; color: #111114; background: #ffffff; text-align: left; } .ds-input::placeholder { color: #6c6f7b; } .ds-input:focus-visible { outline: none; border-color: #2436c9; } .ds-input:hover { border-color: #c5c9d6; } .ds-err { font-size: 15px; line-height: 20px; color: #c23220; padding: 0 4px; }"
+    },
+    {
+      "name": "Chat List Row",
+      "kind": "custom",
+      "refersTo": "chat-row",
+      "description": "Full-bleed row: avatar, name and preview, status in a fixed trailing column.",
+      "html": "<div class=\"ds-chats\"><button class=\"ds-chat-row\"><span class=\"ds-av\">D</span><span class=\"ds-txt\"><span class=\"ds-name\">Dana</span><span class=\"ds-prev\">See you at eight</span></span><span class=\"ds-col\"><span class=\"ds-safe\">Safe to delete</span></span></button><div class=\"ds-inset\"></div><button class=\"ds-chat-row\"><span class=\"ds-av\" style=\"background:#6f8fb8\">F</span><span class=\"ds-txt\"><span class=\"ds-name\">Family</span><span class=\"ds-prev\">Photo</span></span><span class=\"ds-col\"><span class=\"ds-quiet\">On this phone</span></span></button></div>",
+      "css": ".ds-chats { background: #f2f3f7; font-family: -apple-system, system-ui, sans-serif; } .ds-chat-row { display: flex; width: 100%; align-items: center; gap: 12px; min-height: 76px; padding: 12px 24px; border: none; background: none; text-align: left; cursor: pointer; } .ds-chat-row:hover, .ds-chat-row:active { background: #e6e9fb; } .ds-chat-row:focus-visible { outline: 3px solid #2436c9; outline-offset: -3px; } .ds-av { flex: none; width: 52px; height: 52px; border-radius: 50%; background: #2436c9; color: #fff; display: grid; place-items: center; font-weight: 600; } .ds-txt { flex: 1; display: grid; gap: 2px; } .ds-name { font-size: 17px; line-height: 22px; font-weight: 600; color: #111114; } .ds-prev { font-size: 15px; line-height: 20px; color: #555864; } .ds-col { width: 104px; display: flex; justify-content: flex-end; } .ds-safe, .ds-quiet { padding: 3px 8px; border-radius: 4px; font-size: 13px; line-height: 18px; } .ds-safe { background: #ffd23f; color: #111114; font-weight: 700; } .ds-quiet { background: #e4e6ee; color: #555864; font-weight: 500; } .ds-inset { height: 0.5px; background: #e4e6ee; margin-left: 88px; }"
+    },
+    {
+      "name": "Tab Bar",
+      "kind": "nav",
+      "refersTo": "tab-bar",
+      "description": "Native tab bar: panel ground, hairline top, tint for the active tab.",
+      "html": "<nav class=\"ds-tabs\"><button class=\"ds-tab ds-on\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\"><path d=\"M3 5h13v9H8l-4 3v-3H3z M18 8h3v9h-1v3l-4-3h-6v-2h8z\" fill=\"currentColor\"/></svg><span>Chats</span></button><button class=\"ds-tab\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\"><circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"currentColor\"/></svg><span>Account</span></button><button class=\"ds-tab\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\"><path d=\"M12 2l2.5 3 3.8-.6.6 3.8 3 2.5-3 2.5-.6 3.8-3.8-.6L12 22l-2.5-3-3.8.6-.6-3.8-3-2.5 3-2.5.6-3.8 3.8.6z\" fill=\"currentColor\"/></svg><span>Settings</span></button></nav>",
+      "css": ".ds-tabs { display: flex; background: #ffffff; border-top: 1px solid #d9dce5; padding-top: 8px; font-family: -apple-system, system-ui, sans-serif; } .ds-tab { flex: 1; display: grid; justify-items: center; gap: 2px; min-height: 48px; border: none; background: none; color: #555864; font-size: 13px; line-height: 18px; font-weight: 600; cursor: pointer; } .ds-tab:hover { color: #2c2e36; } .ds-on { color: #2436c9; } .ds-tab:focus-visible { outline: 3px solid #2436c9; outline-offset: -3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Public Sign You Operate",
+    "overview": "The app is an iPhone app first and a sign second. Structure, navigation and controls are native iOS: tab bar, stack headers, grouped lists, sheets, switches, San Francisco for every word a user reads or taps, and SF Symbols for UI icons. The sign language lives in the layer iOS leaves open: the tint, a few full-colour moments, and display type.\n\nThose moments are where the app tells you what to do or proves what it saved. The tutorial opens and closes on a full-screen ultramarine field; Verify states its counts as huge white numerals on an ultramarine card; the Account screen's sign-in moment is an ultramarine card with the mark. Everywhere else the screen is calm: a cool grey page, white grouped surfaces, ink text, one orange button.\n\nColour is information. Orange is the one thing to press, yellow is \"safe to delete\" and the numbered step plates, and `good`/`bad`/`caution` are reserved for Verify, the delete guide and a chat's status. An ordinary state gets no colour at all. Dark mode is first-class and is not the light palette inverted.",
+    "keyCharacteristics": [
+      "Native iOS structure; SF text on Apple's text-style sizes, following Dynamic Type.",
+      "Ultramarine sign fields reserved for tutorial, Verify's proof and the sign-in moment.",
+      "One Signal Orange button per screen, ink label.",
+      "Sun yellow plates (4px corners): \"safe to delete\" and step numbers.",
+      "Surfaces separate by lightness (paper, panel, raised, sunken), not borders or shadows.",
+      "Every size, gap and corner comes from `lib/ui/theme.ts`; nothing tappable under 48pt.",
+      "Secular One only for `display` and `numeral`."
+    ],
+    "rules": [
+      {
+        "name": "The Flood, Not Sprinkle Rule",
+        "body": "Ultramarine as a surface is a whole field (a full-screen page or a full-width card), never a thin stripe or tinted border on grey.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Orange Rule",
+        "body": "One Signal Orange button per screen, with ink type. Everything else is `quiet` (tint wash with tint label).",
+        "section": "colors"
+      },
+      {
+        "name": "The Only Yellow Rule",
+        "body": "Sun yellow means \"safe to delete\" or \"this step\". Nothing else is yellow; Verify's \"saved\" plate is white on the field for exactly this reason.",
+        "section": "colors"
+      },
+      {
+        "name": "The Information Colours Rule",
+        "body": "`good`, `bad` and `caution` carry meaning on Verify, the delete guide and chat status. Nothing decorative uses them and a normal state gets no colour.",
+        "section": "colors"
+      },
+      {
+        "name": "The Not Inverted Rule",
+        "body": "The dark palette is blue-black, the tint lifts to periwinkle to clear AA, orange lifts slightly, and the sign field and sun keep their light values.",
+        "section": "colors"
+      },
+      {
+        "name": "The Single Cut Rule",
+        "body": "Any style using Secular One sets `fontWeight: \"400\"`; asking iOS for a bolder cut of a one-weight custom face drops it to the system font.",
+        "section": "typography"
+      },
+      {
+        "name": "The Spread, Don't Size Rule",
+        "body": "Text styles spread a `type` step; a screen does not write its own font size. The reader's message body is the one sanctioned exception.",
+        "section": "typography"
+      },
+      {
+        "name": "The Start Edge Rule",
+        "body": "Wrapping text sets `textAlign: \"left\"` with `writingDirection: \"auto\"`, which React Native mirrors to the start edge in Hebrew. A passphrase field stays LTR.",
+        "section": "typography"
+      },
+      {
+        "name": "The Lightness Not Lines Rule",
+        "body": "A card is visible because it is lighter than the page, not because it has a border. `hairline` outlines a shape; `separator` divides rows inside one; they are not interchangeable.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** build a screen from `components/app/ui.tsx` and take every value from `lib/ui/theme.ts`.",
+      "**Do** keep one Signal Orange (#ff5b24) button per screen with ink (#111114) type; others take `quiet`.",
+      "**Do** keep ultramarine (#2436c9) surfaces as whole fields for the tutorial, Verify's proof and the sign-in moment.",
+      "**Do** reserve Sun Yellow (#ffd23f) for \"safe to delete\" and step number plates.",
+      "**Do** set counts that are evidence in `numeral`, white on the sign field.",
+      "**Do** keep SF for all UI text and SF Symbols for UI icons; Secular One only for `display` and `numeral`, weight 400.",
+      "**Do** keep every tappable thing at 48pt or more, and use the 24pt gutter on every screen.",
+      "**Do** separate surfaces by lightness and let `Section` insert separators.",
+      "**Do** give motion a Reduce Motion state."
+    ],
+    "donts": [
+      "**Don't** put white type on Signal Orange.",
+      "**Don't** make anything else yellow, or tint an ordinary state with `good`, `bad` or `caution`.",
+      "**Don't** use a red warning for a normal situation such as media the export did not include.",
+      "**Don't** add borders or shadows to make a card visible, or a coloured stripe down a callout's side.",
+      "**Don't** invert the light palette for dark mode; use the dark tokens.",
+      "**Don't** set text smaller than `micro` (13pt), or write a font size or padding a screen invents.",
+      "**Don't** draw a device bezel around a tutorial picture; it is a crop with a rim.",
+      "**Don't** replace native navigation, tab bar or controls with branded imitations."
+    ]
+  }
+}

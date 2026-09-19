@@ -11,7 +11,7 @@ import {
 import { backupAll, listRestorable, restoreArchive } from "../../lib/drive/device-sync";
 import { formatCount } from "../../lib/ui/format";
 import { radius, space, type } from "../../lib/ui/theme";
-import appMark from "../../assets/images/icon.png";
+import appMark from "../../assets/images/mark.png";
 
 /**
  * The Account tab: today, the Google account whose Drive keeps copies of the user's chats.
@@ -86,23 +86,15 @@ export default function AccountScreen() {
 
   const connected = google?.hasDrive === true;
 
-  // Not connected: this is the app's account/sign-in moment, so it reads like one — a mark, a
-  // headline, what connecting actually gets you, and a single primary action. Not a card: there
-  // is nothing to group into rows yet, and a bordered panel around the only thing on the screen
-  // would read as an empty frame.
+  // Not connected: this is the app's account/sign-in moment, so it reads like one — the sign, a
+  // headline on an ultramarine field (the tutorial's first page, again) and one primary action.
+  // What connecting gets you is in Settings → Help, per the minimal-text rule.
   if (!connected) {
     return (
       <Screen>
         <View style={styles.hero}>
           <Image source={appMark} style={styles.mark} accessibilityLabel="" />
           <Text style={styles.headline}>{t("account.drive.pitch")}</Text>
-          <Text style={styles.sub}>{t("account.drive.onlyDrive")}</Text>
-        </View>
-
-        <View style={styles.benefits}>
-          <BenefitRow text={t("account.drive.benefit.scope")} />
-          <BenefitRow text={t("account.drive.benefit.control")} />
-          <BenefitRow text={t("account.drive.benefit.private")} />
         </View>
 
         <Actions>
@@ -147,31 +139,14 @@ export default function AccountScreen() {
   );
 }
 
-/** One line of what connecting gets you — a plain dot rather than a checkmark: this is a fact
- * about the product, not a completed step in a checklist. */
-function BenefitRow({ text }: { text: string }) {
-  const styles = useStyles();
-  return (
-    <View style={styles.benefitRow}>
-      <View style={styles.benefitDot} />
-      <Text style={styles.benefitText}>{text}</Text>
-    </View>
-  );
-}
 
 const useStyles = createStyles((t) => ({
-  hero: { alignItems: "center", gap: space.sm, paddingTop: space.xl, paddingBottom: space.md },
-  mark: { width: 88, height: 88, borderRadius: radius.card, marginBottom: space.sm },
-  headline: { ...type.title, color: t.ink, textAlign: "center", writingDirection: "auto" },
-  sub: {
-    ...type.body,
-    color: t.muted,
-    textAlign: "center",
-    maxWidth: 320,
-    writingDirection: "auto",
+  hero: {
+    gap: space.md,
+    padding: space.xl,
+    borderRadius: radius.card,
+    backgroundColor: t.sign,
   },
-  benefits: { gap: space.md, paddingHorizontal: space.xs },
-  benefitRow: { flexDirection: "row", alignItems: "center", gap: space.md },
-  benefitDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: t.accent },
-  benefitText: { flex: 1, ...type.caption, color: t.body, writingDirection: "auto" },
+  mark: { width: 64, height: 64, borderRadius: radius.chip, marginBottom: space.sm },
+  headline: { ...type.display, fontSize: 28, lineHeight: 34, color: t.onSign, textAlign: "left", writingDirection: "auto" },
 }));

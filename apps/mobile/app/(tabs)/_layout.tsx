@@ -5,7 +5,7 @@ import { Tabs } from "expo-router/js-tabs";
 import { useRouter } from "expo-router";
 import { Pressable } from "react-native";
 import { useApp } from "../../components/app/providers";
-import { TabIcon } from "../../components/app/TabIcon";
+import { Icon } from "../../components/app/Icon";
 import { space, type } from "../../lib/ui/theme";
 
 /**
@@ -34,9 +34,11 @@ function AddChatButton() {
       accessibilityRole="button"
       accessibilityLabel={t("add.title")}
       hitSlop={10}
-      style={({ pressed }) => pressed && { opacity: 0.5 }}
+      // `expo-router/js-tabs` renders its header flush to the screen edge, unlike the Stack
+      // header (see `HomeButton`/`SheetDone` in `app/_layout.tsx`), which insets on its own.
+      style={({ pressed }) => [{ marginEnd: space.sm }, pressed && { opacity: 0.5 }]}
     >
-      <TabIcon name="add" color={theme.ink} background={theme.paper} />
+      <Icon name="add" color={theme.accent} size={28} background={theme.paper} />
     </Pressable>
   );
 }
@@ -52,12 +54,15 @@ export default function TabsLayout() {
         headerStyle: { backgroundColor: theme.paper },
         // A tab's header names the whole screen, so it is the app's `title` step — one above
         // the `heading` a stack header uses, and the only place that size appears in chrome.
+        // Leading-aligned, the way iOS sets a top-level screen's title, not centred like a
+        // pushed screen's.
+        headerTitleAlign: "left",
         headerTitleStyle: { color: theme.ink, ...type.title },
         sceneStyle: { backgroundColor: theme.paper },
         tabBarActiveTintColor: theme.accent,
-        tabBarInactiveTintColor: theme.faint,
+        tabBarInactiveTintColor: theme.muted,
         tabBarStyle: {
-          backgroundColor: theme.paper,
+          backgroundColor: theme.panel,
           borderTopColor: theme.hairline,
           // The default is a hairline that disappears entirely against the dark palette's
           // panels; one point is the least that stays visible in both.
@@ -66,7 +71,7 @@ export default function TabsLayout() {
           // fixed height throws that away and tucks the labels under the home indicator.
           paddingTop: space.sm,
         },
-        tabBarLabelStyle: { ...type.micro, letterSpacing: 0 },
+        tabBarLabelStyle: { ...type.micro, fontSize: 11, lineHeight: 14, fontWeight: "600" },
       }}
     >
       <Tabs.Screen
@@ -76,7 +81,7 @@ export default function TabsLayout() {
           headerTitle: t("library.title"),
           headerRight: () => <AddChatButton />,
           tabBarIcon: ({ color }) => (
-            <TabIcon name="chats" color={color} background={theme.paper} />
+            <Icon name="chats" color={color} size={24} background={theme.paper} />
           ),
         }}
       />
@@ -86,7 +91,7 @@ export default function TabsLayout() {
           title: t("tabs.account"),
           headerTitle: t("account.title"),
           tabBarIcon: ({ color }) => (
-            <TabIcon name="account" color={color} background={theme.paper} />
+            <Icon name="account" color={color} size={24} background={theme.paper} />
           ),
         }}
       />
@@ -96,7 +101,7 @@ export default function TabsLayout() {
           title: t("tabs.settings"),
           headerTitle: t("settings.title"),
           tabBarIcon: ({ color }) => (
-            <TabIcon name="settings" color={color} background={theme.paper} />
+            <Icon name="settings" color={color} size={24} background={theme.paper} />
           ),
         }}
       />

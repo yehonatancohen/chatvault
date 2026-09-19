@@ -9,8 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "bundleIdentifier": "app.chatvault.mobile",
-      "supportsTablet": true
+      "bundleIdentifier": "com.boydem.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "CFBundleDisplayName": "בוידעם"
+      }
     },
     "android": {
       "package": "app.chatvault.mobile"
@@ -32,7 +35,7 @@
             "application/zip"
           ],
           "disableExperimental": true,
-          "iosAppGroupIdentifier": "group.app.chatvault.mobile"
+          "iosAppGroupIdentifier": "group.com.boydem.app"
         }
       ],
       [
@@ -40,10 +43,22 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.139728547435-dsthuhtrdt4kqgvp5o23seuvsf5l3omr"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
-      "webUrl": "https://boidem-delta.vercel.app"
+      "webUrl": "https://boidem-delta.vercel.app",
+      "router": {},
+      "eas": {
+        "projectId": "8110d656-c17d-4831-bf6d-931fd499af6f"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "owner": "yehonatancohen",
+    "updates": {
+      "url": "https://u.expo.dev/8110d656-c17d-4831-bf6d-931fd499af6f"
     }
   }
 }

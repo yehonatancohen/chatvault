@@ -11,6 +11,7 @@ import {
 import { readBackupState } from "../../lib/drive/backup-state";
 import { progressFraction } from "../../lib/ui/chat-status";
 import { space, TAP, type } from "../../lib/ui/theme";
+import { Icon } from "../app/Icon";
 import { createStyles, useApp } from "../app/providers";
 import { ProgressBar } from "../app/ProgressBar";
 
@@ -105,7 +106,10 @@ export function DriveBackup({
       hitSlop={8}
       style={styles.row}
     >
-      <Text style={styles.good}>✓ {t("backup.inDrive")}</Text>
+      <View style={styles.inDrive}>
+        <Icon name="check" color={styles.good.color} size={15} weight="bold" />
+        <Text style={styles.good}>{t("backup.inDrive")}</Text>
+      </View>
       <Text style={styles.link}>{t("backup.open")}</Text>
     </Pressable>
   ) : (
@@ -132,5 +136,6 @@ const useStyles = createStyles((t) => ({
   stack: { gap: space.sm, minHeight: TAP, justifyContent: "center", paddingVertical: space.md },
   muted: { ...type.caption, color: t.muted, writingDirection: "auto", flexShrink: 1 },
   link: { ...type.micro, color: t.accent },
+  inDrive: { flexDirection: "row", alignItems: "center", gap: space.xs, flexShrink: 1 },
   good: { ...type.caption, fontWeight: "600", color: t.good, writingDirection: "auto", flexShrink: 1 },
 }));

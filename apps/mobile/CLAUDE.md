@@ -305,13 +305,22 @@ all three are tested. Keep it that way. Logic that migrates into a screen become
   out. Use `updatePreferences`, which merges; a whole-object write from one screen erases the
   other's choice.
 
-## The design system (owner, 2026-09-12: "modern and clear, keep the warm identity")
+## The design system (redesign, owner, 2026-09-17: "only the name stays")
 
-**`lib/ui/theme.ts` holds every token and screens invent none.** Before this, the app carried
-fifteen font sizes between 11 and 24 — 12.5, 13.5, 14.5, 15.5, 16.5 — and nine paddings, and no
-two screens started their content at the same place. That is what made it read as cute and
-hand-assembled rather than designed, far more than the palette did. The wood brown stayed; the
-structure around it is new.
+**Boydem speaks like a well-made public sign.** Ultramarine `sign` fields for the brand moments
+(tutorial, Verify's proof, the sign-in screen), signal-orange `signal` for the one primary button
+with ink on it, sun-yellow `sun` for "safe to delete" and the tutorial's callouts. Structure,
+navigation and controls stay native iOS: SF for UI text, SF Symbols through `components/app/Icon.tsx`
+(`expo-symbols`, already in the native build via `expo-router`; drawn `TabIcon` shapes are the
+Android fallback), and **Secular One** (`assets/fonts`, loaded in `app/_layout.tsx`) only for
+`type.display` and `type.numeral`. The app icon and `assets/images/mark.png` are rendered from
+`design/brand/mark.svg`; the tutorial pictures from `design/tutorial/screens.html` (see
+`components/app/StepShot.tsx`). The full record is `DESIGN.md`.
+
+**`lib/ui/theme.ts` holds every token and screens invent none.** Before the 2026-09-12 pass, the
+app carried fifteen font sizes between 11 and 24 and nine paddings, and no two screens started
+their content at the same place. That structure survived the redesign; the palette and voice
+around it are new.
 
 - **`type`** — seven steps: `display`, `title`, `heading`, `body`, `label`, `caption`, `micro`.
   Spread one (`...type.caption`) rather than writing a `fontSize`. The only deliberate exception

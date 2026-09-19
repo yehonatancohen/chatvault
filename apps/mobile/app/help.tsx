@@ -88,7 +88,7 @@ const useStyles = createStyles((t) => ({
     gap: space.md,
   },
   pressed: { backgroundColor: t.accentWash },
-  title: { flex: 1, ...type.label, color: t.ink, writingDirection: "auto" },
+  title: { flex: 1, ...type.label, color: t.ink, textAlign: "left", writingDirection: "auto" },
   chevron: {
     width: 8,
     height: 8,
@@ -99,5 +99,5 @@ const useStyles = createStyles((t) => ({
   },
   chevronOpen: { borderColor: t.accent, transform: [{ rotate: "135deg" }], marginBottom: 4 },
   bodyBlock: { gap: space.md, paddingBottom: space.lg },
-  body: { ...type.caption, color: t.body, writingDirection: "auto" },
+  body: { ...type.caption, color: t.body, textAlign: "left", writingDirection: "auto" },
 }));

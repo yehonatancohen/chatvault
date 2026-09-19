@@ -52,23 +52,21 @@ const en = {
 
   // ── Add a chat (modal sheet) ────────────────────────────────────────────────────────────
   "add.title": "Add a chat",
-  "add.step.1": "Open the chat in WhatsApp.",
-  "add.step.2": "Tap its name at the top.",
-  "add.step.3": "Tap Export Chat.",
-  "add.step.4": "Choose Attach Media.",
-  "add.step.5": "Pick {app}.",
 
   // ── Tutorial ────────────────────────────────────────────────────────────────────────────
   "onboarding.skip": "Skip",
   "onboarding.next": "Next",
   "onboarding.slide1.title": "Your chats, kept safe",
-  "onboarding.slide1.body":
-    "Export a chat from WhatsApp and share it here. It's saved on this phone — and, if you connect your own Google Drive, copied there too.",
+  "onboarding.slide1.body": "Export a chat from WhatsApp and share it here.",
   "onboarding.slide2.title": "How to add one",
   "onboarding.slide2.body": "Open a chat in WhatsApp, export it with media, and share it to {app}.",
   "onboarding.slide3.title": "Delete it yourself, safely",
-  "onboarding.slide3.body":
-    "Once a chat is safely saved, {app} shows you the steps to delete it in WhatsApp. {app} never deletes anything on its own — it can't.",
+  "onboarding.slide3.body": "When it says this, delete the chat in WhatsApp yourself.",
+  "onboarding.step.1": "Open the chat in WhatsApp and tap its name.",
+  "onboarding.step.2": "Scroll down and tap Export Chat.",
+  "onboarding.step.3": "Choose Attach Media.",
+  "onboarding.step.4": "Pick {app}. The chat opens here by itself.",
+  "onboarding.sample.chat": "Family",
 
   // ── Account tab ─────────────────────────────────────────────────────────────────────────
   "account.title": "Account",
@@ -246,7 +244,6 @@ const en = {
   "library.locked": "Protected chat",
   "library.locked.hint": "Tap to open it with its passphrase",
   "library.unreadable": "This chat doesn't open",
-  "add.after": "The chat opens here by itself.",
   "import.protect": "Protect with a passphrase",
   "import.protect.explain":
     "It's encrypted on this phone before it's saved. Only your passphrase opens it — not even {app} can read it without one.",
@@ -268,11 +265,6 @@ const en = {
   "info.passphrase.on": "On",
   "info.passphrase.off": "Off",
   "account.drive.pitch": "Keep a copy of your chats in your own Google Drive.",
-  "account.drive.onlyDrive":
-    "For now, {app} backs up to Google Drive only — that's why we ask you to connect your Google account.",
-  "account.drive.benefit.scope": "{app} can only see the files it creates",
-  "account.drive.benefit.control": "Disconnect anytime, from this screen",
-  "account.drive.benefit.private": "Never sent to our servers — only your Drive",
   "account.drive.account": "Account",
   "account.backedUp": "{count} backed up",
   "account.backedUpSome": "{ok} backed up, {failed} didn't finish",
@@ -328,23 +320,21 @@ const he: Record<StringKey, string> = {
 
   // ── Add a chat (modal sheet) ────────────────────────────────────────────────────────────
   "add.title": "הוספת צ׳אט",
-  "add.step.1": "פתחו את הצ׳אט בוואטסאפ.",
-  "add.step.2": "הקישו על השם שלו למעלה.",
-  "add.step.3": "הקישו על ״ייצוא צ׳אט״.",
-  "add.step.4": "בחרו ״צירוף מדיה״.",
-  "add.step.5": "בחרו ב{app}.",
 
   // ── Tutorial ────────────────────────────────────────────────────────────────────────────
   "onboarding.skip": "דילוג",
   "onboarding.next": "הבא",
   "onboarding.slide1.title": "הצ׳אטים שלכם, בבטחה",
-  "onboarding.slide1.body":
-    "מייצאים צ׳אט מוואטסאפ ומשתפים אותו לכאן. הוא נשמר בטלפון הזה — ואם מחברים את ה־Google Drive שלכם, מועתק גם לשם.",
+  "onboarding.slide1.body": "מייצאים צ׳אט מוואטסאפ ומשתפים אותו לכאן.",
   "onboarding.slide2.title": "איך מוסיפים אחד",
   "onboarding.slide2.body": "פותחים צ׳אט בוואטסאפ, מייצאים אותו עם מדיה, ומשתפים אותו ל{app}.",
   "onboarding.slide3.title": "מוחקים בעצמכם, בבטחה",
-  "onboarding.slide3.body":
-    "ברגע שצ׳אט נשמר בבטחה, {app} מראה לכם איך למחוק אותו בוואטסאפ. {app} אף פעם לא מוחק כלום בעצמו — הוא לא יכול.",
+  "onboarding.slide3.body": "כשזה כתוב, מוחקים את הצ׳אט בוואטסאפ בעצמכם.",
+  "onboarding.step.1": "פותחים את הצ׳אט בוואטסאפ ומקישים על השם שלו.",
+  "onboarding.step.2": "גוללים למטה ומקישים על ״ייצוא צ׳אט״.",
+  "onboarding.step.3": "בוחרים ״צירוף מדיה״.",
+  "onboarding.step.4": "בוחרים ב{app}. הצ׳אט ייפתח כאן מעצמו.",
+  "onboarding.sample.chat": "משפחה",
 
   // ── Account tab ─────────────────────────────────────────────────────────────────────────
   "account.title": "חשבון",
@@ -520,7 +510,6 @@ const he: Record<StringKey, string> = {
   "library.locked": "צ׳אט מוגן",
   "library.locked.hint": "הקישו כדי לפתוח עם הסיסמה",
   "library.unreadable": "הצ׳אט הזה לא נפתח",
-  "add.after": "הצ׳אט ייפתח כאן מעצמו.",
   "import.protect": "הגנה בסיסמה",
   "import.protect.explain":
     "הוא מוצפן בטלפון הזה לפני שהוא נשמר. רק הסיסמה שלכם פותחת אותו — גם {app} לא יכול לקרוא אותו בלעדיה.",
@@ -542,10 +531,6 @@ const he: Record<StringKey, string> = {
   "info.passphrase.on": "מופעלת",
   "info.passphrase.off": "כבויה",
   "account.drive.pitch": "שמרו עותק של הצ׳אטים ב־Google Drive שלכם.",
-  "account.drive.onlyDrive": "כרגע {app} מגבה רק ל־Google Drive — לכן צריך לחבר את חשבון הגוגל שלכם.",
-  "account.drive.benefit.scope": "{app} רואה רק את הקבצים שהוא יוצר",
-  "account.drive.benefit.control": "אפשר להתנתק בכל רגע, מהמסך הזה",
-  "account.drive.benefit.private": "אף פעם לא נשלח לשרתים שלנו — רק ל־Drive שלכם",
   "account.drive.account": "חשבון",
   "account.backedUp": "{count} גובו",
   "account.backedUpSome": "{ok} גובו, {failed} לא הושלמו",

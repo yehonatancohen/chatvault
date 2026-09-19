@@ -253,7 +253,7 @@ const useStyles = createStyles((t) => ({
   },
   // The design leans flatter than a bubble, but self-messages still sit on their own side (the
   // reader stores "which participant is you" for exactly that), so the shape stays and only the
-  // fill follows the palette: a wood tint for you, plain raised for others.
+  // fill follows the palette: an ultramarine tint for you, plain raised for others.
   bubbleOther: {
     backgroundColor: t.raised,
     borderWidth: StyleSheet.hairlineWidth,

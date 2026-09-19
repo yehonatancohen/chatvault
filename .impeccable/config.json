@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "design/tutorial/screens.html"
+        ],
+        "createdAt": "2026-09-17T13:40:25.628Z",
+        "reason": "Claude: file recreates iOS/WhatsApp system UI (secondaryLabel greys) for tutorial rasters; contrast is the depicted app's, not Boydem's"
+      },
+      {
+        "rule": "undersized-ui-text",
+        "value": "*",
+        "files": [
+          "design/tutorial/screens.html"
+        ],
+        "createdAt": "2026-09-17T15:17:12.252Z",
+        "reason": "Claude: file is a render source for tutorial rasters reproducing iOS/WhatsApp system type sizes (10-11px ZIP badge, 11px times); never shipped as a page"
+      }
+    ]
+  }
+}

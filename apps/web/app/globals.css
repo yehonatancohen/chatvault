@@ -1,64 +1,387 @@
 /*
- * Boydem — warm neutrals with a wood-brown accent, pulled off the cabinet mark.
- * Both the home page and the shared-chat viewer read these tokens and follow the system theme.
+ * Boydem — a public sign system. Ultramarine fields that run edge to edge, signal orange for the
+ * one thing to press (with ink on it), sun yellow for the one thing to look at, ink on white for
+ * reading. The same tokens as the app (`apps/mobile/lib/ui/theme.ts`).
  *
- * Heebo is self-hosted through `next/font` (app/layout.tsx): downloaded at build time and served
- * from this site, so no visitor's browser ever requests a font from Google.
+ * Secular One (the sign voice) and Assistant (reading) are self-hosted through `next/font`
+ * (app/layout.tsx): downloaded at build time and served from this site, so no visitor's browser
+ * ever requests a font from Google.
  */
 :root {
   color-scheme: light dark;
-  --bg: #f6f4f1;
-  --fg: #141310;
-  --muted: #6c6a65;
-  --line: #e5e1da;
-  --accent: #7a4a21;
+  --sign: #2436c9;
+  --sign-deep: #1a2799;
+  --on-sign: #ffffff;
+  --on-sign-muted: #cdd3fa;
+  --signal: #ff5b24;
+  --on-signal: #111114;
+  --sun: #ffd23f;
+  --on-sun: #111114;
+
+  --bg: #ffffff;
+  --panel: #f2f3f7;
+  --fg: #111114;
+  --body: #2c2e36;
+  --muted: #555864;
+  --line: #d9dce5;
+  --rule: #111114;
+  --accent: #2436c9;
+  --good: #0d7a48;
+
+  --font-display: var(--font-sign), "Arial Hebrew", system-ui, sans-serif;
+  --font-body: var(--font-read), system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #161311;
-    --fg: #f3f1ee;
-    --muted: #8e877b;
-    --line: #2a2521;
-    --accent: #c08552;
+    --bg: #111114;
+    --panel: #1c1d24;
+    --fg: #f3f4f8;
+    --body: #d5d8e1;
+    --muted: #a2a6b4;
+    --line: #2c2e37;
+    --rule: #f3f4f8;
+    --accent: #97a3ff;
+    --good: #4fd08f;
   }
 }
 
 * { box-sizing: border-box; }
 
+html { -webkit-text-size-adjust: 100%; }
+
 body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font-size: 16px;
+  font-family: var(--font-body);
+  font-size: 17px;
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
+::selection { background: var(--sun); color: var(--on-sun); }
+:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px; box-shadow: 0 0 0 6px var(--sign); border-radius: 4px; }
+a { color: inherit; text-underline-offset: 0.2em; }
+
 main { max-width: 42rem; margin: 0 auto; padding: 4rem 1.5rem; }
-h1 { font-size: 2rem; line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 1rem; }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 1rem; }
 p { color: var(--muted); }
 strong { color: var(--fg); }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
+
+/* A sign plate: a cut-cornered label, in the display face. Used for step numbers and statuses. */
+.plate {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.5rem;
+  border-radius: 4px;
+  background: var(--fg);
+  color: var(--bg);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  line-height: 1;
+  flex: none;
+}
+.plate-sun { background: var(--sun); color: var(--on-sun); }
+
+/* --- Get the app — used on every page ------------------------------------------------------ */
+.app-cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 3.5rem;
+  padding: 0.8rem 1.6rem;
+  border-radius: 14px;
+  background: var(--signal);
+  color: var(--on-signal);
+  font-weight: 800;
+  font-size: 1.05rem;
+  text-decoration: none;
+  box-shadow: 0 0.5rem 1.2rem -0.5rem rgba(10, 12, 40, 0.45);
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 160ms;
+}
+.app-cta:hover { transform: translateY(-2px); box-shadow: 0 0.8rem 1.6rem -0.6rem rgba(10, 12, 40, 0.5); }
+.app-cta:active { transform: translateY(0); }
+.app-cta-compact { min-height: 2.75rem; padding: 0.5rem 1rem; font-size: 0.92rem; box-shadow: none; }
+/* Not in the App Store yet: still the orange sign — it is where the action will be — but a label,
+   not a link, so it neither lifts on hover nor takes a pointer. */
+.app-cta.soon { cursor: default; box-shadow: none; }
+.app-cta.soon:hover { transform: none; box-shadow: none; }
+
+/* --- Home (app/page.tsx) ------------------------------------------------------------------ */
+
+.wrap { width: min(72rem, 100% - 2.5rem); margin-inline: auto; }
+.wrap-narrow { width: min(46rem, 100% - 2.5rem); }
+
+.home h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(2.1rem, 5vw, 3.6rem);
+  line-height: 1.05;
+  margin: 0 0 2.5rem;
+  text-wrap: balance;
+}
+.home h3 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.6rem; line-height: 1.15; }
+.home p { margin: 0; }
+
+.sign-field { background: var(--sign); color: var(--on-sign); }
+.sign-field p { color: var(--on-sign-muted); }
+
+/* Hero */
+.home-nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 0; }
+.brand { display: flex; align-items: center; gap: 0.7rem; text-decoration: none; font-family: var(--font-display); font-size: 1.6rem; line-height: 1; }
+.brand img { border-radius: 10px; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35); }
+.nav-links { display: flex; gap: 1.5rem; }
+.nav-links a { color: var(--on-sign-muted); text-decoration: none; font-weight: 700; }
+.nav-links a:hover { color: var(--on-sign); text-decoration: underline; text-decoration-thickness: 2px; }
+
+.hero { overflow: hidden; }
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  align-items: center;
+  gap: 3rem;
+  padding: 2.5rem 0 5.5rem;
+}
+.hero h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(3rem, 7.2vw, 6rem);
+  line-height: 0.98;
+  margin: 0 0 1.75rem;
+  text-wrap: balance;
+}
+.hero-second { display: block; color: var(--on-sign); font-size: 0.62em; line-height: 1.08; margin-top: 0.6rem; }
+.lead { font-size: 1.25rem; line-height: 1.65; max-width: 34rem; }
+.hero-actions { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; margin-top: 2.25rem; }
+.hero-note { color: var(--on-sign); font-weight: 700; }
+
+/* The move */
+.scene { margin: 0; display: grid; gap: 1.25rem; justify-items: center; }
+.scene-art { width: 100%; max-width: 32rem; height: auto; overflow: visible; }
+.scene-art .solid { fill: #ffffff; }
+.scene-art .soft { fill: #8e98e8; }
+.scene-art .orange { fill: var(--signal); }
+.scene-art .outline { fill: none; stroke: #ffffff; stroke-width: 12; }
+.scene-art .bubble, .scene-art .arrived { transform-box: fill-box; transform-origin: center; }
+.scene-art .sun { fill: var(--sun); }
+.scene-art .done-label { fill: var(--on-sun); font-family: var(--font-display); font-size: 22px; }
+.scene-art .done { transform-box: fill-box; transform-origin: center; }
+
+.scene-counts { display: flex; flex-wrap: wrap; align-items: stretch; justify-content: center; gap: 0.75rem; }
+.count-plate {
+  display: grid;
+  justify-items: center;
+  padding: 0.6rem 1.1rem 0.5rem;
+  border-radius: 4px;
+  background: var(--sun);
+  color: var(--on-sun);
+  font-weight: 700;
+  line-height: 1.1;
+  min-width: 8.5rem;
+}
+.count { font-family: var(--font-display); font-weight: 400; font-size: 2.6rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.scene-example { align-self: end; color: var(--on-sign); font-weight: 700; font-size: 0.95rem; }
+
+@property --msgs { syntax: "<integer>"; initial-value: 127; inherits: false; }
+@property --media { syntax: "<integer>"; initial-value: 15; inherits: false; }
+.count-msgs { counter-reset: msgs var(--msgs); }
+.count-msgs::after { content: counter(msgs); }
+.count-media { counter-reset: media var(--media); }
+.count-media::after { content: counter(media); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .scene-art .b1 { animation: to-attic-1 1.1s cubic-bezier(0.7, 0, 0.2, 1) 0.5s both; }
+  .scene-art .b2 { animation: to-attic-2 1.1s cubic-bezier(0.7, 0, 0.2, 1) 0.8s both; }
+  .scene-art .b3 { animation: to-attic-3 1.1s cubic-bezier(0.7, 0, 0.2, 1) 1.1s both; }
+  .scene-art .arrived { animation: land 0.5s cubic-bezier(0.16, 1, 0.3, 1) 2.1s both; }
+  .scene-art .done { animation: land 0.5s cubic-bezier(0.16, 1, 0.3, 1) 2.5s both; }
+  .count-msgs { animation: count-msgs 1.8s cubic-bezier(0.16, 1, 0.3, 1) 0.6s both; }
+  .count-media { animation: count-media 1.8s cubic-bezier(0.16, 1, 0.3, 1) 0.9s both; }
+}
+@keyframes to-attic-1 { 0% { transform: translate(0, 0); opacity: 1; } 85% { transform: translate(-274px, -8px) scale(0.45); opacity: 1; } 100% { transform: translate(-274px, -8px) scale(0.3); opacity: 0; } }
+@keyframes to-attic-2 { 0% { transform: translate(0, 0); opacity: 1; } 85% { transform: translate(-278px, -80px) scale(0.45); opacity: 1; } 100% { transform: translate(-278px, -80px) scale(0.3); opacity: 0; } }
+@keyframes to-attic-3 { 0% { transform: translate(0, 0); opacity: 1; } 85% { transform: translate(-268px, -152px) scale(0.45); opacity: 1; } 100% { transform: translate(-268px, -152px) scale(0.3); opacity: 0; } }
+@keyframes land { 0% { transform: scale(0.2); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes count-msgs { from { --msgs: 0; } to { --msgs: 127; } }
+@keyframes count-media { from { --media: 0; } to { --media: 15; } }
+/* Without motion the scene is its finished state: the chat already in the attic, the phone empty. */
+@media (prefers-reduced-motion: reduce) {
+  .scene-art .bubble { opacity: 0; }
+}
+
+/* How it works: the app's own tutorial pictures */
+.how { padding: 6rem 0 5rem; }
+.shots { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.5rem; }
+.shots figure { margin: 0; display: grid; gap: 1rem; }
+.shots img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 22px;
+  border: 3px solid var(--rule);
+  background: #f2f2f7;
+}
+.shots figcaption { display: flex; align-items: flex-start; gap: 0.75rem; font-weight: 700; font-size: 1.05rem; line-height: 1.4; color: var(--fg); }
+.shots .plate { background: var(--sun); color: var(--on-sun); }
+.how-then {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 3rem !important;
+  padding-top: 2rem;
+  background: linear-gradient(var(--rule), var(--rule)) top / 100% 3px no-repeat;
+  color: var(--fg) !important;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.how-then .plate { font-size: 1.15rem; height: 2.4rem; padding: 0 0.8rem; }
+
+/* The directory board: three facts, each on its own ruled line, like the board in a building's
+   lobby — white type on the brand field, a sign per line. */
+.board { background: var(--sign); color: var(--on-sign); padding: 1.5rem 0; }
+.board-rows { list-style: none; margin: 0; padding: 0; }
+.board-rows li {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 16rem) minmax(0, 1fr);
+  align-items: center;
+  gap: 2rem;
+  padding: 1.75rem 0;
+}
+.board-rows li + li { background: linear-gradient(rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.35)) top / 100% 3px no-repeat; }
+.board-rows p { color: var(--on-sign-muted); font-size: 1.15rem; max-width: 36rem; }
+.board-sign { width: 4.5rem; height: 4.5rem; border-radius: 6px; background: #ffffff; display: grid; place-items: center; }
+.board-sign svg { width: 2.75rem; height: 2.75rem; fill: var(--sign); }
+.board-sign svg .cut { fill: #ffffff; }
+
+/* Prices, set like a fare table */
+.prices-section { padding: 6rem 0 5rem; }
+.fares { border-top: 3px solid var(--rule); }
+.fare {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 1.5rem;
+  padding: 1.5rem 0.25rem;
+  border-bottom: 1px solid var(--line);
+}
+.fare:last-child { border-bottom: 3px solid var(--rule); }
+.fare-name { font-family: var(--font-display); font-size: 1.8rem; line-height: 1.1; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.fare-name .plate { font-family: var(--font-body); font-weight: 800; }
+.fare-scope { color: var(--muted); font-size: 1.15rem; font-weight: 600; }
+.fare-amount { font-family: var(--font-display); font-size: clamp(2.4rem, 5vw, 3.4rem); line-height: 1; font-variant-numeric: tabular-nums; text-align: end; }
+.fare-amount small { font-family: var(--font-body); font-size: 1rem; font-weight: 600; color: var(--muted); }
+.fine { color: var(--muted); margin-top: 1.5rem !important; font-size: 1rem; }
+
+/* FAQ */
+.faq { padding: 3rem 0 6rem; }
+.faq details { border-bottom: 1px solid var(--line); }
+.faq details:first-of-type { border-top: 3px solid var(--rule); }
+.faq summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 4rem;
+  padding: 0.9rem 0;
+  font-weight: 800;
+  font-size: 1.15rem;
+}
+.faq summary::-webkit-details-marker { display: none; }
+/* A plus drawn from two bars on a sign plate; open, the upright bar folds away into a minus. */
+.faq summary::before {
+  content: "";
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 4px;
+  background:
+    linear-gradient(#ffffff, #ffffff) center / 0.9rem 3px no-repeat,
+    linear-gradient(#ffffff, #ffffff) center / 3px 0.9rem no-repeat,
+    var(--sign);
+}
+.faq details[open] summary::before {
+  background:
+    linear-gradient(var(--bg), var(--bg)) center / 0.9rem 3px no-repeat,
+    var(--fg);
+}
+.faq summary:hover { color: var(--accent); }
+.faq details p { color: var(--body); padding: 0 3rem 1.4rem 0; line-height: 1.7; font-size: 1.08rem; max-width: 40rem; }
+[dir="ltr"] .faq details p { padding: 0 0 1.4rem 3rem; }
+
+/* Closing */
+.closing { padding: 5.5rem 0; }
+.closing-inner { display: grid; justify-items: center; text-align: center; gap: 1.75rem; }
+.closing-inner img { border-radius: 18px; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35); }
+.closing h2 { margin: 0 !important; }
+
+.footer { background: #111114; color: #a2a6b4; padding: 2rem 0 2.5rem; font-size: 0.95rem; }
+.footer-inner { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.footer-brand { font-family: var(--font-display); color: #ffffff; font-size: 1.2rem; }
+
+@media (max-width: 60rem) {
+  .shots { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem 1.25rem; }
+  .board-rows li { grid-template-columns: 3.5rem minmax(0, 1fr); gap: 0.5rem 1.25rem; }
+  .board-rows li p { grid-column: 2; }
+  .board-sign { width: 3.5rem; height: 3.5rem; grid-row: span 2; align-self: start; }
+  .board-sign svg { width: 2.1rem; height: 2.1rem; }
+}
+
+@media (max-width: 52rem) {
+  .hero-grid { grid-template-columns: 1fr; padding: 1rem 0 3.5rem; gap: 2.5rem; }
+  .scene-art { max-width: 24rem; }
+  .nav-links { gap: 1rem; font-size: 0.95rem; }
+  .how, .prices-section { padding: 4rem 0 3.5rem; }
+  .fare { grid-template-columns: minmax(0, 1fr) auto; gap: 0.25rem 1rem; }
+  .fare-scope { grid-column: 1; grid-row: 2; font-size: 1rem; }
+  .fare-amount { grid-row: span 2; align-self: center; }
+}
+
+@media (max-width: 34rem) {
+  .nav-links a[href="#how"] { display: none; }
+  /* Four pictures side by side are unreadable on a phone and stacked they run a whole screen
+     each; a row you swipe keeps each picture big and the next one peeking in. */
+  .shots {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 74%;
+    gap: 1rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 0.5rem;
+    margin-inline: -1.25rem;
+    padding-inline: 1.25rem;
+    scroll-padding-inline: 1.25rem;
+    scrollbar-width: none;
+  }
+  .shots li { scroll-snap-align: start; }
+  .home h3 { font-size: 1.35rem; }
+  .board-rows p { font-size: 1.02rem; }
+}
 
 /* --- Viewer (shared chats, app/_components) ---------------------------------------------
  *
  * The shared-chat viewer is meant to read like the app's chat screen, not like a document: a
  * header you can tap for chat info, bubbles grouped into turns, day separators, and a button
- * back down to the present. Tokens below are the viewer's own so the conversation can sit on a
- * quieter ground than the home page without either of them drifting.
+ * back down to the present. It inherits the sign system quietly — ultramarine as the tint, the
+ * orange button for the one action — because here the conversation is the content.
  */
 
 :root {
-  --chat-bg: #efe9e1;
+  --chat-bg: #eceef5;
   --bubble: #ffffff;
-  --bubble-self: #f4e3d2;
+  --bubble-self: #dfe4fc;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --chat-bg: #12100e;
-    --bubble: #211d19;
-    --bubble-self: #3a2a1c;
+    --chat-bg: #07080f;
+    --bubble: #1a1e2c;
+    --bubble-self: #252c5c;
   }
 }
 
@@ -126,24 +449,25 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 
 .viewer-identity-text { display: grid; min-width: 0; }
-.viewer-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.viewer-subtitle { color: var(--muted); font-size: 0.8rem; }
+.viewer-title { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewer-subtitle { color: var(--muted); font-size: 0.85rem; }
 
 .viewer-actions { display: flex; align-items: center; gap: 0.5rem; flex: none; }
 
 .viewer-save {
   font: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
-  padding: 0.45rem 0.9rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--fg);
+  font-size: 0.92rem;
+  font-weight: 800;
+  min-height: 2.5rem;
+  padding: 0.4rem 1rem;
+  border: none;
+  border-radius: 12px;
+  background: var(--signal);
+  color: var(--on-signal);
   cursor: pointer;
   white-space: nowrap;
 }
-.viewer-save:hover { background: var(--panel); }
+.viewer-save:hover { filter: brightness(1.05); }
 
 .viewer-body { flex: 1; min-height: 0; background: var(--chat-bg); }
 
@@ -157,12 +481,12 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 
 .day-row { display: flex; justify-content: center; padding: 0.6rem 1rem 0.35rem; }
 .day-chip {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
   color: var(--muted);
   background: var(--bg);
-  border-radius: 999px;
-  padding: 0.2rem 0.75rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+  padding: 0.2rem 0.7rem;
 }
 
 .bubble-row { display: flex; padding: 0 0.75rem; margin-top: 2px; }
@@ -173,11 +497,11 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 
 .bubble {
   max-width: min(82%, 34rem);
-  padding: 0.4rem 0.6rem 0.3rem;
+  padding: 0.4rem 0.65rem 0.3rem;
   border-radius: 1rem;
   display: grid;
   gap: 0.15rem;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.07);
+  box-shadow: 0 1px 1px rgba(10, 12, 40, 0.07);
 }
 .bubble-other { background: var(--bubble); }
 .bubble-self { background: var(--bubble-self); }
@@ -189,17 +513,17 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 /* One hue per speaker, from `colorForParticipant` — the same function the app uses, so a person
    keeps their colour between the two. It is mixed for a light background, hence the lift in
    dark mode rather than a second palette that would drift from the app's. */
-.bubble-sender { font-size: 0.82rem; font-weight: 700; }
+.bubble-sender { font-size: 0.84rem; font-weight: 800; }
 @media (prefers-color-scheme: dark) {
   .bubble-sender { filter: brightness(1.9) saturate(0.85); }
 }
-.bubble-body { font-size: 0.95rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
-.bubble-time { font-size: 0.68rem; color: var(--muted); justify-self: end; line-height: 1.2; }
+.bubble-body { font-size: 1rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.bubble-time { font-size: 0.7rem; color: var(--muted); justify-self: end; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .bubble-deleted { font-size: 0.95rem; font-style: italic; color: var(--muted); }
 
 /* Media the archive does not hold: said in place, plainly, never as a warning. */
 .bubble-absent {
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   color: var(--muted);
   border: 1px dashed var(--line);
   border-radius: 0.6rem;
@@ -207,12 +531,12 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 
 .bubble-system {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   line-height: 1.5;
   color: var(--muted);
   text-align: center;
   background: var(--bg);
-  border-radius: 0.8rem;
+  border-radius: 4px;
   padding: 0.3rem 0.7rem;
 }
 
@@ -224,17 +548,17 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   width: 2.75rem;
   height: 2.75rem;
   border-radius: 50%;
-  border: 1px solid var(--line);
-  background: var(--bg);
-  color: var(--fg);
+  border: none;
+  background: var(--sign);
+  color: #ffffff;
   display: grid;
   place-items: center;
   cursor: pointer;
-  box-shadow: 0 0.4rem 1rem -0.3rem rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0.4rem 1rem -0.3rem rgba(10, 12, 40, 0.45);
   z-index: 20;
 }
-.jump-down:hover { background: var(--panel); }
-.jump-down svg { width: 1.4rem; height: 1.4rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.jump-down:hover { background: var(--sign-deep); }
+.jump-down svg { width: 1.4rem; height: 1.4rem; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Media inside a bubble */
 
@@ -246,17 +570,17 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   border: 1px solid var(--line);
   border-radius: 0.6rem;
   color: var(--muted);
-  font-size: 0.85rem;
   font: inherit;
+  font-size: 0.88rem;
   background: transparent;
   text-align: start;
 }
-.media-file { cursor: pointer; }
+.media-file { cursor: pointer; color: var(--accent); font-weight: 700; }
 
 .lightbox-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(5, 6, 14, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -269,6 +593,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   position: absolute;
   top: 1rem;
   right: 1.25rem;
+  width: 2.75rem;
+  height: 2.75rem;
   font-size: 1.25rem;
   background: none;
   border: none;
@@ -281,7 +607,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .sheet-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(10, 12, 30, 0.45);
   display: flex;
   justify-content: flex-end;
   z-index: 40;
@@ -293,7 +619,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   background: var(--bg);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 0 3rem rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 3rem rgba(10, 12, 40, 0.3);
 }
 
 .sheet-head {
@@ -303,14 +629,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   padding: 0.9rem 1.1rem;
   border-bottom: 1px solid var(--line);
 }
-.sheet-title { font-weight: 700; }
+.sheet-title { font-weight: 800; }
 .sheet-close, .dialog-quiet {
   font: inherit;
+  min-height: 2.75rem;
   background: none;
   border: none;
-  color: var(--muted);
+  color: var(--accent);
+  font-weight: 700;
   cursor: pointer;
-  padding: 0.3rem;
+  padding: 0.3rem 0.5rem;
 }
 .sheet-body { padding: 1.25rem 1.1rem 2.5rem; overflow-y: auto; }
 
@@ -325,8 +653,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   font-size: 1.8rem;
   font-weight: 800;
 }
-.info-name { font-size: 1.2rem; font-weight: 700; text-align: center; }
-.info-sub { color: var(--muted); font-size: 0.85rem; }
+.info-name { font-family: var(--font-display); font-size: 1.5rem; line-height: 1.2; text-align: center; }
+.info-sub { color: var(--muted); font-size: 0.88rem; }
 
 .info-facts { display: grid; gap: 0.1rem; margin: 0 0 1.5rem; }
 .info-facts > div {
@@ -336,17 +664,18 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   padding: 0.6rem 0;
   border-bottom: 1px solid var(--line);
 }
-.info-facts dt { color: var(--muted); font-size: 0.9rem; }
-.info-facts dd { margin: 0; font-size: 0.9rem; text-align: end; }
+.info-facts dt { color: var(--muted); font-size: 0.92rem; }
+.info-facts dd { margin: 0; font-size: 0.92rem; text-align: end; font-weight: 600; }
 
-.info-section-title { font-weight: 700; margin-bottom: 0.25rem; }
-.info-hint { font-size: 0.85rem; margin: 0 0 0.75rem; }
+.info-section-title { font-weight: 800; margin-bottom: 0.25rem; }
+.info-hint { font-size: 0.88rem; margin: 0 0 0.75rem; }
 
 .person {
   display: flex;
   align-items: center;
   gap: 0.7rem;
   width: 100%;
+  min-height: 2.75rem;
   padding: 0.5rem;
   border: none;
   border-radius: 0.7rem;
@@ -370,7 +699,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   font-weight: 700;
 }
 .person-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.person-you { font-size: 0.75rem; font-weight: 700; color: var(--accent); }
+.person-you { font-size: 0.78rem; font-weight: 800; padding: 0.05rem 0.45rem; border-radius: 4px; background: var(--sun); color: var(--on-sun); }
 
 .dialog {
   margin: auto;
@@ -380,29 +709,30 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   padding: 1.5rem;
   display: grid;
   gap: 0.75rem;
-  box-shadow: 0 1.5rem 3rem -1rem rgba(0, 0, 0, 0.5);
+  box-shadow: 0 1.5rem 3rem -1rem rgba(10, 12, 40, 0.5);
 }
-.dialog h2 { margin: 0; font-size: 1.15rem; }
-.dialog p { margin: 0; font-size: 0.92rem; line-height: 1.55; }
-.dialog-fine { font-size: 0.85rem !important; color: var(--muted); }
+.dialog h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.5rem; line-height: 1.2; }
+.dialog p { margin: 0; font-size: 0.95rem; line-height: 1.55; }
+.dialog-fine { font-size: 0.88rem !important; color: var(--muted); }
 .dialog-problem { color: var(--fg); }
 
 .dialog-cta {
   font: inherit;
-  font-weight: 700;
+  font-weight: 800;
+  min-height: 3.25rem;
   padding: 0.8rem 1.2rem;
   border: none;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
+  border-radius: 14px;
+  background: var(--signal);
+  color: var(--on-signal);
   cursor: pointer;
   margin-top: 0.25rem;
 }
-.dialog-cta:hover { filter: brightness(1.08); }
-.dialog-link { color: var(--accent); font-weight: 600; }
+.dialog-cta:hover { filter: brightness(1.05); }
+.dialog-link { color: var(--accent); font-weight: 700; }
 
 .progress { height: 0.4rem; border-radius: 999px; background: var(--line); overflow: hidden; }
-.progress > div { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.2s ease; }
+.progress > div { height: 100%; background: var(--sign); border-radius: 999px; transition: width 0.2s ease; }
 
 /* The one nudge: dismissible, and out of the conversation's way. */
 .app-banner {
@@ -410,187 +740,27 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   display: flex;
   align-items: center;
   gap: 0.9rem;
-  padding: 0.7rem 1rem;
-  border-top: 1px solid var(--line);
-  background: var(--panel);
+  padding: 0.75rem 1rem;
+  background: var(--sign);
+  color: var(--on-sign);
 }
-.app-banner-text { display: grid; gap: 0.1rem; flex: 1; min-width: 0; font-size: 0.85rem; }
-.app-banner-text span { color: var(--muted); }
+.app-banner-text { display: grid; gap: 0.1rem; flex: 1; min-width: 0; font-size: 0.9rem; }
+.app-banner-text span { color: var(--on-sign-muted); }
 .app-banner-close {
   font: inherit;
+  width: 2.75rem;
+  height: 2.75rem;
   background: none;
   border: none;
-  color: var(--muted);
+  color: var(--on-sign-muted);
   cursor: pointer;
-  padding: 0.25rem;
   flex: none;
 }
 
 @media (max-width: 34rem) {
-  .viewer-save { padding: 0.4rem 0.7rem; font-size: 0.85rem; }
+  .viewer-save { padding: 0.4rem 0.75rem; font-size: 0.86rem; }
   .app-banner { flex-wrap: wrap; }
   .sheet { width: 100%; }
-}
-
-/* --- Home (app/page.tsx) ------------------------------------------------------------------ */
-
-:root {
-  --wood: #7a4a21;
-  --wood-soft: #c08552;
-  --brass: #f0d9a8;
-  --panel: #efece6;
-  --good: #256d4a;
-  --good-wash: #e3efe8;
-  --bezel: #1b1714;
-  --glow: rgba(192, 133, 82, 0.18);
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --wood: #d79a63;
-    --wood-soft: #b87f4c;
-    --panel: #221e1a;
-    --good: #5cc08d;
-    --good-wash: #16261e;
-    --bezel: #4a3d31;
-    --glow: rgba(215, 154, 99, 0.16);
-  }
-}
-
-.home { max-width: 72rem; margin: 0 auto; padding: 0 1.5rem; }
-.home h2 { font-size: clamp(1.6rem, 3.5vw, 2.2rem); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 1.75rem; }
-.home h3 { margin: 0; font-size: 1.1rem; font-weight: 700; }
-.home p { margin: 0; }
-
-.home-nav { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 0; }
-.brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 800; font-size: 1.2rem; }
-.brand img { border-radius: 9px; }
-.nav-link { color: var(--muted); text-decoration: none; font-weight: 500; }
-.nav-link:hover { color: var(--fg); }
-
-.hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-  align-items: center;
-  gap: 3rem;
-  padding: 3rem 0 5rem;
-}
-.eyebrow { color: var(--wood); font-weight: 700; font-size: 0.95rem; margin-bottom: 1rem !important; }
-.hero h1 { font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.05; font-weight: 900; letter-spacing: -0.035em; margin: 0 0 1.5rem; }
-.hero h1 .wood { color: var(--wood); }
-.lead { font-size: 1.2rem; line-height: 1.65; color: var(--muted); max-width: 34rem; }
-.hero-actions { display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap; margin-top: 2rem; }
-.hero-note { color: var(--muted); font-size: 0.95rem; }
-
-/* The phone */
-.phone {
-  justify-self: center;
-  width: min(100%, 20rem);
-  aspect-ratio: 9 / 18.5;
-  border-radius: 2.8rem;
-  padding: 2.6rem 1rem 1rem;
-  background: var(--bg);
-  border: 0.55rem solid var(--bezel);
-  box-shadow:
-    0 2.5rem 5rem -1.5rem rgba(60, 35, 15, 0.45),
-    0 0 0 1px rgba(0, 0, 0, 0.06),
-    0 0 6rem 0.5rem var(--glow);
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  transform: rotate(-3deg);
-}
-.phone-notch { position: absolute; top: 0.6rem; left: 50%; transform: translateX(-50%); width: 5.5rem; height: 1.5rem; border-radius: 1rem; background: var(--bezel); }
-.phone-title { font-weight: 800; font-size: 1.35rem; padding: 0 0.25rem; }
-.phone-sub { color: var(--muted); font-size: 0.72rem; padding: 0 0.25rem 0.35rem; }
-.phone-row { display: flex; gap: 0.6rem; align-items: center; background: var(--panel); border-radius: 0.8rem; padding: 0.6rem; }
-.phone-avatar { flex: none; width: 2.4rem; height: 2.4rem; border-radius: 50%; color: #fff; display: grid; place-items: center; font-weight: 800; }
-.phone-text { flex: 1; min-width: 0; display: grid; gap: 0.2rem; }
-.phone-name { font-weight: 700; font-size: 0.85rem; }
-.phone-preview { color: var(--muted); font-size: 0.72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.phone-tabs { margin-top: auto; display: flex; justify-content: space-around; padding: 0.7rem 0 0.2rem; border-top: 1px solid var(--line); font-size: 0.62rem; color: var(--muted); }
-.phone-tabs .active { color: var(--wood); font-weight: 700; }
-.pill { justify-self: start; font-size: 0.66rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--line); color: var(--fg); }
-.pill-safe { background: var(--good-wash); color: var(--good); }
-.phone-progress { display: grid; gap: 0.2rem; font-size: 0.66rem; color: var(--muted); }
-.bar { height: 0.25rem; border-radius: 1rem; background: var(--line); overflow: hidden; }
-.bar > div { height: 100%; background: var(--wood); border-radius: 1rem; }
-
-/* Sections */
-.section { padding: 4.5rem 0; border-top: 1px solid var(--line); }
-.steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
-.steps li { background: var(--panel); border-radius: 1.2rem; padding: 1.6rem; display: grid; gap: 0.6rem; align-content: start; }
-.step-number { width: 2.4rem; height: 2.4rem; border-radius: 50%; display: grid; place-items: center; background: var(--wood); color: #fff; font-weight: 800; }
-.steps p { color: var(--muted); line-height: 1.55; }
-
-.band {
-  background: linear-gradient(135deg, #2b1c10, #4a2e18);
-  color: #f4f1ec;
-  border-radius: 1.6rem;
-  margin: 1rem 0;
-  box-shadow: inset 0 0 0 1px rgba(240, 217, 168, 0.08);
-}
-.band-inner { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; padding: 3.25rem; }
-.point { display: grid; gap: 0.6rem; }
-.point p { color: #d8cdbd; line-height: 1.6; }
-.point-icon { width: 2.8rem; height: 2.8rem; border-radius: 0.8rem; background: rgba(240, 217, 168, 0.12); color: var(--brass); display: grid; place-items: center; }
-.point-icon svg { width: 1.5rem; height: 1.5rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-
-.prices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; align-items: stretch; }
-.price { position: relative; border: 1px solid var(--line); border-radius: 1.2rem; padding: 1.8rem; display: grid; gap: 0.5rem; align-content: start; }
-.price p { color: var(--muted); }
-.price.featured { border: 2px solid var(--wood); background: var(--panel); }
-.badge { position: absolute; top: -0.8rem; inset-inline-start: 1.4rem; background: var(--wood); color: #fff; font-size: 0.78rem; font-weight: 700; padding: 0.15rem 0.7rem; border-radius: 999px; }
-.amount { font-size: 2.3rem; font-weight: 900; letter-spacing: -0.03em; }
-.amount span { font-size: 1rem; font-weight: 500; color: var(--muted); }
-.fine { color: var(--muted); margin-top: 1.25rem !important; font-size: 0.95rem; }
-
-.faq details { border-bottom: 1px solid var(--line); padding: 1.1rem 0; }
-.faq summary { cursor: pointer; font-weight: 700; font-size: 1.08rem; list-style: none; }
-.faq summary::-webkit-details-marker { display: none; }
-.faq summary::before { content: "+"; display: inline-block; width: 1.5rem; color: var(--wood); font-weight: 800; }
-.faq details[open] summary::before { content: "−"; }
-.faq details p { color: var(--muted); padding-top: 0.6rem; padding-inline-start: 1.5rem; line-height: 1.65; }
-
-.closing {
-  margin: 3rem 0;
-  padding: 4rem 2rem;
-  border-radius: 1.6rem;
-  text-align: center;
-  display: grid;
-  gap: 1.5rem;
-  justify-items: center;
-  background: linear-gradient(135deg, #7a4a21, #a86a36);
-  color: #fff;
-}
-.closing h2 { margin: 0 !important; color: #fff; }
-.closing .app-cta { background: #fff; color: #5f3a1a; }
-.closing .app-cta.soon { background: rgba(255, 255, 255, 0.18); color: #fff; }
-
-.footer { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 2rem 0 3rem; color: var(--muted); font-size: 0.9rem; }
-
-/* Get the app — used on every page */
-.app-cta {
-  display: inline-block;
-  padding: 0.95rem 1.7rem;
-  border-radius: 999px;
-  background: var(--wood);
-  color: #fff;
-  font-weight: 700;
-  text-decoration: none;
-  box-shadow: 0 0.6rem 1.4rem -0.6rem rgba(122, 74, 33, 0.6);
-}
-.app-cta:hover { filter: brightness(1.08); }
-.app-cta-compact { padding: 0.5rem 1rem; font-size: 0.9rem; box-shadow: none; }
-.app-cta.soon { background: var(--panel); color: var(--fg); box-shadow: none; }
-
-
-@media (max-width: 52rem) {
-  .hero { grid-template-columns: 1fr; padding-top: 1.5rem; gap: 3.5rem; }
-  .phone { transform: none; width: min(100%, 18rem); }
-  .steps, .prices, .band-inner { grid-template-columns: 1fr; }
-  .band-inner { padding: 2.25rem; }
-  .price.featured { order: -1; }
 }
 
 /* ── The strip above the oldest message that has arrived so far ─────────────────────────── */
