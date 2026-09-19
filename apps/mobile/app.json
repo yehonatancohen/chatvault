@@ -7,12 +7,12 @@
     "icon": "./assets/images/icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "bundleIdentifier": "com.boydem.app",
       "supportsTablet": false,
       "infoPlist": {
-        "CFBundleDisplayName": "בוידעם"
+        "CFBundleDisplayName": "בוידעם",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -34,7 +34,6 @@
             "text/plain",
             "application/zip"
           ],
-          "disableExperimental": true,
           "iosAppGroupIdentifier": "group.com.boydem.app"
         }
       ],
