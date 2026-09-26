@@ -174,6 +174,10 @@ export default function HomePage() {
         <div className="wrap footer-inner">
           <span className="footer-brand">בוידעם</span>
           <span dir="ltr">Boydem — your WhatsApp chats, in your own Google Drive.</span>
+          <nav className="footer-links" aria-label="ניווט">
+            <a href="/privacy">פרטיות</a>
+            <a href="/support">תמיכה</a>
+          </nav>
         </div>
       </footer>
     </div>

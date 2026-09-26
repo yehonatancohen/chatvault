@@ -763,6 +763,41 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   .sheet { width: 100%; }
 }
 
+/* --- Legal / support pages (app/privacy, app/support) --------------------------------------
+ *
+ * Plain reading pages: a small header linking back home, prose, a footer matching the home
+ * page's. No sign fields, no animation — these are pages people read, not the public sign. */
+.legal { display: flex; flex-direction: column; min-height: 100dvh; }
+.legal-nav { border-bottom: 1px solid var(--line); }
+.legal-nav-inner { display: flex; align-items: center; padding: 1.1rem 0; }
+.legal-nav .brand { font-size: 1.3rem; color: var(--fg); }
+.legal-main { flex: 1; padding: 3rem 1.5rem 5rem; }
+.legal-main h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  margin: 0 0 0.5rem;
+}
+.legal-updated { color: var(--muted); font-size: 0.9rem; margin-bottom: 2.5rem !important; }
+.legal-main section { margin-top: 2.25rem; }
+.legal-main h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.5rem;
+  margin: 0 0 0.75rem;
+}
+.legal-main p { line-height: 1.7; margin: 0 0 0.75rem; }
+.legal-main p:last-child { margin-bottom: 0; }
+.legal-main ul { margin: 0.75rem 0; padding-inline-start: 1.4rem; color: var(--muted); line-height: 1.7; }
+.legal-main li + li { margin-top: 0.6rem; }
+.legal-main li strong { color: var(--fg); }
+.legal-main a { color: var(--accent); font-weight: 700; }
+.legal-main .faq { padding: 0.5rem 0 0; }
+
+.footer-links { display: flex; gap: 1.25rem; }
+.footer-links a { text-decoration: none; }
+.footer-links a:hover { text-decoration: underline; }
+
 /* ── The strip above the oldest message that has arrived so far ─────────────────────────── */
 .older-loading {
   display: flex;
