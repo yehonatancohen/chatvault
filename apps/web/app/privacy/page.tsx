@@ -110,6 +110,7 @@ function PageFooter() {
         <nav className="footer-links" aria-label="ניווט">
           <a href="/">בית</a>
           <a href="/privacy">פרטיות</a>
+          <a href="/terms">תנאי שימוש</a>
           <a href="/support">תמיכה</a>
         </nav>
       </div>

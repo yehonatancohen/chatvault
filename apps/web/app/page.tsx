@@ -176,6 +176,7 @@ export default function HomePage() {
           <span dir="ltr">Boydem — your WhatsApp chats, in your own Google Drive.</span>
           <nav className="footer-links" aria-label="ניווט">
             <a href="/privacy">פרטיות</a>
+            <a href="/terms">תנאי שימוש</a>
             <a href="/support">תמיכה</a>
           </nav>
         </div>
