@@ -1,72 +1,73 @@
 ---
 name: Boydem (בוידעם) — iOS app
-description: A public sign you can operate; native iOS structure with ultramarine sign moments, in Hebrew and English.
+description: Apple's Human Interface Guidelines, applied plainly; system colours, San Francisco, inset grouped lists, one tint, in Hebrew and English.
 colors:
-  sign: "#2436c9"
-  on-sign: "#ffffff"
-  on-sign-muted: "#cdd3fa"
-  signal: "#ff5b24"
-  on-signal: "#111114"
-  sun: "#ffd23f"
-  on-sun: "#111114"
-  accent: "#2436c9"
-  accent-soft: "#5363e0"
-  accent-wash: "#e6e9fb"
+  accent: "#007aff"
+  accent-soft: "#5ac8fa"
+  accent-wash: "rgba(0, 122, 255, 0.12)"
   on-accent: "#ffffff"
-  paper: "#f2f3f7"
+  paper: "#f2f2f7"
+  base: "#ffffff"
   panel: "#ffffff"
   raised: "#ffffff"
-  sunken: "#e4e6ee"
+  highlight: "#d1d1d6"
+  sunken: "#e5e5ea"
   field: "#ffffff"
-  ink: "#111114"
-  body: "#2c2e36"
-  muted: "#555864"
-  faint: "#6c6f7b"
-  hairline: "#d9dce5"
-  separator: "#e4e6ee"
-  self-bubble: "#dfe4fc"
-  good: "#0d7a48"
-  good-wash: "#e1f3ea"
-  bad: "#c23220"
-  bad-wash: "#fbe9e6"
-  caution: "#855f00"
-  caution-wash: "#fbf0d2"
-  scrim: "rgba(10, 12, 30, 0.45)"
-  signal-dark: "#ff6a36"
-  accent-dark: "#97a3ff"
-  accent-soft-dark: "#6f7cf0"
-  accent-wash-dark: "#1a2050"
-  on-accent-dark: "#0b0d16"
-  paper-dark: "#0b0d16"
-  panel-dark: "#161a27"
-  raised-dark: "#1f2433"
-  sunken-dark: "#05060b"
-  field-dark: "#161a27"
-  ink-dark: "#f3f4f8"
-  body-dark: "#d5d8e1"
-  muted-dark: "#a2a6b4"
-  faint-dark: "#868a99"
-  hairline-dark: "#2a2f40"
-  separator-dark: "#212636"
-  self-bubble-dark: "#252c5c"
-  good-dark: "#4fd08f"
-  good-wash-dark: "#0e281c"
-  bad-dark: "#ff8b75"
-  bad-wash-dark: "#2d1512"
-  caution-dark: "#efc24f"
-  caution-wash-dark: "#2a220c"
+  ink: "#000000"
+  body: "#000000"
+  muted: "#6c6c70"
+  faint: "#8e8e93"
+  hairline: "#c6c6c8"
+  separator: "rgba(60, 60, 67, 0.29)"
+  bubble: "#e9e9eb"
+  self-bubble: "#007aff"
+  on-self-bubble: "#ffffff"
+  on-self-bubble-muted: "rgba(255, 255, 255, 0.75)"
+  good: "#248a3d"
+  good-wash: "rgba(52, 199, 89, 0.14)"
+  bad: "#d70015"
+  bad-wash: "rgba(255, 59, 48, 0.12)"
+  caution: "#c93400"
+  caution-wash: "rgba(255, 149, 0, 0.14)"
+  scrim: "rgba(0, 0, 0, 0.4)"
+  accent-dark: "#0a84ff"
+  accent-soft-dark: "#64d2ff"
+  accent-wash-dark: "rgba(10, 132, 255, 0.2)"
+  on-accent-dark: "#ffffff"
+  paper-dark: "#000000"
+  base-dark: "#000000"
+  panel-dark: "#1c1c1e"
+  raised-dark: "#2c2c2e"
+  highlight-dark: "#3a3a3c"
+  sunken-dark: "#2c2c2e"
+  field-dark: "#1c1c1e"
+  ink-dark: "#ffffff"
+  body-dark: "#ffffff"
+  muted-dark: "#aeaeb2"
+  faint-dark: "#8e8e93"
+  hairline-dark: "#38383a"
+  separator-dark: "rgba(84, 84, 88, 0.6)"
+  bubble-dark: "#262629"
+  self-bubble-dark: "#0a84ff"
+  good-dark: "#30d158"
+  good-wash-dark: "rgba(48, 209, 88, 0.18)"
+  bad-dark: "#ff453a"
+  bad-wash-dark: "rgba(255, 69, 58, 0.18)"
+  caution-dark: "#ff9f0a"
+  caution-wash-dark: "rgba(255, 159, 10, 0.18)"
   scrim-dark: "rgba(0, 0, 0, 0.6)"
 typography:
   numeral:
-    fontFamily: "SecularOne"
-    fontSize: "60px"
-    fontWeight: 400
-    lineHeight: "64px"
+    fontFamily: "SF Pro (system)"
+    fontSize: "34px"
+    fontWeight: 700
+    lineHeight: "41px"
   display:
-    fontFamily: "SecularOne"
-    fontSize: "32px"
-    fontWeight: 400
-    lineHeight: "38px"
+    fontFamily: "SF Pro (system)"
+    fontSize: "34px"
+    fontWeight: 700
+    lineHeight: "41px"
+    letterSpacing: "0.4px"
   title:
     fontFamily: "SF Pro (system)"
     fontSize: "22px"
@@ -82,7 +83,7 @@ typography:
     fontFamily: "SF Pro (system)"
     fontSize: "17px"
     fontWeight: 400
-    lineHeight: "24px"
+    lineHeight: "22px"
   label:
     fontFamily: "SF Pro (system)"
     fontSize: "17px"
@@ -96,15 +97,14 @@ typography:
   micro:
     fontFamily: "SF Pro (system)"
     fontSize: "13px"
-    fontWeight: 500
+    fontWeight: 400
     lineHeight: "18px"
 rounded:
-  plate: "4px"
   chip: "8px"
   field: "12px"
-  button: "14px"
-  card: "14px"
-  sheet: "22px"
+  card: "20px"
+  sheet: "28px"
+  button: "999px"
   pill: "999px"
 spacing:
   xs: "4px"
@@ -114,30 +114,30 @@ spacing:
   xl: "24px"
   xxl: "32px"
   xxxl: "48px"
-  gutter: "24px"
+  gutter: "16px"
   tap: "48px"
 components:
   button-primary:
-    backgroundColor: "{colors.signal}"
-    textColor: "{colors.on-signal}"
+    backgroundColor: "{colors.accent}"
+    textColor: "{colors.on-accent}"
     typography: "{typography.label}"
     rounded: "{rounded.button}"
-    padding: "12px 16px"
-    height: "52px"
+    padding: "12px 24px"
+    height: "50px"
   button-quiet:
     backgroundColor: "{colors.accent-wash}"
     textColor: "{colors.accent}"
     typography: "{typography.label}"
     rounded: "{rounded.button}"
-    padding: "12px 16px"
-    height: "52px"
+    padding: "12px 24px"
+    height: "50px"
   button-danger:
     backgroundColor: "{colors.bad-wash}"
     textColor: "{colors.bad}"
     typography: "{typography.label}"
     rounded: "{rounded.button}"
-    padding: "12px 16px"
-    height: "52px"
+    padding: "12px 24px"
+    height: "50px"
   section-group:
     backgroundColor: "{colors.panel}"
     textColor: "{colors.ink}"
@@ -147,36 +147,25 @@ components:
     textColor: "{colors.ink}"
     typography: "{typography.label}"
     padding: "12px 0"
-    height: "52px"
+    height: "48px"
   field:
     backgroundColor: "{colors.field}"
     textColor: "{colors.ink}"
     typography: "{typography.body}"
     rounded: "{rounded.field}"
     padding: "12px 16px"
-    height: "52px"
-  status-plate:
-    backgroundColor: "{colors.sunken}"
-    textColor: "{colors.muted}"
+    height: "50px"
+  status-safe:
+    backgroundColor: "{colors.good-wash}"
+    textColor: "{colors.good}"
     typography: "{typography.micro}"
-    rounded: "{rounded.plate}"
+    rounded: "{rounded.pill}"
     padding: "3px 8px"
-  status-plate-safe:
-    backgroundColor: "{colors.sun}"
-    textColor: "{colors.on-sun}"
-    typography: "{typography.micro}"
-    rounded: "{rounded.plate}"
-    padding: "3px 8px"
-  step-plate:
-    backgroundColor: "{colors.sun}"
-    textColor: "{colors.on-sun}"
-    rounded: "{rounded.plate}"
-    size: "32px"
-  sign-card:
-    backgroundColor: "{colors.sign}"
-    textColor: "{colors.on-sign}"
-    rounded: "{rounded.card}"
-    padding: "24px"
+  step-disc:
+    backgroundColor: "{colors.accent}"
+    textColor: "{colors.on-accent}"
+    rounded: "{rounded.pill}"
+    size: "28px"
   callout-good:
     backgroundColor: "{colors.good-wash}"
     textColor: "{colors.good}"
@@ -196,193 +185,240 @@ components:
   chat-row:
     textColor: "{colors.ink}"
     typography: "{typography.heading}"
-    padding: "12px 24px"
+    padding: "12px 16px"
     height: "76px"
+  bubble-other:
+    backgroundColor: "{colors.bubble}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body}"
+  bubble-self:
+    backgroundColor: "{colors.self-bubble}"
+    textColor: "{colors.on-self-bubble}"
+    typography: "{typography.body}"
   tab-bar:
     backgroundColor: "{colors.panel}"
-    textColor: "{colors.muted}"
+    textColor: "{colors.faint}"
   step-shot:
     backgroundColor: "{colors.panel}"
-    rounded: "{rounded.sheet}"
+    rounded: "{rounded.card}"
 ---
 
 # Design System: Boydem (בוידעם) — iOS app
 
 ## Overview
 
-**Creative North Star: "The Public Sign You Operate"**
+**Creative North Star: "It Shipped With the Phone"**
 
-The app is an iPhone app first and a sign second. Structure, navigation and controls are native iOS: tab bar, stack headers, grouped lists, sheets, switches, San Francisco for every word a user reads or taps, and SF Symbols for UI icons. The sign language lives in the layer iOS leaves open: the tint, a few full-colour moments, and display type.
+The owner asked on 2026-10-03 for Apple's design (developer.apple.com/design). This replaces the
+2026-09-17 "public sign" system — ultramarine fields, a signal-orange button, sun-yellow plates
+and the Secular One display face are gone and should not be restored.
 
-Those moments are where the app tells you what to do or proves what it saved. The tutorial opens and closes on a full-screen ultramarine field; Verify states its counts as huge white numerals on an ultramarine card; the Account screen's sign-in moment is an ultramarine card with the mark. Everywhere else the screen is calm: a cool grey page, white grouped surfaces, ink text, one orange button.
+Boydem follows the Human Interface Guidelines plainly. It uses the system's semantic colours, San
+Francisco on Apple's text styles, inset grouped lists, SF Symbols and one tint, so the app sits
+beside Settings, Mail and Messages without announcing itself. The brand is the app icon, which
+appears on the welcome page, the empty chat list and the sign-in screen, and nowhere else.
 
-Colour is information. Orange is the one thing to press, yellow is "safe to delete" and the numbered step plates, and `good`/`bad`/`caution` are reserved for Verify, the delete guide and a chat's status. An ordinary state gets no colour at all. Dark mode is first-class and is not the light palette inverted.
+Colour is information. Blue is "you can act on this". Green, red and orange are reserved for
+Verify, the delete guide and a chat's status. An ordinary state gets no colour at all. Dark mode is
+the system's own dark palette, not the light one inverted.
 
 **Key Characteristics:**
-- Native iOS structure; SF text on Apple's text-style sizes, following Dynamic Type.
-- Ultramarine sign fields reserved for tutorial, Verify's proof and the sign-in moment.
-- One Signal Orange button per screen, ink label.
-- Sun yellow plates (4px corners): "safe to delete" and step numbers.
-- Surfaces separate by lightness (paper, panel, raised, sunken), not borders or shadows.
+- System grouped backgrounds; inset grouped lists with 20pt continuous corners.
+- One tint (system blue), one filled button per screen.
+- San Francisco on Apple's text-style sizes; no custom font is loaded.
+- Large titles on the three tabs; inline Headline titles on pushed screens.
+- The chat reader looks like Messages: grey bubbles, the reader's own in the tint.
 - Every size, gap and corner comes from `lib/ui/theme.ts`; nothing tappable under 48pt.
-- Secular One only for `display` and `numeral`.
+- No native code beyond what the installed builds already contain (see Constraints).
 
 ## Colors
 
-One ultramarine program, two signal colours with single jobs, cool blue-grey neutrals, and three reserved information hues.
-
-### Primary
-- **Ultramarine Sign** (#2436c9): whole fields (tutorial pages 1 and 6, Verify's proof card, the Account hero) and, in light mode, the iOS tint (`accent`): links, switches, the selected tab, the add button, section actions, the active tutorial tick, the uploading label. The field keeps its full depth in dark mode.
-- **Periwinkle Tint** (#97a3ff, dark): the dark palette's `accent`, lifted because ultramarine text disappears on a dark ground.
-- **Soft Ultramarine** (#5363e0 / dark #6f7cf0): a second accented thing beside the first.
-- **Tint Wash** (#e6e9fb / dark #1a2050): quiet button ground, pressed-row highlight, help pill, accent chip.
-
-### Secondary
-- **Signal Orange** (#ff5b24 / dark #ff6a36): the primary button and the tutorial's Next button. Ink type on it.
-
-### Tertiary
-- **Sun Yellow** (#ffd23f): the "safe to delete" status plate, the numbered step plates (tutorial and procedures), and the ring baked into the tutorial pictures. Ink type on it.
+### Tint
+- **System Blue** (#007aff / dark #0a84ff): links, section actions, the selected tab, the primary
+  button's fill, the selection circle, step discs, progress bars, the reader's own bubbles.
+- **Tint Wash** (12% / dark 20% of the tint): the secondary (`quiet`) button and the help pill.
 
 ### Neutral
-- **Cool Paper** (#f2f3f7 / dark #0b0d16): every screen's ground, headers and tab scenes.
-- **Panel White** (#ffffff / dark #161a27): grouped sections, the tab bar.
-- **Raised** (#ffffff / dark #1f2433): message bubbles; in the dark, elevation adds light.
-- **Sunken** (#e4e6ee / dark #05060b): quiet status plate, switch off-track, progress track.
-- **Ink** (#111114 / dark #f3f4f8): primary text; the tutorial picture rim in light mode.
-- **Body** (#2c2e36 / dark #d5d8e1): body copy and step text.
-- **Muted** (#555864 / dark #a2a6b4): labels, section headings, notes, inactive tabs.
-- **Faint** (#6c6f7b / dark #868a99): timestamps, units, chevrons, placeholders.
-- **Hairline** (#d9dce5 / dark #2a2f40): the outline of a shape: field border, checkbox, tab bar top.
-- **Separator** (#e4e6ee / dark #212636): the line between rows inside one group.
-- **Own Bubble** (#dfe4fc / dark #252c5c): messages the reader sent.
-- **Muted on Sign** (#cdd3fa): secondary type on an ultramarine field.
-- **Scrim** (rgba(10, 12, 30, 0.45) / dark rgba(0, 0, 0, 0.6)): behind sheets and the lightbox.
+- **Grouped Page** (#f2f2f7 / dark #000000): every form-like screen's ground and its header.
+- **Base** (#ffffff / dark #000000): a screen that is content rather than a form — the chat list
+  and the chat reader.
+- **Cell** (#ffffff / dark #1c1c1e): grouped sections, the tab bar, fields.
+- **Raised** (#ffffff / dark #2c2c2e): a chip standing inside a bubble.
+- **Highlight** (#d1d1d6 / dark #3a3a3c): a pressed row, and inactive page dots.
+- **Sunken** (#e5e5ea / dark #2c2c2e): switch off-track, progress track, photo placeholders.
+- **Ink / Body** (#000000 / dark #ffffff): primary text.
+- **Muted** (#6c6c70 / dark #aeaeb2): secondary text — values in rows, notes, section headings.
+- **Faint** (#8e8e93 / dark #8e8e93): timestamps, chevrons, placeholders, inactive tabs.
+- **Hairline** (#c6c6c8 / dark #38383a): the outline of a shape; the tab bar's top.
+- **Separator** (the system separator, translucent): the line between rows inside one group.
+- **Bubble** (#e9e9eb / dark #262629): messages other people sent.
+- **Scrim** (40% / dark 60% black): behind sheets.
 
 ### Information
-- **Record Green** (#0d7a48 / dark #4fd08f) on Green Wash (#e1f3ea / #0e281c): saved, checked confirmation.
-- **Brick** (#c23220 / dark #ff8b75) on Brick Wash (#fbe9e6 / #2d1512): destructive actions and real failures only.
-- **Amber Ink** (#855f00 / dark #efc24f) on Amber Wash (#fbf0d2 / #2a220c): look at this before you act; not a failure.
+- **Green** (#248a3d / dark #30d158) on a green wash: saved, "safe to delete".
+- **Red** (#d70015 / dark #ff453a) on a red wash: destructive actions and real failures only.
+- **Orange** (#c93400 / dark #ff9f0a) on an orange wash: look at this before you act.
+
+The light values are the system hues' accessible (Increase Contrast) variants: these colours are
+set as text, and the standard light green (#34c759) is about 2:1 on white.
 
 ### Named Rules
-**The Flood, Not Sprinkle Rule.** Ultramarine as a surface is a whole field (a full-screen page or a full-width card), never a thin stripe or tinted border on grey.
+**The One Tint Rule.** Blue means interactive. Nothing decorative is blue, and nothing else is a
+second accent.
 
-**The One Orange Rule.** One Signal Orange button per screen, with ink type. Everything else is `quiet` (tint wash with tint label).
+**The One Filled Button Rule.** One filled (tint, white label) button per screen. Everything else
+is `quiet` (tint wash, tint label) or `danger` (red wash, red label).
 
-**The Only Yellow Rule.** Sun yellow means "safe to delete" or "this step". Nothing else is yellow; Verify's "saved" plate is white on the field for exactly this reason.
+**The Information Colours Rule.** `good`, `bad` and `caution` carry meaning on Verify, the delete
+guide and chat status. Nothing decorative uses them and a normal state gets no colour.
 
-**The Information Colours Rule.** `good`, `bad` and `caution` carry meaning on Verify, the delete guide and chat status. Nothing decorative uses them and a normal state gets no colour.
+**The Grey Highlight Rule.** A pressed row turns grey, edge to edge, as a system cell does — never
+the tint.
 
-**The Not Inverted Rule.** The dark palette is blue-black, the tint lifts to periwinkle to clear AA, orange lifts slightly, and the sign field and sun keep their light values.
+**The Switch Is Green Rule.** A switch's "on" track is the system green, not the tint.
 
 ## Typography
 
-**Display Font:** Secular One (`SecularOne`, bundled in `assets/fonts`, loaded at launch)
-**Body Font:** San Francisco (the iOS system font)
-
-**Character:** Secular One is a heavy, single-weight geometric Hebrew sign face used only where the screen is the statement. San Francisco does everything read or tapped, at Apple's own text-style sizes, so a Boydem screen sits beside Settings and Mail and grows with Dynamic Type.
+**Font:** San Francisco (the system font), for everything. No font file ships with the app.
 
 ### Hierarchy
-- **Numeral** (Secular One 400, 60/64): the counts on Verify, white on the sign card.
-- **Display** (Secular One 400, 32/38): the chat's name on Verify, an empty library's headline. The tutorial's sign titles set it at 38/44 and the Account hero at 28/34.
-- **Title** (SF 700, 22/28, -0.3 tracking): a screen heading, a tab's header title (leading-aligned).
-- **Heading** (SF 600, 17/22): a card heading, a chat row's name, a callout title.
-- **Body** (SF 400, 17/24): instructions and explanations; empty-state body capped at 320pt.
-- **Label** (SF 400, 17/22): row labels and buttons (600 on buttons, 700 on the tutorial Next). The minimum for anything tappable.
-- **Caption** (SF 400, 15/20): a note under a row, a chat's last message, row labels in value pairs.
-- **Micro** (SF 500, 13/18): timestamps, units, section headings, status plates. The floor.
+- **Display** (700, 34/41): Large Title — a tab's name, the tutorial's welcome headline.
+- **Numeral** (700, 34/41, tabular figures): the counts on Verify.
+- **Title** (700, 22/28): Title 2 — a screen heading, an empty state's headline.
+- **Heading** (600, 17/22): Headline — a navigation bar's inline title, a chat row's name, a
+  callout title.
+- **Body** (400, 17/22): instructions, explanations, a message.
+- **Label** (400, 17/22): row labels and buttons (600 on buttons). The minimum for anything
+  tappable.
+- **Caption** (400, 15/20): Subheadline — a note under a row, a chat's last message.
+- **Micro** (400, 13/18): Footnote — timestamps, section headings and footers, status. The floor.
+
+Two sizes fall below the floor because the platform sets them: the tab bar's 10pt labels and a
+bubble's 11pt timestamp.
 
 ### Named Rules
-**The Single Cut Rule.** Any style using Secular One sets `fontWeight: "400"`; asking iOS for a bolder cut of a one-weight custom face drops it to the system font.
+**The Spread, Don't Size Rule.** Text styles spread a `type` step; a screen does not write its own
+font size.
 
-**The Spread, Don't Size Rule.** Text styles spread a `type` step; a screen does not write its own font size. The reader's message body is the one sanctioned exception.
-
-**The Start Edge Rule.** Wrapping text sets `textAlign: "left"` with `writingDirection: "auto"`, which React Native mirrors to the start edge in Hebrew. A passphrase field stays LTR.
+**The Start Edge Rule.** Wrapping text sets `textAlign: "left"` with `writingDirection: "auto"`,
+which React Native mirrors to the start edge in Hebrew. A passphrase field stays LTR.
 
 ## Layout
 
-Every screen scrolls inside `Screen`: 24pt side gutter, 16pt top, 48pt bottom, 24pt between sections. A section's header sits 8pt above its surface with 4pt inset. Rows inside a group pad 12pt vertically and never fall under 48pt (tappable rows 52pt). Spacing uses only 4, 8, 12, 16, 24, 32 and 48.
+Every form-like screen scrolls inside `Screen`: 16pt side gutter (the system's list margin), 8pt
+top, 48pt bottom, 24pt between sections. A section's header and footer are Footnote in secondary
+text, inset 16pt so they start where the rows' text does. Rows pad 12pt vertically and never fall
+under 48pt. Spacing uses only 4, 8, 12, 16, 24, 32 and 48.
 
-The chat list is deliberately not grouped cards: full-bleed rows 76pt tall with the 24pt gutter, a 52pt avatar, a hairline separator inset past the avatar, and a fixed 104pt status column at the trailing edge so statuses align in one column to scan.
+A tab's name is a Large Title at the top of its scrolling content. The header above it starts
+empty and takes the name, centred at Headline with a hairline under it, once the title has
+scrolled away (`useLargeTitle`).
 
-The tutorial is a full-screen horizontal pager: fixed 60pt top and 40pt bottom insets, Skip at the top trailing edge, a footer with page ticks and a full-width 54pt Next button at thumb height. Step pictures size to the height left over at 390:520, capped by the gutters.
+The chat list is not grouped cards: full-bleed rows 76pt tall on the plain background, a 52pt
+avatar, a separator inset past the avatar, and a fixed 104pt status column at the trailing edge so
+statuses align in one column to scan.
 
-Verify stacks: the ultramarine proof card (24pt padding and gap; counts in a wrapping row 32pt apart), a group of facts, the media note, Drive backup, then the button column (12pt gap, primary first).
+The tutorial is a full-screen horizontal pager on the grouped background: Skip at the top trailing
+edge, centred content, page dots and a full-width filled button at thumb height.
+
+Verify stacks: a centred outcome (a 56pt green `checkmark.circle.fill`, what happened, the chat's
+name), one group that leads with the counts as numerals and continues with the facts, the media
+note, Drive backup, then the button column (12pt gap, primary first).
 
 ## Elevation & Depth
 
-Flat, with tonal layering. Surfaces separate by lightness as iOS grouped lists do: Cool Paper page, white panels, raised bubbles, sunken wells. In the dark palette, panels and raised surfaces are lighter than paper, so elevation adds light rather than shadow. Headers set `headerShadowVisible: false`; the tab bar is divided by a 1pt hairline. No component in the system defines a shadow; a sheet or lightbox separates with the scrim.
-
-### Named Rules
-**The Lightness Not Lines Rule.** A card is visible because it is lighter than the page, not because it has a border. `hairline` outlines a shape; `separator` divides rows inside one; they are not interchangeable.
+Flat, with tonal layering, as iOS grouped lists are: a grey page, white cells; in the dark, a black
+page and lifted cells. No component defines a shadow. Headers have no shadow, except the tab
+header's hairline once a large title has collapsed into it. The tab bar is divided by a hairline.
 
 ## Shapes
 
-Two corner families. iOS continuous rounding for things you tap and group: field 12, button 14, card 14, sheet 22, pill 999. A near-square plate for signs: 4pt on status plates, step number plates, Verify's saved plate and pills, because a sign's corners are cut, not moulded. The tutorial's page ticks are 4pt bars with 1pt corners (18 wide, 30 when active).
+All corners are continuous (`borderCurve: "continuous"`). Groups, callouts and tutorial pictures
+20pt; fields 12pt; chips and photo tiles 8pt; a sheet's top 28pt; buttons and status capsules fully
+rounded. Message bubbles 18pt with the tail corner squared on the last of a run. Avatars, step
+discs and the selection circle are circles. The app's mark is always drawn at an app icon's own
+proportions (corner = 22.37% of the side).
 
-Tutorial and add-chat pictures take the sheet radius (22) with a 3pt rim in ink (raised in dark mode): a crop of a screen, never a drawn device bezel. Avatars are circles. The mark renders at card radius at large sizes (112, 132) and chip radius (8) at 64.
-
-Icons are SF Symbols (filled variants for tabs and actions, `chevron.forward` that mirrors in RTL, `checkmark`), monochrome, tinted by role. Android falls back to drawn solid shapes. Brand art (the mark, rendered from `design/brand/mark.svg`) is solid geometric fills: gable, orange speech bubble, white and periwinkle floors on ultramarine.
+Icons are SF Symbols, monochrome, tinted by role: filled in the tab bar, outline in a navigation
+bar (`plus`, `house`), `chevron.forward` for "leads somewhere" (it mirrors in RTL),
+`chevron.down`/`chevron.up` for disclosure, `checkmark` for a chosen row. Android falls back to
+drawn shapes.
 
 ## Components
 
 ### Buttons
-Tactile, full-width, one loud and the rest tinted.
-- **Shape:** continuous rounding (14pt), 52pt minimum height, 12 × 16 padding.
-- **Primary:** Signal Orange, ink label at label size weight 600.
-- **Quiet:** Tint Wash ground, tint label; the iOS tinted button.
-- **Danger:** Brick Wash ground, brick label.
-- **Pressed / Disabled:** 60% opacity pressed; 40% opacity disabled.
-- **Tutorial Next:** Signal Orange, 54pt, label weight 700, 70% opacity pressed.
-- **Help pill:** fully rounded Tint Wash with a help symbol and 600 tint label, 48pt.
+Full-width capsules, 50pt minimum, Body at weight 600.
+- **Primary:** tint fill, white label.
+- **Quiet:** tint wash, tint label.
+- **Danger:** red wash, red label.
+- **Pressed / Disabled:** 60% opacity pressed; 40% disabled.
+- **Help pill:** a hugging tint-wash capsule with a help symbol, 48pt.
 
-### Status Plates
-The chat's status in one trailing column. "On this phone" is a Sunken plate with Muted micro text; "Safe to delete" is Sun Yellow with ink micro text at 700; "Uploading" is tint micro text above a 4pt progress bar; "Deleted" drops the plate for a faint checkmark and word. Padding 3 × 8, 4pt corners.
+### Groups and Rows
+`Section` is an inset grouped list: one cell-coloured surface, 20pt corners, separators inserted
+between its children from the text's leading edge to the trailing edge. Label/value rows lead with
+the label in primary text and trail with the value in secondary. Link rows end in a faint chevron;
+choice rows end in a tint checkmark; switch rows toggle from the whole row; check rows lead with a
+24pt selection circle that fills with the tint. Tappable rows highlight grey to the group's edges.
 
-### Cards / Containers
-- **Corner Style:** 14pt.
-- **Background:** Panel White on Cool Paper; callouts on Green, Brick or Amber Wash, or panel for a neutral note.
-- **Shadow Strategy:** none (see Elevation & Depth).
-- **Border:** none; separators are inserted between a group's rows by `Section`, never drawn by a row.
-- **Internal Padding:** 16pt horizontal for groups; 16pt all round for callouts.
+### Status
+A chat's status is its row's trailing detail. "On this phone" is plain secondary Footnote; "Safe
+to delete" is a green-wash capsule with green 600 type; "Uploading" is tint Footnote above a 4pt
+progress bar; "Deleted" is a faint checkmark and word.
 
-### Sign Card
-Verify's proof and the Account hero: an ultramarine card, 14pt corners, 24pt padding and gap. On Verify it holds a white plate (tint type, check symbol) naming the outcome, the chat name in display white, and the counts as numerals with muted-on-sign labels.
+### Fields
+A cell-coloured well with 12pt corners, 50pt minimum, Body type, LTR, faint placeholder, keyboard
+appearance matching the palette, no outline at rest. An error turns the outline red and sits
+beneath in Footnote red.
 
-### Inputs / Fields
-- **Style:** Field ground, 1pt Hairline border, 12pt corners, 52pt minimum, 12 × 16 padding, body type, LTR, faint placeholder, keyboard appearance matching the palette.
-- **Error:** border turns Brick; the message sits beneath in caption Brick.
+### Steps
+A numbered instruction: a 28pt tint disc with a white numeral, then Body text. In the tutorial the
+disc is 32pt beside 20pt text. The picture above it is a 390:520 raster with 20pt corners and a
+hairline outline — a crop of a screen, never a drawn device bezel.
 
-### Rows and Choices
-Label/value rows put a caption Muted label at the start and the value at the end (heading weight when strong). Link rows end in a faint chevron; choice rows end in a tint checkmark and set the selected label at 600; switch rows toggle from the whole row, track in tint (off: sunken); check rows use a 26pt checkbox with 2pt Hairline border that fills Record Green when checked. Pressed rows take the Tint Wash.
+### Messages
+Grey bubbles for other people, with a coloured sender name once per run; the tint with white type
+for the reader. Day separators and system messages are plain centred secondary text. Media the
+archive does not hold is a dashed-outline chip, in place.
 
 ### Navigation
-Native tabs: Panel tab bar with a 1pt Hairline top and 8pt top padding; active tint, inactive Muted; filled SF Symbols at 24pt. Tab headers on Cool Paper, no shadow, leading-aligned title step. Stack headers use the tint for back and actions, and every screen below the tabs carries a Home button. Adding a chat is a header button (a 28pt filled plus in tint) opening a sheet, not a tab.
+A bottom tab bar on the cell colour with a hairline top; active tint, inactive faint; filled SF
+Symbols at 24pt with 10pt labels. Pushed screens use the native stack header: tint back and
+actions, Headline title, and a Home button at the trailing edge. Adding a chat is a `plus` in the
+chat list's header, opening a sheet that closes with Done.
 
-### Step Plate and Step Picture
-A numbered instruction: a 32pt Sun Yellow plate (4pt corners) with a Secular One numeral in ink, then body text. In the tutorial the plate is 36pt with a 22pt numeral beside step text at 19/26. The picture above it is a 390:520 raster rendered from `design/tutorial/screens.html`, framed with the sheet radius and a 3pt ink rim.
+### Motion
+When a tutorial step page settles, its picture lifts 18pt into place while fading in (320ms,
+exponential ease-out), then its disc springs from 60% scale. With Reduce Motion both appear static,
+the pager scrolls without animation, and the modal fades instead of sliding.
 
-### Signature Motion: Lift and Stamp
-When a tutorial step page settles, its picture lifts 18pt into place while fading from 35% (320ms, exponential ease-out), then its plate stamps from 60% scale on a spring (friction 5, tension 160). With Reduce Motion both appear static, the pager scrolls without animation, and the modal fades instead of sliding.
+## Constraints
+
+- **No new native modules.** Installed builds take JavaScript over the air (`expo-updates`,
+  `runtimeVersion: appVersion`); an update importing a module the binary lacks crashes at launch.
+  So there is no `expo-glass-effect`, no `expo-blur` and no `expo-router/unstable-native-tabs` —
+  the tab bar is opaque and the large titles are done by hand. A real Liquid Glass tab bar and
+  native large titles belong with the next store build.
+- **The routes do not move.** Large titles are not obtained by nesting a stack inside each tab; a
+  share cold-start depends on the current route layout (`apps/mobile/CLAUDE.md`).
+- **The raster assets predate this system.** The mark (`design/brand/mark.svg`) is ultramarine and
+  the tutorial pictures (`design/tutorial/screens.html`) ring the control to tap in yellow.
 
 ## Do's and Don'ts
 
 ### Do:
 - **Do** build a screen from `components/app/ui.tsx` and take every value from `lib/ui/theme.ts`.
-- **Do** keep one Signal Orange (#ff5b24) button per screen with ink (#111114) type; others take `quiet`.
-- **Do** keep ultramarine (#2436c9) surfaces as whole fields for the tutorial, Verify's proof and the sign-in moment.
-- **Do** reserve Sun Yellow (#ffd23f) for "safe to delete" and step number plates.
-- **Do** set counts that are evidence in `numeral`, white on the sign field.
-- **Do** keep SF for all UI text and SF Symbols for UI icons; Secular One only for `display` and `numeral`, weight 400.
-- **Do** keep every tappable thing at 48pt or more, and use the 24pt gutter on every screen.
+- **Do** keep one filled button per screen; others take `quiet`.
+- **Do** use the system's semantic colours and SF Symbols before inventing anything.
+- **Do** keep every tappable thing at 48pt or more, and use the 16pt gutter on every screen.
 - **Do** separate surfaces by lightness and let `Section` insert separators.
 - **Do** give motion a Reduce Motion state.
 
 ### Don't:
-- **Don't** put white type on Signal Orange.
-- **Don't** make anything else yellow, or tint an ordinary state with `good`, `bad` or `caution`.
+- **Don't** bring back the ultramarine fields, the orange button, the yellow plates or Secular One.
+- **Don't** add a second accent colour, or tint an ordinary state with `good`, `bad` or `caution`.
 - **Don't** use a red warning for a normal situation such as media the export did not include.
-- **Don't** add borders or shadows to make a card visible, or a coloured stripe down a callout's side.
-- **Don't** invert the light palette for dark mode; use the dark tokens.
+- **Don't** add borders or shadows to make a card visible.
 - **Don't** set text smaller than `micro` (13pt), or write a font size or padding a screen invents.
-- **Don't** draw a device bezel around a tutorial picture; it is a crop with a rim.
-- **Don't** replace native navigation, tab bar or controls with branded imitations.
+- **Don't** replace native navigation or controls with branded imitations.
+- **Don't** add a native dependency for a visual effect without planning a store build around it.

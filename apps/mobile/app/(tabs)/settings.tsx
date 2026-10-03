@@ -28,7 +28,7 @@ export default function SettingsScreen() {
   const { t, settings, setLanguage, setAppearance } = useApp();
 
   return (
-    <Screen>
+    <Screen largeTitle={t("settings.title")}>
       <Section title={t("settings.chats.title")}>
         <SwitchRow
           label={t("settings.protectNewChats")}

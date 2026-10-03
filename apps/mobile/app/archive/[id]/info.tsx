@@ -244,7 +244,7 @@ export default function ArchiveInfoScreen() {
               onPress={() => void chooseSelf(participant.id)}
               accessibilityRole="button"
               accessibilityState={{ selected: isSelf }}
-              style={({ pressed }) => [styles.person, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.person, pressed && styles.pressedRow]}
             >
               <View style={[styles.avatar, { backgroundColor: colorForParticipant(participant.displayName) }]}>
                 <Text style={styles.avatarLetter}>{[...participant.displayName][0]?.toUpperCase() ?? "?"}</Text>
@@ -260,7 +260,7 @@ export default function ArchiveInfoScreen() {
           <Pressable
             onPress={() => setShowAllPeople((value) => !value)}
             accessibilityRole="button"
-            style={({ pressed }) => [styles.moreRow, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.moreRow, pressed && styles.pressedRow]}
           >
             <Text style={styles.moreLabel}>
               {showAllPeople ? t("common.showFewer") : t("common.viewAll", { count: formatCount(people.length) })}
@@ -303,14 +303,18 @@ const useStyles = createStyles((t) => ({
   // The grid is the one child of a section that brings its own rhythm, so it gets the padding
   // a row would have given it rather than sitting flush against the separators.
   gridSlot: { paddingVertical: space.md },
+  // Bled to the group's edges, like every tappable row in a `Section` (`components/app/ui.tsx`).
   person: {
     flexDirection: "row",
     alignItems: "center",
     gap: space.md,
     minHeight: TAP,
     paddingVertical: space.sm,
+    paddingHorizontal: space.lg,
+    marginHorizontal: -space.lg,
   },
   pressed: { opacity: 0.6 },
+  pressedRow: { backgroundColor: t.highlight },
   avatar: {
     width: 36,
     height: 36,
@@ -318,7 +322,7 @@ const useStyles = createStyles((t) => ({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarLetter: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  avatarLetter: { ...type.caption, fontWeight: "600", color: "#ffffff" },
   personName: { flex: 1, ...type.label, fontWeight: "400", color: t.ink, writingDirection: "auto" },
   // The one participant marked as the reader. `good` rather than `accent`: it is a fact about
   // the chat, not something to tap.
@@ -331,6 +335,12 @@ const useStyles = createStyles((t) => ({
     borderRadius: radius.pill,
     overflow: "hidden",
   },
-  moreRow: { minHeight: TAP, justifyContent: "center", paddingVertical: space.md },
+  moreRow: {
+    minHeight: TAP,
+    justifyContent: "center",
+    paddingVertical: space.md,
+    paddingHorizontal: space.lg,
+    marginHorizontal: -space.lg,
+  },
   moreLabel: { ...type.label, color: t.accent, writingDirection: "auto" },
 }));

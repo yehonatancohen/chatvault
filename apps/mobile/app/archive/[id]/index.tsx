@@ -14,7 +14,7 @@ import { createStyles, useApp } from "../../../components/app/providers";
 import { Actions, Body, Button, Field, Screen, Title } from "../../../components/app/ui";
 import { formatCount, formatRange } from "../../../lib/ui/format";
 import { summarizeParticipants } from "../../../lib/ui/participants";
-import { gutter, radius, space, type } from "../../../lib/ui/theme";
+import { gutter, space, type } from "../../../lib/ui/theme";
 import { MessageBubble } from "../../../components/archive/MessageBubble";
 import { Lightbox, type LightboxSubject } from "../../../components/archive/Lightbox";
 
@@ -241,7 +241,9 @@ function Row({
 }
 
 const useStyles = createStyles((t) => ({
-  chat: { flex: 1, backgroundColor: t.paper },
+  // The plain system background, not the grouped one: this is a transcript, and grey bubbles
+  // need white (or black) behind them to read as bubbles.
+  chat: { flex: 1, backgroundColor: t.base },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.md },
   centeredLabel: { ...type.caption, color: t.muted, writingDirection: "auto" },
   list: { paddingVertical: space.md },
@@ -252,25 +254,16 @@ const useStyles = createStyles((t) => ({
     paddingHorizontal: gutter,
     paddingVertical: space.sm + 2,
     gap: 2,
-    backgroundColor: t.panel,
+    backgroundColor: t.paper,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: t.hairline,
   },
-  subheaderStats: { ...type.micro, fontWeight: "400", color: t.muted, writingDirection: "auto" },
-  subheaderStrong: { color: t.ink, fontWeight: "700" },
-  subheaderText: { ...type.micro, fontWeight: "400", color: t.faint, writingDirection: "auto" },
+  subheaderStats: { ...type.micro, color: t.muted, writingDirection: "auto" },
+  subheaderStrong: { color: t.ink, fontWeight: "600" },
+  subheaderText: { ...type.micro, color: t.faint, writingDirection: "auto" },
   dayRow: { alignItems: "center", paddingVertical: space.md },
-  dayLabel: {
-    ...type.micro,
-    color: t.muted,
-    backgroundColor: t.panel,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: t.hairline,
-    paddingHorizontal: space.md,
-    paddingVertical: 5,
-    borderRadius: radius.pill,
-    overflow: "hidden",
-  },
+  // Plain centred text, the way Messages dates a transcript — no chip around it.
+  dayLabel: { ...type.micro, fontWeight: "600", color: t.muted },
   beginning: { alignItems: "center", paddingVertical: space.xl, paddingHorizontal: space.xxl },
-  beginningText: { ...type.micro, fontWeight: "400", color: t.faint, textAlign: "center" },
+  beginningText: { ...type.micro, color: t.faint, textAlign: "center" },
 }));

@@ -20,10 +20,9 @@ import { StatusPill } from "../../components/archive/StatusPill";
 import { useChatStatus } from "../../components/archive/useChatStatus";
 import { Onboarding } from "../../components/app/Onboarding";
 import { createStyles, useApp } from "../../components/app/providers";
-import { EmptyState } from "../../components/app/ui";
-import { Icon } from "../../components/app/Icon";
+import { EmptyState, LargeTitle, useLargeTitle } from "../../components/app/ui";
 import { formatBytes, formatDate } from "../../lib/ui/format";
-import { gutter, radius, space, type } from "../../lib/ui/theme";
+import { gutter, space, type } from "../../lib/ui/theme";
 import mark from "../../assets/images/mark.png";
 
 /**
@@ -33,7 +32,9 @@ import mark from "../../assets/images/mark.png";
  *
  * **Rows are full-bleed and divided by an inset line, not stacked as cards.** Every messaging
  * app a user has ever opened looks like this, and it is also the honest shape: a chat list is
- * one list, and eight rounded rectangles with gaps between them says it is eight things.
+ * one list, and eight rounded rectangles with gaps between them says it is eight things. For the
+ * same reason it stands on the plain system background (`base`), as Messages does, where the
+ * other two tabs are grouped forms on the grouped one.
  *
  * Opening the list also backs up, in the background, any chat whose latest version is not in
  * the user's Drive yet (`backupPending`), so statuses advance by themselves.
@@ -95,13 +96,20 @@ export default function LibraryScreen() {
   }, [load]);
 
   const totalMediaBytes = (entries ?? []).reduce((sum, entry) => sum + archiveMediaBytes(entry), 0);
+  const onScroll = useLargeTitle(t("library.title"));
 
   return (
     <>
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
       >
+        <View style={styles.heading}>
+          <LargeTitle text={t("library.title")} />
+        </View>
         {entries === undefined ? (
           <View style={styles.loading}>
             <ActivityIndicator />
@@ -153,7 +161,7 @@ export default function LibraryScreen() {
   );
 }
 
-/** The Boydem sign, large — an empty list is the first screen a new user sees, so it says whose
+/** The app's own icon, large — an empty list is the first screen a new user sees, so it says whose
  * attic this is rather than showing a ghosted placeholder that reads as "failed to load". */
 function EmptyGraphic() {
   const styles = useStyles();
@@ -246,21 +254,22 @@ function ChatRow({
 }
 
 const useStyles = createStyles((t) => ({
+  scroll: { backgroundColor: t.base },
   // `flexGrow` rather than `flex`, and only on the content container: a `ScrollView` needs its
   // content to be told to grow, not the scroll view itself, or a short empty state just sits at
   // the top with nothing making the container claim the screen's full height.
   container: { flexGrow: 1, paddingTop: space.sm, paddingBottom: space.xxxl },
+  heading: { paddingHorizontal: gutter },
   loading: { paddingVertical: space.xxxl, alignItems: "center" },
-  emptyWrap: { flex: 1, justifyContent: "center", paddingHorizontal: gutter },
-  // The same silhouette as `TabIcon`'s `ChatsIcon` — including its un-mirrored tail corner,
-  // matching that icon rather than introducing a different convention at a bigger size.
-  emptyGraphic: { width: 112, height: 112, borderRadius: radius.card, marginBottom: space.md },
+  emptyWrap: { flex: 1, justifyContent: "center", paddingHorizontal: gutter, paddingBottom: space.xxxl },
+  // An app icon's own proportions: the corner is 22.37% of the side.
+  emptyGraphic: { width: 96, height: 96, borderRadius: 21, borderCurve: "continuous", marginBottom: space.md },
   summary: {
-    ...type.micro,
+    ...type.caption,
     color: t.muted,
     paddingHorizontal: gutter,
-    paddingTop: space.sm,
     paddingBottom: space.sm,
+    textAlign: "left",
     writingDirection: "auto",
   },
   separator: {
@@ -268,7 +277,7 @@ const useStyles = createStyles((t) => ({
     backgroundColor: t.separator,
     marginStart: gutter + AVATAR + space.md,
   },
-  pressed: { backgroundColor: t.accentWash },
+  pressed: { backgroundColor: t.highlight },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -280,7 +289,7 @@ const useStyles = createStyles((t) => ({
   text: { flex: 1, gap: 2 },
   title: { ...type.heading, color: t.ink, writingDirection: "auto" },
   titleBad: { ...type.heading, color: t.bad, writingDirection: "auto" },
-  meta: { ...type.micro, fontWeight: "400", color: t.faint, writingDirection: "auto" },
+  meta: { ...type.micro, color: t.faint, writingDirection: "auto" },
   statusColumn: { width: 104, alignItems: "flex-end", justifyContent: "center" },
   preview: { ...type.caption, color: t.muted, writingDirection: "auto" },
 }));

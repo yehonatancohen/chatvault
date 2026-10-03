@@ -10,7 +10,7 @@ import { MediaNote } from "../components/archive/MediaNote";
 import { useChatStatus } from "../components/archive/useChatStatus";
 import { formatBytes, formatCount, formatRange } from "../lib/ui/format";
 import { explainMedia } from "../lib/ui/media-explanation";
-import { radius, space, type } from "../lib/ui/theme";
+import { space, type } from "../lib/ui/theme";
 
 /**
  * A5 — Verify: the chat is saved, here is what's in it.
@@ -27,8 +27,9 @@ import { radius, space, type } from "../lib/ui/theme";
  *
  * **The counts are the screen.** They used to be a stack of body-copy lines, which is how you
  * write a receipt, not how you show evidence: this is the moment a user decides whether it is
- * safe to delete their only other copy, so the two numbers that answer that stand on an
- * ultramarine sign, in the display face, and everything else defers to them.
+ * safe to delete their only other copy, so the outcome is the system's own confirmation — a
+ * green checkmark, what was saved — and the two numbers that answer the question lead the group
+ * below it at Large Title's size, with everything else deferring to them.
  *
  * Nothing here claims to free storage or delete anything (root CLAUDE.md, invariant 1).
  */
@@ -66,23 +67,19 @@ export default function VerifyScreen() {
 
   return (
     <Screen>
-      <View style={styles.sign}>
-        <View style={styles.signHead}>
-          <View style={styles.savedPlate}>
-            <Icon name="check" color={styles.savedLabel.color} size={14} weight="bold" />
-            <Text style={styles.savedLabel}>
-              {outcome.mode === "created" || outcome.addedCount > 0
-                ? t("verify.saved")
-                : t("verify.nothingNew")}
-            </Text>
-          </View>
-          <Text style={styles.chat} numberOfLines={2}>
-            {session.chatTitle}
-          </Text>
-        </View>
+      <View style={styles.outcome}>
+        <Icon name="saved" color={styles.outcomeMark.color} size={56} weight="regular" />
+        <Text style={styles.outcomeLabel}>
+          {outcome.mode === "created" || outcome.addedCount > 0 ? t("verify.saved") : t("verify.nothingNew")}
+        </Text>
+        <Text style={styles.chat} numberOfLines={2}>
+          {session.chatTitle}
+        </Text>
+      </View>
+
+      <Section>
         <View style={styles.stats}>
           <Stat
-            onSign
             value={formatCount(outcome.messageCount)}
             label={
               added
@@ -91,12 +88,9 @@ export default function VerifyScreen() {
             }
           />
           {stats.uniqueBlobCount > 0 && (
-            <Stat onSign value={formatCount(stats.uniqueBlobCount)} label={t("verify.row.mediaFiles")} />
+            <Stat value={formatCount(stats.uniqueBlobCount)} label={t("verify.row.mediaFiles")} />
           )}
         </View>
-      </View>
-
-      <Section>
         {/* `totalBytes` counts media only, so a text-only chat would read "0 B" — a size claim
             that is false at the moment a user decides whether to delete. */}
         {stats.totalBytes > 0 && <Row label={t("info.size")} value={formatBytes(stats.totalBytes)} />}
@@ -134,28 +128,13 @@ export default function VerifyScreen() {
 }
 
 const useStyles = createStyles((t) => ({
-  // The sign: one ultramarine field holding the chat's name and its counts. A field, not a card
-  // with a tinted border — the counts are the claim, and the claim gets the brand's full voice.
-  sign: {
-    backgroundColor: t.sign,
-    borderRadius: radius.card,
-    padding: space.xl,
-    gap: space.xl,
-  },
-  signHead: { gap: space.sm, alignItems: "flex-start" },
-  // White on the field, ultramarine type: yellow is reserved for "safe to delete".
-  savedPlate: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.xs,
-    paddingHorizontal: space.sm,
-    paddingVertical: 3,
-    borderRadius: radius.plate,
-    backgroundColor: t.onSign,
-  },
-  savedLabel: { ...type.micro, fontWeight: "700", color: t.sign, writingDirection: "auto" },
-  chat: { ...type.display, color: t.onSign, textAlign: "left", writingDirection: "auto" },
+  // The outcome, centred: a mark, what happened, and which chat it happened to. Green because
+  // "saved" is information here, not decoration — it is the claim the screen exists to make.
+  outcome: { alignItems: "center", gap: space.xs, paddingTop: space.md },
+  outcomeMark: { color: t.good },
+  outcomeLabel: { ...type.title, color: t.ink, textAlign: "center", writingDirection: "auto", marginTop: space.sm },
+  chat: { ...type.body, color: t.muted, textAlign: "center", writingDirection: "auto" },
   // Side by side, and the row is what makes them read as one claim about the archive rather
   // than two unrelated figures.
-  stats: { flexDirection: "row", gap: space.xxl, flexWrap: "wrap" },
+  stats: { flexDirection: "row", gap: space.xxl, flexWrap: "wrap", paddingVertical: space.lg },
 }));

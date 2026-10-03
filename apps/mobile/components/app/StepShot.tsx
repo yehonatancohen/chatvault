@@ -4,12 +4,12 @@
  *
  * **These are drawn recreations, not screenshots taken from WhatsApp.** They are rendered from
  * `design/tutorial/screens.html` (see the comment at its top): invented names and messages, no
- * WhatsApp logo, and a sun-yellow ring with a numbered plate on the exact control to tap. Hebrew
+ * WhatsApp logo, and a yellow ring with a numbered plate on the exact control to tap. Hebrew
  * and English each get their own set, because the words on the button are the thing a user is
  * matching against their own screen. Re-render them when WhatsApp moves a button.
  */
 
-import { Image, View, type ImageSourcePropType } from "react-native";
+import { Image, StyleSheet, View, type ImageSourcePropType } from "react-native";
 import { createStyles, useApp } from "./providers";
 import { radius } from "../../lib/ui/theme";
 import step1he from "../../assets/tutorial/step1-he.png";
@@ -60,12 +60,13 @@ export function StepShot({
 }
 
 const useStyles = createStyles((t) => ({
-  // A thick ink rim rather than a drawn device: the picture is a crop of a screen, and a bezel
-  // around a crop would pretend it is the whole phone.
+  // A hairline rather than a drawn device: the picture is a crop of a screen, and a bezel around
+  // a crop would pretend it is the whole phone.
   frame: {
-    borderRadius: radius.sheet,
-    borderWidth: 3,
-    borderColor: t.dark ? t.raised : t.ink,
+    borderRadius: radius.card,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: t.hairline,
     overflow: "hidden",
     backgroundColor: t.panel,
   },

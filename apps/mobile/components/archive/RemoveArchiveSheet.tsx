@@ -28,7 +28,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native";
 import { useApp, createStyles } from "../app/providers";
-import { Button, CheckRow } from "../app/ui";
+import { Button, CheckRow, Section } from "../app/ui";
 import { deleteArchive } from "../../lib/archive/vault";
 import type { LibraryEntry } from "../../lib/archive/library";
 import { radius, space, type } from "../../lib/ui/theme";
@@ -109,12 +109,16 @@ export function RemoveArchiveSheet({
           <Text style={styles.body}>{body}</Text>
           <Text style={styles.note}>{t("remove.noteWhatsApp")}</Text>
 
+          {/* In a `Section`, like every tappable row: the row bleeds to its group's edges, and a
+              cell on the sheet's grouped ground is how a system sheet sets a choice. */}
           {ready && (
-            <CheckRow
-              label={t("remove.ready.confirm")}
-              checked={acknowledged}
-              onToggle={() => setAcknowledged((value) => !value)}
-            />
+            <Section>
+              <CheckRow
+                label={t("remove.ready.confirm")}
+                checked={acknowledged}
+                onToggle={() => setAcknowledged((value) => !value)}
+              />
+            </Section>
           )}
 
           {failure !== undefined && (
@@ -157,14 +161,14 @@ const useStyles = createStyles((t) => ({
   },
   grabber: {
     alignSelf: "center",
-    width: 40,
-    height: 4,
-    borderRadius: 2,
+    width: 36,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: t.hairline,
     marginBottom: space.sm,
   },
   title: { ...type.title, color: t.ink, writingDirection: "auto" },
-  chat: { ...type.label, color: t.accent, writingDirection: "auto" },
+  chat: { ...type.heading, color: t.ink, writingDirection: "auto" },
   body: { ...type.body, color: t.body, writingDirection: "auto" },
   note: { ...type.caption, color: t.muted, writingDirection: "auto" },
   failure: {

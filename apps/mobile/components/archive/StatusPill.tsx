@@ -6,12 +6,12 @@ import { createStyles, useApp } from "../app/providers";
 import { ProgressBar } from "../app/ProgressBar";
 
 /**
- * The chat's status as a small sign plate — plus a bar while it uploads.
+ * The chat's status, as a row's trailing detail — plus a bar while it uploads.
  *
- * Only "safe to delete" is a coloured plate: sun yellow with ink type, the one thing in the list
- * worth looking at. "On this phone" is a quiet grey plate, and "deleted" drops the plate
- * altogether — it is a finished state, a checkmark and a word. A list where every row wears a
- * bright badge tells the eye nothing.
+ * Only "safe to delete" is coloured: a green capsule, the one thing in the list worth looking
+ * at. "On this phone" is plain secondary text, the way a system cell sets its detail, and
+ * "deleted" is a finished state, a checkmark and a word. A list where every row wears a bright
+ * badge tells the eye nothing.
  *
  * The chat list stands these in one column at the rows' trailing edge, so a user reads what to
  * do by sweeping down that column rather than hunting through each row.
@@ -55,15 +55,10 @@ export function StatusPill({ status }: { status: ChatStatus }) {
 const useStyles = createStyles((t) => ({
   uploading: { gap: space.xs, alignSelf: "stretch", alignItems: "flex-end" },
   uploadingLabel: { ...type.micro, color: t.accent, writingDirection: "auto" },
-  plate: {
-    paddingHorizontal: space.sm,
-    paddingVertical: 3,
-    borderRadius: radius.plate,
-    backgroundColor: t.sunken,
-  },
-  plateSafe: { backgroundColor: t.sun },
+  plate: { paddingVertical: 3 },
+  plateSafe: { paddingHorizontal: space.sm, borderRadius: radius.pill, backgroundColor: t.goodWash },
   label: { ...type.micro, color: t.muted, writingDirection: "auto" },
-  labelSafe: { fontWeight: "700", color: t.onSun },
+  labelSafe: { fontWeight: "600", color: t.good },
   done: { flexDirection: "row", alignItems: "center", gap: 3 },
   doneLabel: { ...type.micro, color: t.faint, writingDirection: "auto" },
 }));

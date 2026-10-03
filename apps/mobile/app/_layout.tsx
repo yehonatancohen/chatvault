@@ -4,15 +4,13 @@
 import "../lib/i18n/bootstrap";
 
 import { Stack, useRouter } from "expo-router";
-import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { Pressable, Text } from "react-native";
 import { ShareIntentProvider, useShareIntentContext } from "expo-share-intent";
 import { AppProvider, useApp } from "../components/app/providers";
 import { Icon } from "../components/app/Icon";
-import { DISPLAY_FONT, type } from "../lib/ui/theme";
-import secularOne from "../assets/fonts/SecularOne-Regular.ttf";
+import { type } from "../lib/ui/theme";
 
 /**
  * `(tabs)` is the anchor of the stack, not merely its first screen.
@@ -85,7 +83,7 @@ function HomeButton() {
       hitSlop={10}
       style={({ pressed }) => pressed && { opacity: 0.5 }}
     >
-      <Icon name="home" color={theme.accent} size={22} background={theme.paper} />
+      <Icon name="home" color={theme.accent} size={22} weight="regular" background={theme.paper} />
     </Pressable>
   );
 }
@@ -123,9 +121,7 @@ function Navigation() {
           headerTintColor: theme.accent,
           headerStyle: { backgroundColor: theme.paper },
           headerBackButtonDisplayMode: "minimal",
-          // `type.heading` rather than the platform default: a stack header sits directly above
-          // a screen whose own headings are 17/600, and a 17/700 title above them reads as one
-          // scale instead of two.
+          // Headline, which is what a system navigation bar sets its inline title in.
           headerTitleStyle: { color: theme.ink, ...type.heading },
           contentStyle: { backgroundColor: theme.paper },
           // Every screen below the tabs gets a way straight home — back, back, back is not a
@@ -166,14 +162,6 @@ function Navigation() {
 }
 
 export default function RootLayout() {
-  // The display face is a local asset, so this resolves within a frame or two. Rendering waits
-  // for it rather than flashing every sign-voice headline in the system font first; if loading
-  // fails, `error` is set and the app carries on in San Francisco.
-  const [fontsLoaded, fontError] = useFonts({
-    [DISPLAY_FONT]: secularOne,
-  });
-  if (!fontsLoaded && fontError === null) return null;
-
   return (
     <ShareIntentProvider>
       <AppProvider>

@@ -305,38 +305,65 @@ all three are tested. Keep it that way. Logic that migrates into a screen become
   out. Use `updatePreferences`, which merges; a whole-object write from one screen erases the
   other's choice.
 
-## The design system (redesign, owner, 2026-09-17: "only the name stays")
+## The design system (Apple's Human Interface Guidelines; owner, 2026-10-03)
 
-**Boydem speaks like a well-made public sign.** Ultramarine `sign` fields for the brand moments
-(tutorial, Verify's proof, the sign-in screen), signal-orange `signal` for the one primary button
-with ink on it, sun-yellow `sun` for "safe to delete" and the tutorial's callouts. Structure,
-navigation and controls stay native iOS: SF for UI text, SF Symbols through `components/app/Icon.tsx`
-(`expo-symbols`, already in the native build via `expo-router`; drawn `TabIcon` shapes are the
-Android fallback), and **Secular One** (`assets/fonts`, loaded in `app/_layout.tsx`) only for
-`type.display` and `type.numeral`. The app icon and `assets/images/mark.png` are rendered from
-`design/brand/mark.svg`; the tutorial pictures from `design/tutorial/screens.html` (see
-`components/app/StepShot.tsx`). The full record is `DESIGN.md`.
+**Boydem looks like it shipped with the phone.** The owner asked for Apple's design
+(developer.apple.com/design) on 2026-10-03, replacing the 2026-09-17 "public sign" system
+(ultramarine fields, a signal-orange button, sun-yellow plates, the Secular One display face) —
+**do not restore any of it from an old commit or an old doc.** What that means in this app:
+
+- **System colours, one tint.** `accent` is system blue and means "you can act on this": links,
+  the selected tab, the one filled button. Pages are the system grouped background, cells the
+  system cell colour, and the dark palette is the system's own (true black page, lifted cells).
+- **San Francisco throughout, on Apple's text styles.** No custom font is loaded. `type.display`
+  is Large Title, `type.numeral` the same size in tabular figures.
+- **Inset grouped lists** (`Section`), rows that highlight grey edge to edge, separators from the
+  text's leading edge to the group's trailing edge.
+- **Large titles on the three tabs**, by hand: `Screen largeTitle` / `useLargeTitle` put the name
+  in the scrolling content and hand it to the header once it has scrolled away. The tab navigator
+  is still `expo-router/js-tabs`, whose header has no large-title mode — and the routes must not
+  be nested into per-tab stacks to get the native one, because a share cold-start depends on
+  where they are (see "The extension reopens the app with a signal URL").
+- **SF Symbols** through `components/app/Icon.tsx` (`expo-symbols`, already in the native build
+  via `expo-router`; drawn `TabIcon` shapes are the Android fallback): filled in the tab bar,
+  outline in a navigation bar.
+- **The chat reader is Messages**: plain system background, grey bubbles, the tint with white
+  type for the reader's own.
+
+**The redesign added no native code**, deliberately: installed builds take JS over the air
+(`expo-updates`, `runtimeVersion: appVersion`), and an update that imports a module the binary
+does not contain dies at launch. That rules out `expo-glass-effect`, `expo-blur` and
+`expo-router/unstable-native-tabs` until the next store build — which is when a real Liquid Glass
+tab bar and native large titles become possible.
+
+The app icon and `assets/images/mark.png` are rendered from `design/brand/mark.svg`; the tutorial
+pictures from `design/tutorial/screens.html` (see `components/app/StepShot.tsx`). **Both still
+carry the old palette** — the mark is ultramarine and the pictures ring the control to tap in
+yellow. They are raster assets and were left as they are. The full record is `DESIGN.md`.
 
 **`lib/ui/theme.ts` holds every token and screens invent none.** Before the 2026-09-12 pass, the
 app carried fifteen font sizes between 11 and 24 and nine paddings, and no two screens started
-their content at the same place. That structure survived the redesign; the palette and voice
-around it are new.
+their content at the same place. That structure survived both redesigns; only the values changed.
 
-- **`type`** — seven steps: `display`, `title`, `heading`, `body`, `label`, `caption`, `micro`.
-  Spread one (`...type.caption`) rather than writing a `fontSize`. The only deliberate exception
-  is `MessageBubble.body`, a shade larger because that screen exists to be read.
-- **`space`, `gutter`, `TAP`** — `gutter` is the screen's side margin and `Screen` applies it,
-  so every screen's content lines up with every other's. Nothing pressable is shorter than `TAP`.
-- **Surfaces separate by lightness.** `paper` (page) → `panel` (card) → `raised` (bubble), plus
-  `sunken` for a well or a track. Light `panel` is white; the old palette's paper and panel were
-  a hair apart, so cards needed borders to be visible and screens grew more of them.
+- **`type`** — `display`, `numeral`, `title`, `heading`, `body`, `label`, `caption`, `micro`:
+  Large Title, Title 2, Headline, Body, Subheadline, Footnote under this app's step names. Spread
+  one (`...type.caption`) rather than writing a `fontSize`. The deliberate exceptions are chrome
+  the platform sizes: the tab bar's 10pt labels and a bubble's 11pt timestamp.
+- **`space`, `gutter`, `TAP`** — `gutter` is the screen's side margin (16, the system's list
+  margin) and `Screen` applies it, so every screen's content lines up with every other's. Nothing
+  pressable is shorter than `TAP`.
+- **Surfaces separate by lightness.** `paper` (grouped page) → `panel` (cell) → `raised`, plus
+  `sunken` for a well or a track, `base` for a plain content page, and `highlight` for a pressed
+  row.
 - **`hairline` outlines a shape; `separator` divides rows inside one.** Not interchangeable.
-- **Colour is information.** `accent` = the interactive thing, or the number that is the point.
-  `good`/`bad`/`caution` are load-bearing on Verify and in the chat status. Nothing decorative
-  uses them, and an ordinary state gets no colour at all — which is why only "Safe to delete"
-  among the four chat statuses is tinted.
+- **Colour is information.** `accent` = the interactive thing. `good`/`bad`/`caution` are
+  load-bearing on Verify and in the chat status; in the light palette they are the system hues'
+  accessible variants, because the standard light green fails contrast as text. Nothing
+  decorative uses them, and an ordinary state gets no colour at all — which is why only "Safe to
+  delete" among the four chat statuses is tinted (green).
 
-**`components/app/ui.tsx` is where a screen starts.** `Screen`, `Title`, `Section`, `Row`,
+**`components/app/ui.tsx` is where a screen starts.** `Screen`, `LargeTitle` (with
+`useLargeTitle`, for a tab whose scroll view is its own), `Title`, `Section`, `Row`,
 `LinkRow`, `ChoiceRow`, `SwitchRow`, `CheckRow`, `Field`, `Button`, `Actions`, `Step`, `Stat`,
 `Pill`, `EmptyState`, `Callout`, `Body`. Two are worth knowing before writing a screen:
 

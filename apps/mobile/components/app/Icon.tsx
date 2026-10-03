@@ -21,20 +21,30 @@ export type IconName =
   | "add"
   | "home"
   | "chevron"
+  | "expand"
+  | "collapse"
   | "check"
   | "help"
-  | "lock";
+  | "lock"
+  | "saved";
 
+/**
+ * Filled variants in the tab bar, outline variants in a navigation bar — the split the system's
+ * own apps keep (a bar button is a plain glyph; a tab is a filled one).
+ */
 const SYMBOLS: Record<IconName, SFSymbol> = {
   chats: "bubble.left.and.bubble.right.fill",
   account: "person.crop.circle.fill",
   settings: "gearshape.fill",
-  add: "plus.circle.fill",
-  home: "house.fill",
+  add: "plus",
+  home: "house",
   chevron: "chevron.forward",
+  expand: "chevron.down",
+  collapse: "chevron.up",
   check: "checkmark",
   help: "questionmark.circle.fill",
   lock: "lock.fill",
+  saved: "checkmark.circle.fill",
 };
 
 export function Icon({
@@ -87,14 +97,21 @@ function Fallback({
       </View>
     );
   }
-  if (name === "chevron") {
+  if (name === "chevron" || name === "expand" || name === "collapse") {
     return (
       <View style={[styles.box, { width: size, height: size }]}>
-        <View style={[styles.chevron, { borderColor: color }]} />
+        <View
+          style={[
+            styles.chevron,
+            { borderColor: color },
+            name === "expand" && styles.chevronDown,
+            name === "collapse" && styles.chevronUp,
+          ]}
+        />
       </View>
     );
   }
-  if (name === "check") {
+  if (name === "check" || name === "saved") {
     return (
       <View style={[styles.box, { width: size, height: size }]}>
         <View style={[styles.check, { borderColor: color }]} />
@@ -129,6 +146,8 @@ const styles = StyleSheet.create({
     borderEndWidth: 2,
     transform: [{ rotate: "45deg" }],
   },
+  chevronDown: { transform: [{ rotate: "135deg" }] },
+  chevronUp: { transform: [{ rotate: "-45deg" }] },
   check: {
     width: 14,
     height: 8,

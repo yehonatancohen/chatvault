@@ -2,10 +2,11 @@
  * The first-launch tutorial: shown once automatically and reachable afterward from the empty
  * library (`app/(tabs)/index.tsx`).
  *
- * Six pages, and most of them are pictures. It opens and closes on an ultramarine sign — what
- * Boydem is, then what "safe to delete" looks like — and the four pages between are WhatsApp's
- * own export steps (`StepShot.tsx`), each with the control to tap ringed in yellow and one line
- * underneath. A user following along on their own phone matches a picture, not a paragraph.
+ * Six pages, and most of them are pictures. It opens and closes the way a system welcome screen
+ * does — the app's icon, a large title, one line; then what "safe to delete" looks like — and
+ * the four pages between are WhatsApp's own export steps (`StepShot.tsx`), each with the control
+ * to tap ringed and one line underneath. A user following along on their own phone matches a
+ * picture, not a paragraph.
  *
  * A full-screen `Modal` rather than a route: it has no back-navigable state of its own (nothing
  * here should ever land in history), and unlike `RemoveArchiveSheet` it is not a confirmation —
@@ -75,9 +76,6 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
     scrollRef.current?.scrollTo({ x: width * (page + 1), animated: !reduceMotion });
   };
 
-  // Chrome takes the colour of the page it sits on: white on the sign pages, ink on the others.
-  const onSign = PAGES[page]?.kind !== "step";
-
   // The picture's height is whatever the screen has left after the chrome and one line of text,
   // and its width follows from the picture's own shape — capped so it never runs into the gutters.
   const chrome = TOP_INSET + 44 + 150 + BOTTOM_INSET + 120;
@@ -85,7 +83,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal visible animationType={reduceMotion ? "fade" : "slide"} onRequestClose={onClose}>
-      <View style={[styles.fill, onSign ? styles.fillSign : styles.fillPaper]}>
+      <View style={styles.fill}>
         <ScrollView
           ref={scrollRef}
           horizontal
@@ -98,11 +96,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
           {PAGES.map((item, index) => (
             <View
               key={index}
-              style={[
-                styles.page,
-                { width },
-                item.kind === "step" ? styles.fillPaper : styles.fillSign,
-              ]}
+              style={[styles.page, { width }]}
             >
               {item.kind === "welcome" && <Welcome />}
               {item.kind === "step" && (
@@ -121,9 +115,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
         <View style={styles.skipRow} pointerEvents="box-none">
           {!last && (
             <Pressable onPress={onClose} accessibilityRole="button" hitSlop={12}>
-              <Text style={[styles.skipLabel, onSign && styles.onSignMuted]}>
-                {t("onboarding.skip")}
-              </Text>
+              <Text style={styles.skipLabel}>{t("onboarding.skip")}</Text>
             </Pressable>
           )}
         </View>
@@ -133,11 +125,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
             {PAGES.map((_, index) => (
               <View
                 key={index}
-                style={[
-                  styles.tick,
-                  onSign ? styles.tickOnSign : styles.tickOnPaper,
-                  index === page && (onSign ? styles.tickActiveOnSign : styles.tickActive),
-                ]}
+                style={[styles.tick, index === page && styles.tickActive]}
               />
             ))}
           </View>
@@ -269,15 +257,13 @@ function useReduceMotion(): boolean {
 }
 
 const useStyles = createStyles((t) => ({
-  fill: { flex: 1 },
-  fillSign: { backgroundColor: t.sign },
-  fillPaper: { backgroundColor: t.paper },
+  fill: { flex: 1, backgroundColor: t.paper },
   pager: { flex: 1 },
   page: {
     flex: 1,
     paddingTop: TOP_INSET + 44,
     paddingBottom: BOTTOM_INSET + 120,
-    paddingHorizontal: gutter,
+    paddingHorizontal: space.xl,
   },
 
   skipRow: {
@@ -291,16 +277,15 @@ const useStyles = createStyles((t) => ({
     alignItems: "center",
     paddingHorizontal: gutter,
   },
-  skipLabel: { ...type.label, fontWeight: "600", color: t.accent, writingDirection: "auto" },
-  onSignMuted: { color: t.onSignMuted },
+  skipLabel: { ...type.label, color: t.accent, writingDirection: "auto" },
 
-  signPage: { flex: 1, justifyContent: "center", gap: space.xxl },
-  mark: { width: 132, height: 132, borderRadius: radius.card },
-  signText: { gap: space.md },
-  // "left" is the start edge: React Native swaps left and right under an RTL layout, while the
-  // default natural alignment left these Hebrew blocks flush left.
-  signTitle: { ...type.display, fontSize: 38, lineHeight: 44, color: t.onSign, textAlign: "left", writingDirection: "auto" },
-  signBody: { ...type.body, color: t.onSignMuted, maxWidth: 340, textAlign: "left", writingDirection: "auto" },
+  // Centred, as a system welcome screen is: the icon, a large title, one line of body.
+  signPage: { flex: 1, justifyContent: "center", alignItems: "center", gap: space.xxl },
+  // An app icon's own proportions: the corner is 22.37% of the side.
+  mark: { width: 112, height: 112, borderRadius: 25, borderCurve: "continuous" },
+  signText: { gap: space.md, alignItems: "center" },
+  signTitle: { ...type.display, color: t.ink, textAlign: "center", writingDirection: "auto" },
+  signBody: { ...type.body, color: t.muted, maxWidth: 340, textAlign: "center", writingDirection: "auto" },
 
   stepPage: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.xl },
   stepCaption: {
@@ -309,58 +294,62 @@ const useStyles = createStyles((t) => ({
     gap: space.md,
     alignSelf: "stretch",
   },
+  // The same tint disc `Step` uses (`ui.tsx`), a size up for a page that is one step.
   plate: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.plate,
-    backgroundColor: t.sun,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: t.accent,
     alignItems: "center",
     justifyContent: "center",
   },
-  plateNumber: { fontFamily: type.display.fontFamily, fontSize: 22, lineHeight: 28, color: t.onSun },
-  stepText: { flex: 1, ...type.heading, fontSize: 19, lineHeight: 26, color: t.ink, paddingTop: 4, textAlign: "left", writingDirection: "auto" },
+  plateNumber: { ...type.heading, color: t.onAccent, fontVariant: ["tabular-nums"] },
+  // "left" is the start edge: React Native swaps left and right under an RTL layout, while the
+  // default natural alignment left these Hebrew blocks flush left.
+  stepText: { flex: 1, ...type.heading, fontSize: 20, lineHeight: 25, color: t.ink, paddingTop: 3, textAlign: "left", writingDirection: "auto" },
 
+  // One row of the chat list, as a cell on the grouped page.
   specimen: {
     flexDirection: "row",
     alignItems: "center",
+    alignSelf: "stretch",
     gap: space.md,
     padding: space.lg,
     borderRadius: radius.card,
-    backgroundColor: "#ffffff",
+    borderCurve: "continuous",
+    backgroundColor: t.panel,
   },
   specimenAvatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#6f8fb8",
+    backgroundColor: t.faint,
     alignItems: "center",
     justifyContent: "center",
   },
   specimenInitial: { ...type.heading, color: "#ffffff" },
-  specimenTitle: { flex: 1, ...type.heading, color: "#111114", writingDirection: "auto" },
+  specimenTitle: { flex: 1, ...type.heading, color: t.ink, writingDirection: "auto" },
 
   footer: {
     position: "absolute",
     start: 0,
     end: 0,
     bottom: 0,
-    paddingHorizontal: gutter,
+    paddingHorizontal: space.xl,
     paddingBottom: BOTTOM_INSET,
     gap: space.xl,
   },
+  // The system's page control: dots, the current one in primary.
   ticks: { flexDirection: "row", justifyContent: "center", gap: space.sm },
-  tick: { width: 18, height: 4, borderRadius: 1 },
-  tickOnSign: { backgroundColor: "rgba(255, 255, 255, 0.35)" },
-  tickOnPaper: { backgroundColor: t.hairline },
-  tickActiveOnSign: { backgroundColor: t.onSign, width: 30 },
-  tickActive: { backgroundColor: t.accent, width: 30 },
+  tick: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: t.highlight },
+  tickActive: { backgroundColor: t.ink },
   next: {
-    minHeight: 54,
+    minHeight: 50,
     borderRadius: radius.button,
-    backgroundColor: t.signal,
+    backgroundColor: t.accent,
     alignItems: "center",
     justifyContent: "center",
   },
   pressed: { opacity: 0.7 },
-  nextLabel: { ...type.label, fontWeight: "700", color: t.onSignal, writingDirection: "auto" },
+  nextLabel: { ...type.label, fontWeight: "600", color: t.onAccent, writingDirection: "auto" },
 }));

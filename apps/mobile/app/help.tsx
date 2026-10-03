@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { Icon } from "../components/app/Icon";
 import { createStyles, useApp } from "../components/app/providers";
 import { LinkRow, Screen, Section } from "../components/app/ui";
 import type { StringKey } from "../lib/i18n/strings";
-import { radius, space, TAP, type } from "../lib/ui/theme";
+import { space, TAP, type } from "../lib/ui/theme";
 
 /**
  * Help — every explanation the app has, in one place, so the working screens can stay short.
@@ -34,12 +35,11 @@ export default function HelpScreen() {
         <LinkRow label={t("add.title")} onPress={() => router.push("/add-chat")} />
       </Section>
 
-      <View style={styles.card}>
-        {TOPICS.map((topic, index) => {
+      <Section>
+        {TOPICS.map((topic) => {
           const expanded = open === topic;
           return (
             <View key={topic}>
-              {index > 0 && <View style={styles.separator} />}
               <Pressable
                 onPress={() => setOpen(expanded ? undefined : topic)}
                 accessibilityRole="button"
@@ -47,9 +47,13 @@ export default function HelpScreen() {
                 style={({ pressed }) => [styles.header, pressed && styles.pressed]}
               >
                 <Text style={styles.title}>{t(`help.${topic}.title` as StringKey)}</Text>
-                {/* A rotated chevron rather than +/−: the same mark the rest of the app uses
-                    for "there is more this way", turned to point down when it is open. */}
-                <View style={[styles.chevron, expanded && styles.chevronOpen]} />
+                {/* The system's disclosure mark: down for "there is more here", up once open. */}
+                <Icon
+                  name={expanded ? "collapse" : "expand"}
+                  color={styles.chevron.color}
+                  size={14}
+                  weight="semibold"
+                />
               </Pressable>
               {expanded && (
                 <View style={styles.bodyBlock}>
@@ -65,39 +69,25 @@ export default function HelpScreen() {
             </View>
           );
         })}
-      </View>
+      </Section>
     </Screen>
   );
 }
 
 const useStyles = createStyles((t) => ({
-  card: {
-    backgroundColor: t.panel,
-    borderRadius: radius.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: t.hairline,
-    paddingHorizontal: space.lg,
-    overflow: "hidden",
-  },
-  separator: { height: StyleSheet.hairlineWidth, backgroundColor: t.separator },
+  // Bled to the group's edges, like every tappable row in a `Section` (`components/app/ui.tsx`).
   header: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: TAP + 4,
+    minHeight: TAP,
     paddingVertical: space.md,
+    paddingHorizontal: space.lg,
+    marginHorizontal: -space.lg,
     gap: space.md,
   },
-  pressed: { backgroundColor: t.accentWash },
+  pressed: { backgroundColor: t.highlight },
   title: { flex: 1, ...type.label, color: t.ink, textAlign: "left", writingDirection: "auto" },
-  chevron: {
-    width: 8,
-    height: 8,
-    borderTopWidth: 1.5,
-    borderRightWidth: 1.5,
-    borderColor: t.faint,
-    transform: [{ rotate: "45deg" }],
-  },
-  chevronOpen: { borderColor: t.accent, transform: [{ rotate: "135deg" }], marginBottom: 4 },
+  chevron: { color: t.faint },
   bodyBlock: { gap: space.md, paddingBottom: space.lg },
   body: { ...type.caption, color: t.body, textAlign: "left", writingDirection: "auto" },
 }));

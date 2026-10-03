@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#000000aa",
   },
   captionPrimary: { color: "#fff", fontSize: 15, fontWeight: "600" },
-  captionSecondary: { color: "#cfcbc4", fontSize: 13 },
+  captionSecondary: { color: "rgba(235, 235, 245, 0.6)", fontSize: 13 },
   close: {
     position: "absolute",
     top: 60,

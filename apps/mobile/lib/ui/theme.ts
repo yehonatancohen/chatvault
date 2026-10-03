@@ -1,27 +1,25 @@
 /**
  * The design tokens. Two palettes, one type scale, one spacing scale, one set of radii.
  *
- * **Boydem speaks like a well-made public sign** (redesign, owner, 2026-09-17: only the name
- * stays). Israeli modernist signage is the model: flat fields of one strong colour, one solid
- * pictogram per idea, and numbers set big enough to be read from across a room. The app is
- * still an iPhone app first — structure, navigation and controls stay native — so the sign
- * language lives in the layer iOS leaves open: tint, a few full-colour moments, and type.
+ * **Boydem follows Apple's Human Interface Guidelines** (owner, 2026-10-03, replacing the
+ * 2026-09-17 "public sign" system). The app should look like it shipped with the phone: the
+ * system's semantic colours, San Francisco on Apple's text styles, inset grouped lists, one
+ * tint. Nothing here is a brand colour — the mark is the brand, and it lives in the icon.
  *
  * The rules:
  *
- * - **Ultramarine is the brand, and it floods rather than sprinkles.** `sign` is a whole field
- *   — the tutorial, the Verify proof, the sign-in moment — never a thin accent scattered over
- *   grey. `accent` is the same hue as the iOS tint: links, switches, the selected tab.
- * - **Orange is the one thing to press.** `signal` fills the primary button, with ink on it:
- *   white on that orange fails contrast, and black on orange is how a road sign does it anyway.
- * - **Yellow is the one thing to look at.** `sun` marks "safe to delete" and the tutorial's
- *   callout rings. Nothing else is yellow.
- * - **`good`/`bad`/`caution` stay information.** Verify and the delete guide depend on them.
- * - **Surfaces separate by lightness, as iOS grouped lists do.** Cool grey page, white cells.
+ * - **One tint, and it means "you can act on this".** `accent` is system blue: links, switches,
+ *   the selected tab, and the fill of the one primary button. Nothing decorative is blue.
+ * - **Colour is information.** `good`/`bad`/`caution` are the system green, red and orange — in
+ *   the light palette their accessible (Increase Contrast) variants, because they are set as
+ *   text on Verify and in a chat's status, and the standard light green fails contrast as type.
+ * - **Surfaces are the system's grouped backgrounds.** `paper` is the grouped page, `panel` the
+ *   cell on it; `base` is the plain system background, for a screen that is content rather than
+ *   a form (the chat reader).
+ * - **A pressed row goes grey, not blue** (`highlight`), as a system cell does.
  *
- * **The dark palette is not the light one inverted.** Ultramarine text disappears on a dark
- * ground, so `accent` lifts to a periwinkle that clears AA, while the `sign` field keeps its
- * full depth — a field is a surface, and white type on it reads the same in both themes.
+ * **The dark palette is the system's own dark values**, not the light one inverted: a true black
+ * page with lifted cells, and each hue's dark variant.
  *
  * Every screen reads these through `useTheme()` (`components/app/providers.tsx`) rather than
  * importing a palette directly, and builds its styles with `createStyles` so that switching
@@ -33,12 +31,16 @@ import type { TextStyle } from "react-native";
 export interface Theme {
   /** True when this is the dark palette. Drives `StatusBar` and `keyboardAppearance`. */
   readonly dark: boolean;
-  /** The page ground. */
+  /** The grouped page ground (`systemGroupedBackground`). */
   readonly paper: string;
+  /** The plain page ground (`systemBackground`) — a screen of content, not of groups. */
+  readonly base: string;
   /** A card or grouped-row surface sitting on `paper`. */
   readonly panel: string;
-  /** A surface that should read as lifted *above* `panel` — message bubbles, the tab bar. */
+  /** A surface that should read as lifted *above* `panel` — a sheet, a chip on a cell. */
   readonly raised: string;
+  /** A row while it is pressed. Grey in both palettes, the way a system cell highlights. */
+  readonly highlight: string;
   /** A recessed ground — a field's well, a track behind a progress bar, an empty slot. */
   readonly sunken: string;
   /** Primary text. */
@@ -49,32 +51,18 @@ export interface Theme {
   readonly muted: string;
   /** Third-rank text: a timestamp, a unit, a count beside something that matters more. */
   readonly faint: string;
-  /** The outline of a shape — a card's edge, a field's border, the tab bar's top. */
+  /** The outline of a shape — a field's border, the tab bar's top. */
   readonly hairline: string;
   /** The line *between rows inside* a group. Lighter than `hairline`, and not interchangeable. */
   readonly separator: string;
-  /** The iOS tint: links, switches, the selected tab, a chevron that leads somewhere. */
+  /** The iOS tint: links, switches, the selected tab, the primary button's fill. */
   readonly accent: string;
   /** A lighter tint, for a second accented thing beside the first. */
   readonly accentSoft: string;
-  /** A tinted ground for an accented chip or a selected row. */
+  /** A tinted ground for a secondary button or an accented chip. */
   readonly accentWash: string;
   /** Text drawn *on* `accent` — not `paper`, which is wrong in the dark theme. */
   readonly onAccent: string;
-  /** Ultramarine as a whole field: the tutorial, the Verify proof, the sign-in moment. */
-  readonly sign: string;
-  /** Type on `sign`. */
-  readonly onSign: string;
-  /** Secondary type on `sign` — tinted from the field, never grey. */
-  readonly onSignMuted: string;
-  /** The primary button's fill. One per screen. */
-  readonly signal: string;
-  /** Type on `signal`. Ink, not white: white on this orange fails contrast. */
-  readonly onSignal: string;
-  /** "Look here": the safe-to-delete plate and the tutorial's callout rings. */
-  readonly sun: string;
-  /** Type on `sun`. */
-  readonly onSun: string;
   readonly good: string;
   /** A tinted ground for a `good` box. */
   readonly goodWash: string;
@@ -85,8 +73,14 @@ export interface Theme {
   readonly caution: string;
   /** A tinted ground for a `caution` box. */
   readonly cautionWash: string;
+  /** Fill for a message bubble someone else sent. */
+  readonly bubble: string;
   /** Fill for a message bubble the reader sent themselves. */
   readonly selfBubble: string;
+  /** Type on `selfBubble`. */
+  readonly onSelfBubble: string;
+  /** Secondary type on `selfBubble` — a timestamp. */
+  readonly onSelfBubbleMuted: string;
   /** Text input grounds, which must not disappear into `panel`. */
   readonly field: string;
   /** The dimming behind a sheet or a lightbox. */
@@ -95,120 +89,104 @@ export interface Theme {
 
 export const lightTheme: Theme = {
   dark: false,
-  paper: "#f2f3f7",
+  paper: "#f2f2f7",
+  base: "#ffffff",
   panel: "#ffffff",
   raised: "#ffffff",
-  sunken: "#e4e6ee",
-  ink: "#111114",
-  body: "#2c2e36",
-  muted: "#555864",
-  faint: "#6c6f7b",
-  hairline: "#d9dce5",
-  separator: "#e4e6ee",
-  accent: "#2436c9",
-  accentSoft: "#5363e0",
-  accentWash: "#e6e9fb",
+  highlight: "#d1d1d6",
+  sunken: "#e5e5ea",
+  ink: "#000000",
+  body: "#000000",
+  muted: "#6c6c70",
+  faint: "#8e8e93",
+  hairline: "#c6c6c8",
+  separator: "rgba(60, 60, 67, 0.29)",
+  accent: "#007aff",
+  accentSoft: "#5ac8fa",
+  accentWash: "rgba(0, 122, 255, 0.12)",
   onAccent: "#ffffff",
-  sign: "#2436c9",
-  onSign: "#ffffff",
-  onSignMuted: "#cdd3fa",
-  signal: "#ff5b24",
-  onSignal: "#111114",
-  sun: "#ffd23f",
-  onSun: "#111114",
-  good: "#0d7a48",
-  goodWash: "#e1f3ea",
-  bad: "#c23220",
-  badWash: "#fbe9e6",
-  caution: "#855f00",
-  cautionWash: "#fbf0d2",
-  selfBubble: "#dfe4fc",
+  good: "#248a3d",
+  goodWash: "rgba(52, 199, 89, 0.14)",
+  bad: "#d70015",
+  badWash: "rgba(255, 59, 48, 0.12)",
+  caution: "#c93400",
+  cautionWash: "rgba(255, 149, 0, 0.14)",
+  bubble: "#e9e9eb",
+  selfBubble: "#007aff",
+  onSelfBubble: "#ffffff",
+  onSelfBubbleMuted: "rgba(255, 255, 255, 0.75)",
   field: "#ffffff",
-  scrim: "rgba(10, 12, 30, 0.45)",
+  scrim: "rgba(0, 0, 0, 0.4)",
 };
 
 /**
- * The dark counterpart: blue-black grounds, because this app's colour is ultramarine and a
- * neutral black under it reads as a different product. `panel` and `raised` are lighter than
- * `paper`, since in the dark elevation adds light rather than shadow.
+ * The dark counterpart: the system's dark values. `panel` and `raised` are lighter than `paper`,
+ * since in the dark elevation adds light rather than shadow.
  */
 export const darkTheme: Theme = {
   dark: true,
-  paper: "#0b0d16",
-  panel: "#161a27",
-  raised: "#1f2433",
-  sunken: "#05060b",
-  ink: "#f3f4f8",
-  body: "#d5d8e1",
-  muted: "#a2a6b4",
-  faint: "#868a99",
-  hairline: "#2a2f40",
-  separator: "#212636",
-  accent: "#97a3ff",
-  accentSoft: "#6f7cf0",
-  accentWash: "#1a2050",
-  onAccent: "#0b0d16",
-  sign: "#2436c9",
-  onSign: "#ffffff",
-  onSignMuted: "#cdd3fa",
-  signal: "#ff6a36",
-  onSignal: "#111114",
-  sun: "#ffd23f",
-  onSun: "#111114",
-  good: "#4fd08f",
-  goodWash: "#0e281c",
-  bad: "#ff8b75",
-  badWash: "#2d1512",
-  caution: "#efc24f",
-  cautionWash: "#2a220c",
-  selfBubble: "#252c5c",
-  field: "#161a27",
+  paper: "#000000",
+  base: "#000000",
+  panel: "#1c1c1e",
+  raised: "#2c2c2e",
+  highlight: "#3a3a3c",
+  sunken: "#2c2c2e",
+  ink: "#ffffff",
+  body: "#ffffff",
+  muted: "#aeaeb2",
+  faint: "#8e8e93",
+  hairline: "#38383a",
+  separator: "rgba(84, 84, 88, 0.6)",
+  accent: "#0a84ff",
+  accentSoft: "#64d2ff",
+  accentWash: "rgba(10, 132, 255, 0.2)",
+  onAccent: "#ffffff",
+  good: "#30d158",
+  goodWash: "rgba(48, 209, 88, 0.18)",
+  bad: "#ff453a",
+  badWash: "rgba(255, 69, 58, 0.18)",
+  caution: "#ff9f0a",
+  cautionWash: "rgba(255, 159, 10, 0.18)",
+  bubble: "#262629",
+  selfBubble: "#0a84ff",
+  onSelfBubble: "#ffffff",
+  onSelfBubbleMuted: "rgba(255, 255, 255, 0.75)",
+  field: "#1c1c1e",
   scrim: "rgba(0, 0, 0, 0.6)",
 };
 
 /**
- * The display face: Secular One, a heavy geometric Hebrew sign face with Latin to match. Loaded
- * at launch from `assets/fonts` (`app/_layout.tsx`). It has one weight, so styles that use it
- * set `fontWeight: "400"` — asking iOS for a bolder cut of a single-weight custom face makes it
- * fall back to the system font.
+ * The type scale: Apple's text styles, under this app's own step names.
  *
- * Display moments only: a tutorial title, the numbers on Verify, an empty screen's headline.
- * Everything a user reads or taps stays in San Francisco, which follows their text size.
- */
-export const DISPLAY_FONT = "SecularOne";
-
-/**
- * The type scale, on Apple's text styles. Seven steps for UI, plus two display steps.
- *
- * `display` and `numeral` are the sign voice. The rest match iOS's own sizes (Title 2, Headline,
- * Body, Subheadline, Footnote), so a Boydem screen sits beside Settings and Mail at the same
- * reading size and grows with Dynamic Type like they do.
+ * San Francisco throughout — there is no custom face. Each step is one of the system's styles at
+ * its default size (Large Title, Title 2, Headline, Body, Subheadline, Footnote), so a Boydem
+ * screen sits beside Settings and Mail at the same reading size and grows with Dynamic Type like
+ * they do.
  */
 export const type = {
-  /** A sign: the numbers on Verify. */
-  numeral: { fontFamily: DISPLAY_FONT, fontSize: 60, lineHeight: 64, fontWeight: "400" },
-  /** A screen's headline when the screen is the whole point (tutorial, an empty library). */
-  display: { fontFamily: DISPLAY_FONT, fontSize: 32, lineHeight: 38, fontWeight: "400" },
-  /** A heading inside a screen, and a chat's name. */
+  /** A count that is the point of the screen (Verify). Large Title's size, tabular figures. */
+  numeral: { fontSize: 34, lineHeight: 41, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  /** Large Title: a top-level screen's name, a welcome headline. */
+  display: { fontSize: 34, lineHeight: 41, fontWeight: "700", letterSpacing: 0.4 },
+  /** Title 2: a heading inside a screen, and a chat's name. */
   title: { fontSize: 22, lineHeight: 28, fontWeight: "700", letterSpacing: -0.3 },
-  /** A card's heading, a topic in Help, a chat row's name. */
+  /** Headline: a card's heading, a chat row's name, a stack header's title. */
   heading: { fontSize: 17, lineHeight: 22, fontWeight: "600" },
-  /** Body copy that is the screen's content — instructions, an explanation. */
-  body: { fontSize: 17, lineHeight: 24, fontWeight: "400" },
-  /** A row's label, a button, anything tappable. Never smaller than this. */
+  /** Body: copy that is the screen's content — instructions, an explanation. */
+  body: { fontSize: 17, lineHeight: 22, fontWeight: "400" },
+  /** Body, as a row's label, a button, anything tappable. Never smaller than this. */
   label: { fontSize: 17, lineHeight: 22, fontWeight: "400" },
-  /** Supporting copy: a note under a row, a chat's last message. */
+  /** Subheadline: supporting copy — a note under a row, a chat's last message. */
   caption: { fontSize: 15, lineHeight: 20, fontWeight: "400" },
-  /** A timestamp, a unit, a section's heading. The floor — nothing smaller ships. */
-  micro: { fontSize: 13, lineHeight: 18, fontWeight: "500" },
+  /** Footnote: a timestamp, a unit, a section's heading. The floor — nothing smaller ships. */
+  micro: { fontSize: 13, lineHeight: 18, fontWeight: "400" },
 } as const satisfies Record<string, TextStyle>;
 
 /**
- * The corner radii. Two families: iOS's continuous rounding for things you tap and group
- * (`field`, `button`, `card`, `sheet`), and a near-square `plate` for signs — a step number, a
- * status mark — because a sign's corners are cut, not moulded.
+ * The corner radii, all continuous. `card` is an inset grouped list's corner, `button` a capsule
+ * (a full-width button's label is one line, so the pill radius is safe), `sheet` a sheet's top.
  */
-export const radius = { plate: 4, chip: 8, field: 12, button: 14, card: 14, sheet: 22, pill: 999 } as const;
+export const radius = { chip: 8, field: 12, button: 999, card: 20, sheet: 28, pill: 999 } as const;
 
 /**
  * One spacing scale, so padding stops being invented per screen.
@@ -221,8 +199,8 @@ export const radius = { plate: 4, chip: 8, field: 12, button: 14, card: 14, shee
  */
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 } as const;
 
-/** The side margin every screen shares. */
-export const gutter = space.xl;
+/** The side margin every screen shares — the system's own list margin. */
+export const gutter = space.lg;
 
 /**
  * The minimum height of anything tappable. Apple asks for 44, Android for 48; 48 satisfies both

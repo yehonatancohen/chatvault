@@ -3,7 +3,7 @@
 // to go. The other option, `expo-router/unstable-native-tabs`, is what its name says.
 import { Tabs } from "expo-router/js-tabs";
 import { useRouter } from "expo-router";
-import { Pressable } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
 import { useApp } from "../../components/app/providers";
 import { Icon } from "../../components/app/Icon";
 import { space, type } from "../../lib/ui/theme";
@@ -36,9 +36,9 @@ function AddChatButton() {
       hitSlop={10}
       // `expo-router/js-tabs` renders its header flush to the screen edge, unlike the Stack
       // header (see `HomeButton`/`SheetDone` in `app/_layout.tsx`), which insets on its own.
-      style={({ pressed }) => [{ marginEnd: space.sm }, pressed && { opacity: 0.5 }]}
+      style={({ pressed }) => [{ marginEnd: space.lg }, pressed && { opacity: 0.5 }]}
     >
-      <Icon name="add" color={theme.accent} size={28} background={theme.paper} />
+      <Icon name="add" color={theme.accent} size={24} weight="medium" background={theme.paper} />
     </Pressable>
   );
 }
@@ -52,33 +52,35 @@ export default function TabsLayout() {
         headerShadowVisible: false,
         headerTintColor: theme.ink,
         headerStyle: { backgroundColor: theme.paper },
-        // A tab's header names the whole screen, so it is the app's `title` step — one above
-        // the `heading` a stack header uses, and the only place that size appears in chrome.
-        // Leading-aligned, the way iOS sets a top-level screen's title, not centred like a
-        // pushed screen's.
-        headerTitleAlign: "left",
-        headerTitleStyle: { color: theme.ink, ...type.title },
+        // A top-level screen's name is a large title in its own content (`Screen largeTitle`,
+        // `useLargeTitle`): the header starts empty and takes the name, centred and at Headline
+        // like any inline navigation title, once the large one has scrolled away.
+        headerTitle: "",
+        headerTitleAlign: "center",
+        headerTitleStyle: { color: theme.ink, ...type.heading },
         sceneStyle: { backgroundColor: theme.paper },
         tabBarActiveTintColor: theme.accent,
-        tabBarInactiveTintColor: theme.muted,
+        tabBarInactiveTintColor: theme.faint,
         tabBarStyle: {
           backgroundColor: theme.panel,
           borderTopColor: theme.hairline,
-          // The default is a hairline that disappears entirely against the dark palette's
-          // panels; one point is the least that stays visible in both.
-          borderTopWidth: 1,
+          borderTopWidth: StyleSheet.hairlineWidth,
           // Padding, not `height`: the bar measures its own safe-area inset, and giving it a
           // fixed height throws that away and tucks the labels under the home indicator.
-          paddingTop: space.sm,
+          paddingTop: space.xs,
         },
-        tabBarLabelStyle: { ...type.micro, fontSize: 11, lineHeight: 14, fontWeight: "600" },
+        // 10pt medium is the system tab bar's own label, and the one text in the app below the
+        // `micro` floor — it is chrome, sized by the platform rather than by this scale.
+        tabBarLabelStyle: { fontSize: 10, lineHeight: 12, fontWeight: "500" },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: t("tabs.chats"),
-          headerTitle: t("library.title"),
+          // The chat list is a plain list, not a grouped form — see `(tabs)/index.tsx`.
+          headerStyle: { backgroundColor: theme.base },
+          sceneStyle: { backgroundColor: theme.base },
           headerRight: () => <AddChatButton />,
           tabBarIcon: ({ color }) => (
             <Icon name="chats" color={color} size={24} background={theme.paper} />
@@ -89,7 +91,6 @@ export default function TabsLayout() {
         name="account"
         options={{
           title: t("tabs.account"),
-          headerTitle: t("account.title"),
           tabBarIcon: ({ color }) => (
             <Icon name="account" color={color} size={24} background={theme.paper} />
           ),
@@ -99,7 +100,6 @@ export default function TabsLayout() {
         name="settings"
         options={{
           title: t("tabs.settings"),
-          headerTitle: t("settings.title"),
           tabBarIcon: ({ color }) => (
             <Icon name="settings" color={color} size={24} background={theme.paper} />
           ),

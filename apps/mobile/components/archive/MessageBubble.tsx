@@ -97,11 +97,11 @@ export const MessageBubble = memo(function MessageBubble({
         )}
 
         {message.kind === "deleted" && (
-          <Text style={styles.deleted}>{t("bubble.deleted")}</Text>
+          <Text style={[styles.deleted, isSelf && styles.deletedSelf]}>{t("bubble.deleted")}</Text>
         )}
 
         {message.body.length > 0 && (
-          <Text style={styles.body} selectable>
+          <Text style={[styles.body, isSelf && styles.bodySelf]} selectable>
             {message.body}
           </Text>
         )}
@@ -251,38 +251,24 @@ const useStyles = createStyles((t) => ({
     borderRadius: BUBBLE_RADIUS,
     gap: 3,
   },
-  // The design leans flatter than a bubble, but self-messages still sit on their own side (the
-  // reader stores "which participant is you" for exactly that), so the shape stays and only the
-  // fill follows the palette: an ultramarine tint for you, plain raised for others.
-  bubbleOther: {
-    backgroundColor: t.raised,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: t.hairline,
-  },
+  // Messages' own pair: a grey bubble for everyone else, the tint with white type for the
+  // reader (who is whichever participant they marked as themselves in chat info).
+  bubbleOther: { backgroundColor: t.bubble },
   bubbleSelf: { backgroundColor: t.selfBubble },
   // Squared on the side the run ends against. The logical properties mirror under RTL, which
   // is what keeps the tail on the speaker's side in a Hebrew chat rather than across from it.
   tailOther: { borderStartStartRadius: BUBBLE_RADIUS, borderEndStartRadius: 5 },
   tailSelf: { borderEndEndRadius: 5 },
-  sender: { ...type.micro, letterSpacing: 0, writingDirection: "auto" },
-  // A shade larger than the app's body step: this is the one screen whose entire purpose is
-  // reading, often on an old conversation someone is going through line by line.
-  body: { fontSize: 16, lineHeight: 23, color: t.ink, writingDirection: "auto" },
-  time: { ...type.micro, fontWeight: "400", letterSpacing: 0, color: t.faint, alignSelf: "flex-end" },
-  timeSelf: { color: t.dark ? "#c7a683" : "#8a6a48" },
+  sender: { ...type.micro, fontWeight: "600", writingDirection: "auto" },
+  body: { ...type.body, color: t.ink, writingDirection: "auto" },
+  bodySelf: { color: t.onSelfBubble },
+  time: { ...type.micro, fontSize: 11, lineHeight: 13, color: t.muted, alignSelf: "flex-end" },
+  timeSelf: { color: t.onSelfBubbleMuted },
   deleted: { ...type.body, fontStyle: "italic", color: t.muted, writingDirection: "auto" },
+  deletedSelf: { color: t.onSelfBubbleMuted },
   systemRow: { paddingVertical: space.sm, paddingHorizontal: space.xxxl, alignItems: "center" },
-  systemText: {
-    ...type.caption,
-    color: t.muted,
-    textAlign: "center",
-    writingDirection: "auto",
-    backgroundColor: t.panel,
-    paddingHorizontal: space.md,
-    paddingVertical: 5,
-    borderRadius: radius.pill,
-    overflow: "hidden",
-  },
+  // Plain centred secondary text, the way Messages sets a transcript's own notices.
+  systemText: { ...type.micro, color: t.muted, textAlign: "center", writingDirection: "auto" },
   imagePress: { borderRadius: radius.chip, overflow: "hidden" },
   pressed: { opacity: 0.85 },
   image: { width: 232, height: 232, backgroundColor: t.sunken },
@@ -299,12 +285,12 @@ const useStyles = createStyles((t) => ({
     paddingVertical: space.md,
     gap: 2,
     borderRadius: radius.chip,
-    backgroundColor: t.panel,
+    backgroundColor: t.raised,
     minWidth: 180,
   },
   fileChipKind: { ...type.micro, color: t.muted, writingDirection: "auto" },
   fileChipName: { ...type.caption, color: t.ink },
-  fileChipNote: { ...type.micro, fontWeight: "400", letterSpacing: 0, color: t.faint, writingDirection: "auto" },
+  fileChipNote: { ...type.micro, color: t.faint, writingDirection: "auto" },
   notHere: {
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
@@ -312,12 +298,12 @@ const useStyles = createStyles((t) => ({
     borderWidth: 1,
     borderStyle: "dashed",
     borderColor: t.hairline,
-    backgroundColor: t.panel,
+    backgroundColor: t.raised,
     maxWidth: 240,
   },
   // Solid and coloured only for a photo that failed its content-address check — a real fault.
   // Media WhatsApp simply left out of the export keeps the dashed neutral outline.
   notHereBad: { borderColor: t.bad, borderStyle: "solid" },
-  notHereText: { ...type.micro, fontWeight: "400", letterSpacing: 0, color: t.muted, writingDirection: "auto" },
+  notHereText: { ...type.micro, color: t.muted, writingDirection: "auto" },
   notHereTextBad: { color: t.bad },
 }));

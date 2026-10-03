@@ -10,7 +10,7 @@ import {
 } from "../../lib/drive/google-auth";
 import { backupAll, listRestorable, restoreArchive } from "../../lib/drive/device-sync";
 import { formatCount } from "../../lib/ui/format";
-import { radius, space, type } from "../../lib/ui/theme";
+import { space, type } from "../../lib/ui/theme";
 import appMark from "../../assets/images/mark.png";
 
 /**
@@ -86,12 +86,12 @@ export default function AccountScreen() {
 
   const connected = google?.hasDrive === true;
 
-  // Not connected: this is the app's account/sign-in moment, so it reads like one — the sign, a
-  // headline on an ultramarine field (the tutorial's first page, again) and one primary action.
+  // Not connected: this is the app's account/sign-in moment, so it reads like the system's own —
+  // the app's icon, one centred line saying what signing in is for, and one primary action.
   // What connecting gets you is in Settings → Help, per the minimal-text rule.
   if (!connected) {
     return (
-      <Screen>
+      <Screen largeTitle={t("account.title")}>
         <View style={styles.hero}>
           <Image source={appMark} style={styles.mark} accessibilityLabel="" />
           <Text style={styles.headline}>{t("account.drive.pitch")}</Text>
@@ -106,7 +106,7 @@ export default function AccountScreen() {
   }
 
   return (
-    <Screen>
+    <Screen largeTitle={t("account.title")}>
       <Section title={t("account.drive.title")} footnote={message}>
         <Row label={t("account.drive.account")} value={google.email} />
       </Section>
@@ -141,12 +141,8 @@ export default function AccountScreen() {
 
 
 const useStyles = createStyles((t) => ({
-  hero: {
-    gap: space.md,
-    padding: space.xl,
-    borderRadius: radius.card,
-    backgroundColor: t.sign,
-  },
-  mark: { width: 64, height: 64, borderRadius: radius.chip, marginBottom: space.sm },
-  headline: { ...type.display, fontSize: 28, lineHeight: 34, color: t.onSign, textAlign: "left", writingDirection: "auto" },
+  hero: { alignItems: "center", gap: space.lg, paddingVertical: space.xl },
+  // An app icon's own proportions: the corner is 22.37% of the side.
+  mark: { width: 80, height: 80, borderRadius: 18, borderCurve: "continuous" },
+  headline: { ...type.title, color: t.ink, textAlign: "center", writingDirection: "auto", maxWidth: 320 },
 }));

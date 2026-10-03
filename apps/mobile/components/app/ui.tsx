@@ -14,9 +14,12 @@
  * - **Nothing tappable is shorter than `TAP`.** Every pressable here sets `minHeight`, which is
  *   why rows can hold one line or three without the screen changing character.
  * - **Sizes come from `type`.** No component here names a font size of its own.
- * - **One primary action per screen.** `Button` defaults to `primary` — the signal-orange one;
- *   a screen with three orange buttons has no primary action, so the others take
- *   `tone="quiet"`, which is iOS's tinted button: a wash of the tint with the tint as its label.
+ * - **One primary action per screen.** `Button` defaults to `primary` — iOS's filled button, the
+ *   tint with a white label; a screen with three filled buttons has no primary action, so the
+ *   others take `tone="quiet"`, which is iOS's tinted button: a wash of the tint with the tint as
+ *   its label.
+ * - **A group is an inset grouped list.** Rows highlight grey edge to edge when pressed, and the
+ *   separators run from the text's leading edge to the group's trailing edge, as in Settings.
  *
  * - **Text that can wrap sets `textAlign: "left"`.** React Native swaps left and right under an
  *   RTL layout, so "left" is the start edge in both languages; left at its natural default, a
@@ -26,8 +29,19 @@
  * than needing a relaunch — unlike layout direction, which is native and does.
  */
 
-import { Children, type ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Children, useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
+import { useNavigation } from "expo-router";
 import { Icon } from "./Icon";
 import { createStyles, useTheme } from "./providers";
 import { gutter, radius, space, TAP, type } from "../../lib/ui/theme";
@@ -43,21 +57,67 @@ export function Screen({
   children,
   gap = space.xl,
   keyboard,
+  largeTitle,
 }: {
   children: ReactNode;
+  /** A top-level (tab) screen's name, set as a large title that collapses into the header. */
+  largeTitle?: string;
   /** Override only when a screen is one continuous thing rather than a set of groups. */
   gap?: number;
   /** True on a screen with a text field, so taps reach buttons behind the keyboard. */
   keyboard?: boolean;
 }) {
   const styles = useStyles();
+  const onScroll = useLargeTitle(largeTitle);
   return (
     <ScrollView
       contentContainerStyle={[styles.screen, { gap }]}
       keyboardShouldPersistTaps={keyboard === true ? "handled" : "never"}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
     >
+      {largeTitle !== undefined && <LargeTitle text={largeTitle} />}
       {children}
     </ScrollView>
+  );
+}
+
+/** How far a screen scrolls before its large title has left and the header takes the name over. */
+const LARGE_TITLE_COLLAPSE = 36;
+
+/**
+ * A large title's other half: the header shows nothing while the title is on screen, and takes
+ * the name (and its hairline) once the title has scrolled under it — what a system navigation
+ * bar does on a top-level screen.
+ *
+ * Done by hand because the tab navigator's header is drawn in JS (`expo-router/js-tabs`) and has
+ * no large-title mode; nesting a native stack inside each tab would get the real one and would
+ * move the routes a share hand-off depends on (`apps/mobile/CLAUDE.md`). Returns the scroll
+ * handler for the screen's own scroll view; with no `title` it does nothing.
+ */
+export function useLargeTitle(
+  title: string | undefined,
+): (event: NativeSyntheticEvent<NativeScrollEvent>) => void {
+  const navigation = useNavigation();
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (title === undefined) return;
+    navigation.setOptions({ headerTitle: collapsed ? title : "", headerShadowVisible: collapsed });
+  }, [navigation, title, collapsed]);
+
+  return useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setCollapsed(event.nativeEvent.contentOffset.y > LARGE_TITLE_COLLAPSE);
+  }, []);
+}
+
+/** A top-level screen's name, as the first thing in its scrolling content. See `useLargeTitle`. */
+export function LargeTitle({ text }: { text: string }) {
+  const styles = useStyles();
+  return (
+    <Text style={styles.largeTitle} accessibilityRole="header">
+      {text}
+    </Text>
   );
 }
 
@@ -137,7 +197,8 @@ export function Section({
 }
 
 /**
- * A label/value pair.
+ * A label/value pair, as a system cell sets one: the label leads in primary text, the value
+ * trails in secondary.
  *
  * `textAlign: "right"` is deliberately absent: under RTL the value has to sit on the other
  * side, and `flex-end` on the container gets there without the style needing to know which
@@ -167,15 +228,15 @@ export function Row({
  * A number that is the point of the screen, with what it counts underneath.
  *
  * Verify's whole job is to state what was captured, and a count set in body copy does not read
- * as evidence. The number is set as a sign — `numeral`, in the display face — and the label stays
- * quiet. `onSign` is for a `Stat` standing on an ultramarine field.
+ * as evidence. The number is set at Large Title's size in tabular figures, and the label stays
+ * quiet.
  */
-export function Stat({ value, label, onSign }: { value: string; label: string; onSign?: boolean }) {
+export function Stat({ value, label }: { value: string; label: string }) {
   const styles = useStyles();
   return (
     <View style={styles.stat}>
-      <Text style={[styles.statValue, onSign === true && styles.statValueOnSign]}>{value}</Text>
-      <Text style={[styles.statLabel, onSign === true && styles.statLabelOnSign]}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
@@ -269,7 +330,7 @@ export type ButtonTone = "primary" | "quiet" | "danger";
  * The one action, or one of the few.
  *
  * `quiet` is a tinted button rather than bare text so that a screen offering three things
- * still reads as three buttons; `primary` is the orange one and there should be at most one
+ * still reads as three buttons; `primary` is the filled one and there should be at most one
  * per screen.
  */
 export function Button({
@@ -347,10 +408,10 @@ export function ChoiceRow({
       style={({ pressed }) => [styles.tapRow, pressed && styles.pressedRow]}
     >
       <View style={styles.tapRowText}>
-        <Text style={[styles.tapRowLabel, selected && styles.tapRowLabelSelected]}>{label}</Text>
+        <Text style={styles.tapRowLabel}>{label}</Text>
         {note !== undefined && <Text style={styles.tapRowNote}>{note}</Text>}
       </View>
-      {selected && <Icon name="check" color={styles.check.color} size={18} weight="bold" />}
+      {selected && <Icon name="check" color={styles.check.color} size={18} weight="semibold" />}
     </Pressable>
   );
 }
@@ -386,8 +447,7 @@ export function LinkRow({
 /**
  * A numbered instruction. Used by Add and by the guided delete, which are both procedures.
  *
- * The number is a sign plate — sun yellow, ink numeral in the display face — the same plate the
- * tutorial pins on each WhatsApp screenshot, so a step here and its picture there read as one.
+ * The number stands in a tint disc, the way the system numbers a procedure (`1.circle.fill`).
  *
  * `icon`, when given, sits at the row's end — the add-chat sheet passes one per step
  * (its screenshot); the guided delete's steps omit it.
@@ -413,7 +473,10 @@ export function Step({
   );
 }
 
-/** A checkbox with its label, for a confirmation the user gives us. */
+/**
+ * A confirmation the user gives us: the system's selection circle, filled with the tint and a
+ * checkmark once it is given.
+ */
 export function CheckRow({
   label,
   checked,
@@ -432,7 +495,7 @@ export function CheckRow({
       style={({ pressed }) => [styles.tapRow, pressed && styles.pressedRow]}
     >
       <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-        {checked && <Icon name="check" color={styles.checkboxMark.color} size={16} weight="bold" />}
+        {checked && <Icon name="check" color={styles.checkboxMark.color} size={13} weight="bold" />}
       </View>
       <Text style={styles.checkLabel}>{label}</Text>
     </Pressable>
@@ -467,7 +530,9 @@ export function SwitchRow({
       <Switch
         value={value}
         onValueChange={onChange}
-        trackColor={{ true: theme.accent, false: theme.sunken }}
+        // No `true` colour: left alone, iOS draws its own "on" green, which is what a system
+        // switch is — the one control the tint never reaches.
+        trackColor={{ false: theme.sunken }}
         // iOS draws the thumb white in both states; Android takes the accent unless told.
         thumbColor={theme.dark && !value ? theme.muted : undefined}
       />
@@ -580,30 +645,34 @@ export function Body({ children, muted }: { children: ReactNode; muted?: boolean
 }
 
 const useStyles = createStyles((t) => ({
-  screen: { paddingHorizontal: gutter, paddingTop: space.lg, paddingBottom: space.xxxl },
+  screen: { paddingHorizontal: gutter, paddingTop: space.sm, paddingBottom: space.xxxl },
+  largeTitle: { ...type.display, color: t.ink, textAlign: "left", writingDirection: "auto" },
 
   titleBlock: { gap: space.xs },
   title: { ...type.title, color: t.ink, textAlign: "left", writingDirection: "auto" },
   titleNote: { ...type.caption, color: t.muted, textAlign: "left", writingDirection: "auto" },
 
   section: { gap: space.sm },
+  // Inset by the cell's own padding, so a header's text starts where its rows' text does.
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: space.xs,
+    paddingHorizontal: space.lg,
   },
   sectionTitle: { ...type.micro, color: t.muted, writingDirection: "auto" },
   sectionAction: { ...type.micro, color: t.accent, writingDirection: "auto" },
   sectionBody: {
     backgroundColor: t.panel,
     borderRadius: radius.card,
+    borderCurve: "continuous",
     paddingHorizontal: space.lg,
     overflow: "hidden",
   },
   sectionFlat: { gap: space.md },
-  separator: { height: StyleSheet.hairlineWidth, backgroundColor: t.separator },
-  footnote: { ...type.caption, color: t.muted, paddingHorizontal: space.xs, textAlign: "left", writingDirection: "auto" },
+  // From the text's leading edge to the group's trailing edge, as a system list divides rows.
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: t.separator, marginEnd: -space.lg },
+  footnote: { ...type.micro, color: t.muted, paddingHorizontal: space.lg, textAlign: "left", writingDirection: "auto" },
 
   row: {
     flexDirection: "row",
@@ -613,21 +682,19 @@ const useStyles = createStyles((t) => ({
     minHeight: TAP,
     paddingVertical: space.md,
   },
-  rowLabel: { ...type.caption, color: t.muted, writingDirection: "auto" },
-  rowValue: { ...type.label, color: t.ink, flexShrink: 1, writingDirection: "auto" },
+  rowLabel: { ...type.label, color: t.ink, writingDirection: "auto" },
+  rowValue: { ...type.label, color: t.muted, flexShrink: 1, writingDirection: "auto" },
   rowValueStrong: { ...type.heading, color: t.ink },
 
-  stat: { gap: space.xs },
-  statValue: { ...type.numeral, color: t.accent, writingDirection: "auto" },
-  statValueOnSign: { color: t.onSign },
+  stat: { gap: 2 },
+  statValue: { ...type.numeral, color: t.ink, writingDirection: "auto" },
   statLabel: { ...type.caption, color: t.muted, writingDirection: "auto" },
-  statLabelOnSign: { color: t.onSignMuted },
 
   pill: {
     alignSelf: "flex-start",
     paddingHorizontal: space.sm,
     paddingVertical: 3,
-    borderRadius: radius.plate,
+    borderRadius: radius.pill,
     backgroundColor: t.sunken,
   },
   pillGood: { backgroundColor: t.goodWash },
@@ -635,8 +702,8 @@ const useStyles = createStyles((t) => ({
   pillAccent: { backgroundColor: t.accentWash },
   pillLabel: { ...type.micro, color: t.muted, writingDirection: "auto" },
 
-  empty: { paddingTop: space.xxxl, alignItems: "center", gap: space.md },
-  emptyHeading: { ...type.display, color: t.ink, textAlign: "center", writingDirection: "auto" },
+  empty: { paddingTop: space.xxxl, alignItems: "center", gap: space.sm },
+  emptyHeading: { ...type.title, color: t.ink, textAlign: "center", writingDirection: "auto" },
   emptyBody: {
     ...type.body,
     color: t.muted,
@@ -649,7 +716,7 @@ const useStyles = createStyles((t) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: space.sm,
-    marginTop: space.sm,
+    marginTop: space.md,
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
     borderRadius: radius.pill,
@@ -659,82 +726,88 @@ const useStyles = createStyles((t) => ({
   helpPillLabel: { ...type.label, fontWeight: "600", color: t.accent, writingDirection: "auto" },
 
   button: {
-    minHeight: 52,
+    minHeight: 50,
     paddingVertical: space.md,
-    paddingHorizontal: space.lg,
+    paddingHorizontal: space.xl,
     borderRadius: radius.button,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: t.signal,
+    backgroundColor: t.accent,
   },
   buttonQuiet: { backgroundColor: t.accentWash },
   buttonDanger: { backgroundColor: t.badWash },
   buttonDisabled: { opacity: 0.4 },
-  buttonLabel: { ...type.label, fontWeight: "600", color: t.onSignal, writingDirection: "auto" },
+  buttonLabel: { ...type.label, fontWeight: "600", color: t.onAccent, writingDirection: "auto" },
   buttonLabelQuiet: { color: t.accent },
   buttonLabelDanger: { color: t.bad },
   pressed: { opacity: 0.6 },
-  pressedRow: { backgroundColor: t.accentWash },
+  pressedRow: { backgroundColor: t.highlight },
   actions: { gap: space.md },
 
+  // Bled out to the group's edges and padded back in, so the pressed highlight fills the cell
+  // (the group clips it to its corners) rather than stopping short of them.
   tapRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: space.md,
-    minHeight: TAP + 4,
+    minHeight: TAP,
     paddingVertical: space.md,
+    paddingHorizontal: space.lg,
+    marginHorizontal: -space.lg,
   },
   tapRowText: { flex: 1, gap: 2 },
   tapRowLabel: { ...type.label, color: t.ink, textAlign: "left", writingDirection: "auto" },
-  tapRowLabelSelected: { fontWeight: "600" },
   tapRowNote: { ...type.caption, color: t.muted, textAlign: "left", writingDirection: "auto" },
   check: { color: t.accent },
   chevron: { color: t.faint },
 
-  step: { flexDirection: "row", gap: space.lg, alignItems: "flex-start" },
+  step: { flexDirection: "row", gap: space.md, alignItems: "flex-start" },
   stepPlate: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.plate,
-    backgroundColor: t.sun,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: t.accent,
     alignItems: "center",
     justifyContent: "center",
   },
-  stepNumber: { fontFamily: type.display.fontFamily, fontSize: 19, lineHeight: 24, color: t.onSun },
-  stepText: { flex: 1, ...type.body, color: t.body, paddingTop: 4, textAlign: "left", writingDirection: "auto" },
+  stepNumber: { ...type.caption, fontWeight: "600", color: t.onAccent, fontVariant: ["tabular-nums"] },
+  stepText: { flex: 1, ...type.body, color: t.body, paddingTop: 3, textAlign: "left", writingDirection: "auto" },
 
   checkbox: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
-    borderWidth: 2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
     borderColor: t.hairline,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: t.field,
   },
-  checkboxChecked: { backgroundColor: t.good, borderColor: t.good },
-  checkboxMark: { color: t.dark ? "#06140d" : "#ffffff" },
+  checkboxChecked: { backgroundColor: t.accent, borderColor: t.accent },
+  checkboxMark: { color: t.onAccent },
   checkLabel: { flex: 1, ...type.label, color: t.ink, textAlign: "left", writingDirection: "auto" },
 
   callout: {
     padding: space.lg,
     gap: space.xs,
     borderRadius: radius.card,
+    borderCurve: "continuous",
     backgroundColor: t.panel,
   },
-  calloutGood: { backgroundColor: t.goodWash, borderColor: "transparent" },
-  calloutBad: { backgroundColor: t.badWash, borderColor: "transparent" },
-  calloutCaution: { backgroundColor: t.cautionWash, borderColor: "transparent" },
+  calloutGood: { backgroundColor: t.goodWash },
+  calloutBad: { backgroundColor: t.badWash },
+  calloutCaution: { backgroundColor: t.cautionWash },
   calloutTitle: { ...type.heading, color: t.ink, textAlign: "left", writingDirection: "auto" },
   calloutBody: { ...type.caption, color: t.body, textAlign: "left", writingDirection: "auto" },
 
   field: { gap: space.sm },
+  // No outline at rest: a field is a cell-coloured well on the grouped page, as in a system
+  // form. The border exists only to turn red.
   input: {
-    minHeight: 52,
+    minHeight: 50,
     borderWidth: 1,
-    borderColor: t.hairline,
+    borderColor: "transparent",
     borderRadius: radius.field,
+    borderCurve: "continuous",
     paddingHorizontal: space.lg,
     paddingVertical: space.md,
     ...type.body,
@@ -745,7 +818,7 @@ const useStyles = createStyles((t) => ({
     writingDirection: "ltr",
   },
   inputBad: { borderColor: t.bad },
-  fieldError: { ...type.caption, color: t.bad, paddingHorizontal: space.xs, textAlign: "left", writingDirection: "auto" },
+  fieldError: { ...type.micro, color: t.bad, paddingHorizontal: space.lg, textAlign: "left", writingDirection: "auto" },
 
   bodyText: { ...type.body, color: t.body, textAlign: "left", writingDirection: "auto" },
   bodyMuted: { ...type.caption, color: t.muted },
