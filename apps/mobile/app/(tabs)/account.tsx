@@ -1,5 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Image, Text, View } from "react-native";
+import { useFocusEffect } from "expo-router";
+import { accountEmail, sessionGeneration, useDriveSession } from "../../lib/drive/session";
+import { visibleArchiveIds, pendingArchiveIds } from "../../lib/archive/catalog";
+import { readViewBackupState } from "../../lib/archive/location";
 import { createStyles, useApp } from "../../components/app/providers";
 import { Actions, Body, Button, Row, Screen, Section } from "../../components/app/ui";
 import {
@@ -8,7 +12,7 @@ import {
   restoreGoogleConnection,
   type GoogleConnection,
 } from "../../lib/drive/google-auth";
-import { backupAll, listRestorable, restoreArchive } from "../../lib/drive/device-sync";
+import { backupAll } from "../../lib/drive/device-sync";
 import { formatCount } from "../../lib/ui/format";
 import { space, type } from "../../lib/ui/theme";
 import appMark from "../../assets/images/mark.png";
@@ -22,29 +26,36 @@ import appMark from "../../assets/images/mark.png";
  * on our servers (root `CLAUDE.md`, invariant 2).
  */
 export default function AccountScreen() {
-  const { t, tp } = useApp();
+  const { t } = useApp();
   const styles = useStyles();
   const [google, setGoogle] = useState<GoogleConnection | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | undefined>(undefined);
-  const [restorable, setRestorable] = useState<string[] | undefined>(undefined);
-  const [restoring, setRestoring] = useState<number | undefined>(undefined);
+  const session = useDriveSession();
+  const request = useRef(0);
+  const [counts, setCounts] = useState<{ cloud: number; pending: number } | undefined>(undefined);
 
   useEffect(() => {
+    let stale = false;
     restoreGoogleConnection()
-      .then(setGoogle)
-      .catch(() => setGoogle(null));
-  }, []);
+      .then(connection => { if (!stale) setGoogle(connection); })
+      .catch(() => { if (!stale) setGoogle(null); });
+    return () => { stale = true; };
+  }, [session]);
 
-  useEffect(() => {
-    if (!google?.hasDrive) {
-      setRestorable(undefined);
-      return;
-    }
-    listRestorable()
-      .then(setRestorable)
-      .catch(() => setRestorable(undefined));
-  }, [google]);
+  const refresh = useCallback(async () => {
+    const current = ++request.current;
+    const generation = sessionGeneration();
+    setCounts(undefined);
+    try {
+      const ids = await visibleArchiveIds();
+      const pending = await pendingArchiveIds();
+      const states = await Promise.all(ids.map(readViewBackupState));
+      if (current !== request.current || generation !== sessionGeneration()) return;
+      setCounts({ cloud: states.filter(s => s.backedUpAt !== undefined && s.accountEmail === accountEmail()).length, pending: pending.length });
+    } catch (error) { setMessage(error instanceof Error ? error.message : String(error)); }
+  }, [session]);
+  useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
 
   const act = useCallback(async (action: () => Promise<void>) => {
     setBusy(true);
@@ -55,9 +66,9 @@ export default function AccountScreen() {
       setMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
-      setRestoring(undefined);
+      void refresh();
     }
-  }, []);
+  }, [refresh]);
 
   const connect = () => act(async () => setGoogle(await connectGoogleDrive()));
   const disconnect = () =>
@@ -74,17 +85,7 @@ export default function AccountScreen() {
           : t("account.backedUpSome", { ok: formatCount(ok), failed: formatCount(failed) }),
       );
     });
-  const restore = () =>
-    act(async () => {
-      for (const [i, archiveId] of (restorable ?? []).entries()) {
-        setRestoring(i + 1);
-        await restoreArchive(archiveId);
-      }
-      setRestorable([]);
-      setMessage(t("account.restored"));
-    });
-
-  const connected = google?.hasDrive === true;
+  const connected = google?.hasDrive === true && google.email === accountEmail();
 
   // Not connected: this is the app's account/sign-in moment, so it reads like the system's own —
   // the app's icon, one centred line saying what signing in is for, and one primary action.
@@ -97,6 +98,7 @@ export default function AccountScreen() {
           <Text style={styles.headline}>{t("account.drive.pitch")}</Text>
         </View>
 
+        <Body muted>{t("account.drive.signedOutNote")}</Body>
         <Actions>
           <Button label={t("account.drive.connect")} onPress={() => void connect()} disabled={busy} />
         </Actions>
@@ -108,26 +110,16 @@ export default function AccountScreen() {
   return (
     <Screen largeTitle={t("account.title")}>
       <Section title={t("account.drive.title")} footnote={message}>
-        <Row label={t("account.drive.account")} value={google.email} />
+        <Row label={t("account.drive.account")} value={google?.email ?? ""} />
       </Section>
 
+      <Section footnote={t("account.drive.storageNote")}>
+        <Row label={t("account.drive.cloudCount")} value={counts ? formatCount(counts.cloud) : "…"} />
+        <Row label={t("account.drive.pendingCount")} value={counts ? formatCount(counts.pending) : "…"} />
+      </Section>
       <Actions>
-        <Button label={t("account.drive.backupAll")} onPress={() => void backUp()} disabled={busy} />
-        {restorable !== undefined && restorable.length > 0 && (
-          <Button
-            label={
-              restoring !== undefined
-                ? t("account.drive.restoring", {
-                    n: formatCount(restoring),
-                    count: formatCount(restorable.length),
-                  })
-                : t("account.drive.restore", { count: tp("common.chats", restorable.length) })
-            }
-            tone="quiet"
-            onPress={() => void restore()}
-            disabled={busy}
-          />
-        )}
+        {counts !== undefined && counts.pending > 0 && <Button label={t("account.drive.backupAll")} onPress={() => void backUp()} disabled={busy} />}
+        <Button label={t("account.drive.refresh")} tone="quiet" onPress={() => void refresh()} disabled={busy} />
         <Button
           label={t("account.drive.disconnect")}
           tone="quiet"

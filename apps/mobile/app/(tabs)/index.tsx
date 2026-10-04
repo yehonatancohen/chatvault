@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -9,9 +9,11 @@ import {
   Text,
   View,
 } from "react-native";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useRouter, usePathname } from "expo-router";
 import { useShareIntentContext } from "expo-share-intent";
 import { archiveBytes, readLibrary, type LibraryEntry } from "../../lib/archive/library";
+import { readViewBackupState } from "../../lib/archive/location";
+import { sessionGeneration, useDriveSession } from "../../lib/drive/session";
 import { backupPending } from "../../lib/drive/device-sync";
 import { updateSettings } from "../../lib/settings/settings";
 import { ChatAvatar } from "../../components/archive/ChatAvatar";
@@ -50,6 +52,11 @@ export default function LibraryScreen() {
   const router = useRouter();
   const { t, tp, language, settings } = useApp();
   const styles = useStyles();
+  const pathname = usePathname();
+  const session = useDriveSession();
+  const request = useRef(0);
+  const loadedSession = useRef(session);
+  const [failure, setFailure] = useState<string | undefined>(undefined);
   const { hasShareIntent } = useShareIntentContext();
 
   const [entries, setEntries] = useState<readonly LibraryEntry[] | undefined>(undefined);
@@ -62,8 +69,9 @@ export default function LibraryScreen() {
   // still mounts underneath as the stack's anchor, and a tutorial popping up over it would fight
   // the import for attention).
   useEffect(() => {
-    if (!settings.sawTutorial && !hasShareIntent) setTutorial(true);
-  }, []);
+    if (pathname === "/" && !settings.sawTutorial && !hasShareIntent) setTutorial(true);
+    if (hasShareIntent || pathname !== "/") setTutorial(false);
+  }, [pathname, hasShareIntent, settings.sawTutorial]);
 
   const closeTutorial = useCallback(() => {
     setTutorial(false);
@@ -71,14 +79,23 @@ export default function LibraryScreen() {
   }, []);
 
   const load = useCallback(async (): Promise<void> => {
-    const next = await readLibrary(language);
-    setEntries(next);
-    void backupPending(
-      next.flatMap((entry) =>
-        entry.manifest ? [{ archiveId: entry.archiveId, updatedAt: entry.manifest.updatedAt }] : [],
-      ),
-    );
-  }, [language]);
+    const current = ++request.current;
+    const generation = sessionGeneration();
+    setFailure(undefined);
+    try {
+      const next = await readLibrary(language);
+      if (current !== request.current || generation !== sessionGeneration()) return;
+      loadedSession.current = generation;
+      setEntries(next);
+      void backupPending(next.flatMap(entry => entry.manifest ? [{ archiveId: entry.archiveId, updatedAt: entry.manifest.updatedAt }] : []));
+    } catch (error) {
+      if (current !== request.current || generation !== sessionGeneration()) return;
+      loadedSession.current = generation;
+      setEntries([]);
+      setFailure(error instanceof Error ? error.message : String(error));
+    }
+  }, [language, session]);
+  useEffect(() => { setEntries(undefined); setRemoving(undefined); }, [session]);
 
   useFocusEffect(
     useCallback(() => {
@@ -95,7 +112,8 @@ export default function LibraryScreen() {
     }
   }, [load]);
 
-  const totalMediaBytes = (entries ?? []).reduce((sum, entry) => sum + archiveMediaBytes(entry), 0);
+  const visibleEntries = loadedSession.current === session ? entries : undefined;
+  const totalMediaBytes = (visibleEntries ?? []).reduce((sum, entry) => sum + archiveMediaBytes(entry), 0);
   const onScroll = useLargeTitle(t("library.title"));
 
   return (
@@ -110,11 +128,12 @@ export default function LibraryScreen() {
         <View style={styles.heading}>
           <LargeTitle text={t("library.title")} />
         </View>
-        {entries === undefined ? (
+        {failure && <Text style={styles.summary}>{failure}</Text>}
+        {visibleEntries === undefined ? (
           <View style={styles.loading}>
             <ActivityIndicator />
           </View>
-        ) : entries.length === 0 ? (
+        ) : visibleEntries.length === 0 ? (
           <View style={styles.emptyWrap}>
             <EmptyState
               heading={t("library.empty.heading")}
@@ -126,11 +145,11 @@ export default function LibraryScreen() {
         ) : (
           <>
             <Text style={styles.summary}>
-              {tp("library.count", entries.length)}
+              {tp("library.count", visibleEntries.length)}
               {totalMediaBytes > 0 ? ` · ${formatBytes(totalMediaBytes)}` : ""}
             </Text>
             <View>
-              {entries.map((entry, index) => (
+              {visibleEntries.map((entry, index) => (
                 <View key={entry.archiveId}>
                   {/* Inset past the avatar, the way every chat list is divided: a line running
                       the full width cuts the avatars off from their own rows. */}
@@ -138,7 +157,7 @@ export default function LibraryScreen() {
                   <ArchiveRow
                     entry={entry}
                     onPress={() => router.push({ pathname: "/archive/[id]", params: { id: entry.archiveId } })}
-                    onRemove={() => setRemoving(entry)}
+                    onRemove={() => { void readViewBackupState(entry.archiveId).then(state => { if (!state.cloudOnly && loadedSession.current === sessionGeneration()) setRemoving(entry); }); }}
                   />
                 </View>
               ))}

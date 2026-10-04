@@ -29,7 +29,6 @@ import { getCryptoProvider } from "../crypto/expo-crypto-provider";
 import { createArchiveKey, wrapArchiveKey } from "../crypto/key-wrapping";
 import {
   keyForArchive,
-  listArchiveIds,
   newArchiveId,
   readArchiveHeader,
   saveArchiveKey,
@@ -38,7 +37,12 @@ import {
 import { ZipMediaSource } from "../media/zip-media-source";
 import { openRandomAccess } from "../media/file-random-access";
 import { makeThumbnail } from "../media/thumbnailer";
-import { markPreviewsDone } from "../drive/backup-state";
+import { stageArchiveForImport } from "../drive/device-sync";
+import { visibleArchiveIds } from "../archive/catalog";
+import { readableStorageFor } from "../archive/readable-storage";
+import { withArchiveOperation } from "../archive/operation";
+import { accountEmail, sessionGeneration } from "../drive/session";
+import { readBackupState, writeBackupState, markPreviewsDone } from "../drive/backup-state";
 import { chatTitleFromFilename, chooseTarget, type ArchiveCandidate } from "./match";
 import {
   runImport,
@@ -104,6 +108,7 @@ export interface PreparedImport {
   readonly sourcePath: string;
   /** Closes the export's file handle. */
   readonly release: () => void;
+  readonly session: number;
 }
 
 export async function prepareImport(params: {
@@ -160,6 +165,7 @@ export async function prepareImport(params: {
       byteLength,
       sourcePath: params.path,
       release,
+      session: sessionGeneration(),
     };
   }
 
@@ -176,6 +182,7 @@ export async function prepareImport(params: {
     byteLength,
     sourcePath: params.path,
     release,
+    session: sessionGeneration(),
   };
 }
 
@@ -192,7 +199,7 @@ export async function prepareImport(params: {
 async function readCandidates(): Promise<ArchiveCandidate[]> {
   const candidates: ArchiveCandidate[] = [];
 
-  for (const archiveId of listArchiveIds()) {
+  for (const archiveId of await visibleArchiveIds()) {
     try {
       const key = await keyForArchive(archiveId);
       if (key === null) continue;
@@ -200,7 +207,7 @@ async function readCandidates(): Promise<ArchiveCandidate[]> {
         archiveId,
         messageIds: await readArchiveMessageIds({
           crypto: getCryptoProvider(),
-          storage: storageFor(archiveId),
+          storage: readableStorageFor(archiveId),
           key,
           archiveId,
         }),
@@ -219,11 +226,25 @@ export interface CompleteImportResult {
   readonly archiveId: string;
 }
 
-export async function completeImport(
+export function completeImport(
   prepared: PreparedImport,
   passphrase: string | undefined,
   onProgress?: (stage: ImportStage) => void,
 ): Promise<CompleteImportResult> {
+  return withArchiveOperation(prepared.archiveId, () => completeImportUnlocked(prepared, passphrase, onProgress)).finally(() => prepared.release());
+}
+
+async function completeImportUnlocked(
+  prepared: PreparedImport,
+  passphrase: string | undefined,
+  onProgress?: (stage: ImportStage) => void,
+): Promise<CompleteImportResult> {
+  if (prepared.session !== sessionGeneration()) throw new Error("Google Drive account changed. Share this export again.");
+  if (!prepared.creating) await stageArchiveForImport(prepared.archiveId);
+  const previousState = await readBackupState(prepared.archiveId);
+  const email = accountEmail();
+  // Claim staging before writing, so a failed or interrupted import cannot leak into another account.
+  writeBackupState(prepared.archiveId, { ...previousState, ...(email ? { accountEmail: email } : {}), cloudOnly: false });
   const crypto = getCryptoProvider();
   const storage = storageFor(prepared.archiveId);
 
@@ -232,9 +253,7 @@ export async function completeImport(
     ? await createKeyMaterial(prepared.archiveId, passphrase, crypto)
     : await existingKeyMaterial(prepared.archiveId, passphrase, crypto);
 
-  let outcome: ImportOutcome;
-  try {
-    outcome = await runImport({
+  const outcome = await runImport({
       transcript: prepared.transcript,
       parsed: prepared.parsed,
       media: prepared.media,
@@ -254,11 +273,12 @@ export async function completeImport(
       tzOffsetMinutes: -new Date().getTimezoneOffset(),
       ...(onProgress ? { onProgress } : {}),
     });
-  } finally {
-    // Close the export's file handle whether the import succeeded or not.
-    prepared.release();
-  }
 
+  writeBackupState(prepared.archiveId, {
+    ...(await readBackupState(prepared.archiveId)),
+    localUpdatedAt: outcome.manifest.updatedAt,
+    cloudOnly: false,
+  });
   // Previews while the photos are still on the phone — before a backup moves them to Drive.
   // Never fails the import: a photo without a preview just shows the full image.
   onProgress?.("previews");

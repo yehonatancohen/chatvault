@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArchiveReader, type Manifest, type MergedMessage } from "@chatvault/core";
 import { getCryptoProvider } from "../../lib/crypto/expo-crypto-provider";
 import { WrongPassphraseError } from "../../lib/crypto/key-wrapping";
@@ -31,14 +31,21 @@ export type ArchiveState =
     }
   | { readonly kind: "error"; readonly message: string };
 
+import { sessionGeneration, useDriveSession } from "../../lib/drive/session";
+
 export function useArchive(archiveId: string): {
   state: ArchiveState;
   unlock: (passphrase: string) => Promise<void>;
 } {
+  const session = useDriveSession();
+  const mounted = useRef(true);
+  const request = useRef(0);
+  const loadedSession = useRef(session);
   const [state, setState] = useState<ArchiveState>({ kind: "loading" });
 
   const openWith = useCallback(
     async (key: Uint8Array | undefined): Promise<void> => {
+      const current = ++request.current;
       const reader = await ArchiveReader.open({
         crypto: getCryptoProvider(),
         // Photos the phone no longer keeps are read back from Drive.
@@ -47,12 +54,15 @@ export function useArchive(archiveId: string): {
         archiveId,
       });
       const messages = await reader.readAll();
-      setState({ kind: "ready", reader, manifest: reader.manifest, messages });
+      if (mounted.current && current === request.current && session === sessionGeneration()) { loadedSession.current = session; setState({ kind: "ready", reader, manifest: reader.manifest, messages }); }
     },
-    [archiveId],
+    [archiveId, session],
   );
 
   useEffect(() => {
+    mounted.current = true;
+    loadedSession.current = session;
+    setState({ kind: "loading" });
     let stale = false;
     void (async () => {
       try {
@@ -74,6 +84,8 @@ export function useArchive(archiveId: string): {
     })();
     return () => {
       stale = true;
+      mounted.current = false;
+      request.current += 1;
     };
   }, [archiveId, openWith]);
 
@@ -83,6 +95,7 @@ export function useArchive(archiveId: string): {
       try {
         await openWith(await unlockWithPassphrase(archiveId, passphrase));
       } catch (error) {
+        if (!mounted.current || session !== sessionGeneration()) return;
         setState({
           kind: "locked",
           error:
@@ -94,8 +107,8 @@ export function useArchive(archiveId: string): {
         });
       }
     },
-    [archiveId, openWith],
+    [archiveId, openWith, session],
   );
 
-  return { state, unlock };
+  return { state: loadedSession.current === session ? state : { kind: "loading" }, unlock };
 }

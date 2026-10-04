@@ -3,9 +3,9 @@
 // done from inside a component.
 import "../lib/i18n/bootstrap";
 
-import { Stack, useRouter } from "expo-router";
+import { Stack, useRouter, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Pressable, Text } from "react-native";
 import { ShareIntentProvider, useShareIntentContext } from "expo-share-intent";
 import { AppProvider, useApp } from "../components/app/providers";
@@ -44,22 +44,20 @@ export const unstable_settings = {
 function ShareIntentRouter() {
   const { hasShareIntent, shareIntent } = useShareIntentContext();
   const router = useRouter();
+  const pathname = usePathname();
+  const handled = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    if (!hasShareIntent) return;
+    if (!hasShareIntent) { handled.current = undefined; return; }
     const file = shareIntent.files?.[0];
     if (!file) return;
 
-    router.replace({
-      pathname: "/import",
-      params: {
-        path: file.path,
-        fileName: file.fileName,
-        mimeType: file.mimeType,
-        size: String(file.size ?? 0),
-      },
-    });
-  }, [hasShareIntent, shareIntent, router]);
+    if (handled.current === file.path) return;
+    handled.current = file.path;
+    const params = { path: file.path, fileName: file.fileName, mimeType: file.mimeType, size: String(file.size ?? 0) };
+    if (pathname === "/import") router.setParams(params);
+    else router.push({ pathname: "/import", params });
+  }, [hasShareIntent, shareIntent, router, pathname]);
 
   return null;
 }
@@ -138,7 +136,7 @@ function Navigation() {
           name="add-chat"
           options={{ title: t("add.title"), presentation: "modal", headerRight: () => <SheetDone /> }}
         />
-        <Stack.Screen name="import" options={{ title: t("import.title") }} />
+        <Stack.Screen name="import" options={{ title: t("import.title"), animation: "none" }} />
         {/*
           Verify is the trust moment and is reached with `replace` from Import, so there is
           deliberately no back-link to a screen that has already done its work. `gestureEnabled`

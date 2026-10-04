@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { useShareIntentContext } from "expo-share-intent";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   completeImport,
@@ -67,6 +68,9 @@ export default function ImportScreen() {
     mimeType?: string;
     size?: string;
   }>();
+  const { resetShareIntent, error: shareError } = useShareIntentContext();
+  const resetShare = useRef(resetShareIntent);
+  resetShare.current = resetShareIntent;
   const router = useRouter();
   const { t } = useApp();
   const styles = useStyles();
@@ -97,6 +101,7 @@ export default function ImportScreen() {
           passphraseSet: prepared.creating && secret !== undefined && secret !== "",
           hadMedia: prepared.hadMedia,
         });
+        resetShare.current();
         router.replace("/verify");
       } catch (error) {
         if (cancelled.current) return;
@@ -115,6 +120,7 @@ export default function ImportScreen() {
   );
 
   useEffect(() => {
+    if (!params.path) return; // The native handoff is still loading; this is not an import error.
     let stale = false;
 
     async function run(): Promise<void> {
@@ -125,7 +131,7 @@ export default function ImportScreen() {
           ...(params.fileName !== undefined ? { fileName: params.fileName } : {}),
           ...(params.mimeType !== undefined ? { mimeType: params.mimeType } : {}),
         });
-        if (stale || cancelled.current) return;
+        if (stale || cancelled.current) { prepared.release(); return; }
 
         // Adding to a chat already here: nothing to ask.
         if (prepared.requirement === "ready") {
@@ -149,7 +155,12 @@ export default function ImportScreen() {
     };
   }, [params.path, params.fileName, params.mimeType, write, t]);
 
+  useEffect(() => {
+    if (shareError && !params.path) setPhase({ kind: "error", message: t("import.error.unreadable"), detail: String(shareError) });
+  }, [shareError, params.path, t]);
+
   const goBack = (): void => {
+    resetShareIntent();
     if (router.canGoBack()) router.back();
     else router.replace("/");
   };

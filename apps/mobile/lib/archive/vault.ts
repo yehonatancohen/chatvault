@@ -26,6 +26,7 @@ import { fromBase64, toBase64 } from "../crypto/base64";
 import { getCryptoProvider } from "../crypto/expo-crypto-provider";
 import { unwrapArchiveKey } from "../crypto/key-wrapping";
 import { deletePreferences } from "./preferences";
+import { readableStorageFor } from "./readable-storage";
 import { deleteBackupState } from "../drive/backup-state";
 
 const ARCHIVES_DIRECTORY = "archives";
@@ -63,7 +64,7 @@ export function listArchiveIds(): string[] {
 
 /** The cleartext header: format version, id, createdAt, KDF params. Never anything about the chat. */
 export async function readArchiveHeader(archiveId: string): Promise<ArchiveHeader> {
-  return readHeader(storageFor(archiveId), archiveId);
+  return readHeader(readableStorageFor(archiveId), archiveId);
 }
 
 export async function saveArchiveKey(archiveId: string, key: Uint8Array): Promise<void> {

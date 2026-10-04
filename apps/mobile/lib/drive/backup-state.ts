@@ -15,6 +15,12 @@ import type { SyncLedger } from "@chatvault/storage";
 
 export interface BackupState {
   readonly ledger: SyncLedger;
+  /** Account owning this staging copy; absent for a new export made while signed out. */
+  readonly accountEmail?: string;
+  /** Content is read from Drive; only the small header may remain on this phone. */
+  readonly cloudOnly?: boolean;
+  /** The latest locally committed import, to distinguish it from a completed backup. */
+  readonly localUpdatedAt?: number;
   /** Epoch ms of the last *completed* backup. Absent while only partially backed up. */
   readonly backedUpAt?: number;
   /** The chat's folder in Drive, for "open in Drive" and for reading media back. */
@@ -36,6 +42,9 @@ export async function readBackupState(archiveId: string): Promise<BackupState> {
     const parsed = JSON.parse(await file.text()) as Partial<BackupState>;
     return {
       ledger: typeof parsed.ledger === "object" && parsed.ledger !== null ? parsed.ledger : {},
+      ...(typeof parsed.accountEmail === "string" ? { accountEmail: parsed.accountEmail } : {}),
+      ...(typeof parsed.cloudOnly === "boolean" ? { cloudOnly: parsed.cloudOnly } : {}),
+      ...(typeof parsed.localUpdatedAt === "number" ? { localUpdatedAt: parsed.localUpdatedAt } : {}),
       ...(typeof parsed.backedUpAt === "number" ? { backedUpAt: parsed.backedUpAt } : {}),
       ...(typeof parsed.folderId === "string" ? { folderId: parsed.folderId } : {}),
       ...(typeof parsed.previewsAt === "number" ? { previewsAt: parsed.previewsAt } : {}),

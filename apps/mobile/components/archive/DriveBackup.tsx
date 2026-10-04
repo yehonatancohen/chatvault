@@ -8,7 +8,8 @@ import {
   watchBackup,
   type BackupStatus,
 } from "../../lib/drive/device-sync";
-import { readBackupState } from "../../lib/drive/backup-state";
+import { accountEmail, useDriveSession } from "../../lib/drive/session";
+import { readViewBackupState } from "../../lib/archive/location";
 import { progressFraction } from "../../lib/ui/chat-status";
 import { space, TAP, type } from "../../lib/ui/theme";
 import { Icon } from "../app/Icon";
@@ -38,14 +39,21 @@ export function DriveBackup({
   const [status, setStatus] = useState<BackupStatus>({ kind: "idle" });
   const [backedUpAt, setBackedUpAt] = useState<number | undefined>(undefined);
   const started = useRef(false);
+  const session = useDriveSession();
+  const [cloudOnly, setCloudOnly] = useState(false);
 
   useEffect(() => watchBackup(archiveId, setStatus), [archiveId]);
   useEffect(() => {
-    void readBackupState(archiveId).then((state) => setBackedUpAt(state.backedUpAt));
-  }, [archiveId, status.kind]);
+    void readViewBackupState(archiveId).then(state => {
+      const owned = !!accountEmail() && state.accountEmail === accountEmail();
+      setBackedUpAt(owned ? state.backedUpAt : undefined);
+      setCloudOnly(owned && state.cloudOnly === true);
+    });
+  }, [archiveId, status.kind, session]);
 
   useEffect(() => {
     let stale = false;
+    started.current = false;
     void isDriveConnected().then((value) => {
       if (stale) return;
       setConnected(value);
@@ -57,7 +65,7 @@ export function DriveBackup({
     return () => {
       stale = true;
     };
-  }, [archiveId, autoStart]);
+  }, [archiveId, autoStart, session]);
 
   if (connected === undefined) return null;
 
@@ -97,7 +105,7 @@ export function DriveBackup({
   }
   if (status.kind === "diverged") return <Text style={styles.muted}>{t("backup.diverged")}</Text>;
 
-  const current = backedUpAt !== undefined && backedUpAt >= updatedAt;
+  const current = cloudOnly || backedUpAt !== undefined && backedUpAt >= updatedAt;
   return current ? (
     // Opens the chat's own folder in Google Drive (the Drive app, when installed).
     <Pressable

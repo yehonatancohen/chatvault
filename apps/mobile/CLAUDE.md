@@ -524,3 +524,25 @@ Run it after any change to the adapter, and before trusting it with a real archi
   a key the user loses with their phone — always keep the passphrase path working.
 - **Large files.** Stream media from the export zip to storage; never read a whole zip into
   memory. The same discipline as the extension, for the same reason.
+
+## Drive is the reading source (owner decision, 2026-10-04)
+
+Completed backups are read directly from the connected Google account's Drive, including
+messages and thumbnails. Imports remain durable on the phone until push and verification
+complete; content is then offloaded, with only a small header, sync ledger and preferences
+remaining. Reading requires the connected account and internet access. A new device discovers
+Drive chats automatically; there is no user-facing download/restore step.
+
+Disconnect signs out without revoking the drive.file grant, hides the account's chats and
+invalidates readers, clients, tokens and memory caches. Pending imports assigned to that account
+are preserved and wait for it to reconnect; imports made while signed out are unassigned.
+Old backups without an account association are adopted only after their uploaded manifest hash
+matches the current account's Drive copy. Import/backup cleanup is serialized per archive.
+
+Appending temporarily stages messages from Drive into an isolated cache directory, copies
+verified metadata into durable staging, and then uses the existing merge pipeline. Media stays
+remote. After uploading the appended archive, local content is offloaded again.
+
+The JS lifecycle and account invalidation have automated tests. WhatsApp share handoff,
+native Google sign-in, interrupted uploads and switching two real Google accounts still require
+a physical iPhone; a simulator or typecheck cannot prove those paths.

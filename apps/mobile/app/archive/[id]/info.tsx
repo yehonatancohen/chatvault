@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, Share, Text, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { mediaStats } from "@chatvault/core";
+import { readViewBackupState } from "../../../lib/archive/location";
 import { readPreferences, updatePreferences } from "../../../lib/archive/preferences";
 import { readLibrary, type LibraryEntry } from "../../../lib/archive/library";
 import { useArchive } from "../../../components/archive/useArchive";
@@ -54,6 +55,8 @@ export default function ArchiveInfoScreen() {
   const { t, tp, language } = useApp();
   const styles = useStyles();
 
+  const [cloudOnly, setCloudOnly] = useState(false);
+  useEffect(() => { void readViewBackupState(archiveId).then(state => setCloudOnly(state.cloudOnly === true)); }, [archiveId]);
   const [selfId, setSelfId] = useState<string | undefined>(undefined);
   const [showAllPeople, setShowAllPeople] = useState(false);
   const [lightbox, setLightbox] = useState<LightboxSubject | undefined>(undefined);
@@ -277,7 +280,7 @@ export default function ArchiveInfoScreen() {
           label={t("info.passphrase")}
           value={state.reader.encrypted ? t("info.passphrase.on") : t("info.passphrase.off")}
         />
-        <LinkRow label={t("remove.cta")} tone="danger" onPress={() => void openRemove()} />
+        {!cloudOnly && <LinkRow label={t("remove.cta")} tone="danger" onPress={() => void openRemove()} />}
       </Section>
 
       <Lightbox subject={lightbox} onClose={() => setLightbox(undefined)} action={lightboxAction(lightbox)} />

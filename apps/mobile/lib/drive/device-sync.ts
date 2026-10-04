@@ -1,279 +1,160 @@
-/**
- * Backing archives up to the user's Google Drive, and restoring them onto a new phone.
- *
- * The logic is `pushArchive` / `pullArchive` in `@chatvault/storage`, tested in CI against
- * real archives over `FakeDrive`. This file only supplies the device's halves — the filesystem
- * adapter, the Drive client with the signed-in account's token, the native SHA-256 — and keeps
- * one run per archive at a time, observable from any screen.
- *
- * **It never decrypts.** Drive gets exactly the files the phone has — plain, or sealed for a
- * protected chat (which, restored, shows locked until its passphrase is entered).
- *
- * **Photos don't stay on the phone.** After a backup, every photo Drive verifiably holds is
- * removed locally (`offloadMedia`); messages stay. Restores bring back messages only. Screens
- * read photos through `readableStorageFor` (`lib/archive/readable-storage.ts`), which falls back
- * to Drive for anything the phone no longer has.
- *
- * Nothing here talks to Boydem's servers (root `CLAUDE.md`, invariant 2).
- */
-
-import { Directory } from "expo-file-system";
-import { ArchiveReader, ArchiveWriter, HEADER_PATH, toHex } from "@chatvault/core";
-import {
-  ensureAppFolder,
-  GoogleDriveStorageAdapter,
-  listArchiveFolders,
-  offloadMedia,
-  pullArchive,
-  pushArchive,
-  type SyncProgress,
-} from "@chatvault/storage";
+/** Local imports are durable staging; successful backups leave their content in Drive. */
+import { Directory, Paths } from "expo-file-system";
+import { ArchiveReader, toHex } from "@chatvault/core";
+import { pushArchive, type SyncProgress } from "@chatvault/storage";
 import { getCryptoProvider } from "../crypto/expo-crypto-provider";
 import { ExpoFileSystemStorageAdapter } from "../storage/expo-file-system-adapter";
-import { archivesRoot, keyForArchive, listArchiveIds, storageFor } from "../archive/vault";
+import { stageRemoteArchive } from "./stage";
+import { newArchiveId, storageFor } from "../archive/vault";
+import { pendingArchiveIds, visibleArchiveIds } from "../archive/catalog";
+import { withArchiveOperation } from "../archive/operation";
 import { translate } from "../i18n/translate";
 import { readSettingsSync } from "../settings/settings";
-import { markPreviewsDone, readBackupState, writeBackupState } from "./backup-state";
-import { makeThumbnail } from "../media/thumbnailer";
-import { readableStorageFor } from "../archive/readable-storage";
+import { readBackupState, writeBackupState } from "./backup-state";
 import { driveFolderUrl, driveStorageFor } from "./drive-storage";
 import { restoreGoogleConnection } from "./google-auth";
 import { driveClient, folderIdFor, remoteFor, remotes } from "./drive-client";
+import { accountEmail, assertDriveSession, sessionGeneration, subscribeDriveSession } from "./session";
+import { offloadArchiveContent } from "./offload";
 
 export type BackupStatus =
   | { readonly kind: "idle"; readonly backedUpAt?: number }
   | { readonly kind: "running"; readonly progress?: SyncProgress }
   | { readonly kind: "done"; readonly backedUpAt: number }
-  /** Another device changed the Drive copy since this phone last backed it up. */
   | { readonly kind: "diverged" }
   | { readonly kind: "failed"; readonly message: string };
-
 type Listener = (status: BackupStatus) => void;
-
 const running = new Map<string, Promise<BackupStatus>>();
 const latest = new Map<string, BackupStatus>();
 const listeners = new Map<string, Set<Listener>>();
-
-const sha256Hex = async (bytes: Uint8Array): Promise<string> =>
-  toHex(await getCryptoProvider().sha256(bytes));
-
-/** Whether a Google account with Drive access is connected on this phone. */
+subscribeDriveSession(() => {
+  latest.clear();
+  for (const set of listeners.values()) for (const listener of set) listener({ kind: "idle" });
+});
+const sha256Hex = async (bytes: Uint8Array): Promise<string> => toHex(await getCryptoProvider().sha256(bytes));
 export async function isDriveConnected(): Promise<boolean> {
-  try {
-    const connection = await restoreGoogleConnection();
-    return connection?.hasDrive === true;
-  } catch {
-    return false;
-  }
+  try { return (await restoreGoogleConnection())?.hasDrive === true; } catch { return false; }
 }
-
-/** The current status, then every change until unsubscribed. */
-export function watchBackup(archiveId: string, listener: Listener): () => void {
-  const set = listeners.get(archiveId) ?? new Set<Listener>();
-  set.add(listener);
-  listeners.set(archiveId, set);
-
-  const known = latest.get(archiveId);
-  if (known !== undefined) {
-    listener(known);
-  } else {
-    void readBackupState(archiveId).then((state) => {
-      if (!latest.has(archiveId)) {
-        listener(state.backedUpAt !== undefined ? { kind: "idle", backedUpAt: state.backedUpAt } : { kind: "idle" });
-      }
-    });
-  }
-  return () => {
-    set.delete(listener);
-  };
+export function watchBackup(id: string, listener: Listener): () => void {
+  const set = listeners.get(id) ?? new Set<Listener>();
+  set.add(listener); listeners.set(id, set);
+  const generation = sessionGeneration();
+  listener(latest.get(id) ?? { kind: "idle" });
+  void readBackupState(id).then(state => {
+    if (generation !== sessionGeneration() || latest.has(id) || !set.has(listener)) return;
+    if (state.accountEmail === accountEmail() && state.backedUpAt !== undefined) listener({ kind: "idle", backedUpAt: state.backedUpAt });
+  });
+  return () => { set.delete(listener); };
 }
-
-function publish(archiveId: string, status: BackupStatus): void {
-  latest.set(archiveId, status);
-  for (const listener of listeners.get(archiveId) ?? []) listener(status);
+function publish(id: string, status: BackupStatus): void {
+  latest.set(id, status);
+  for (const listener of listeners.get(id) ?? []) listener(status);
 }
-
-/**
- * Back one archive up. Calling again while a backup of the same archive is running joins it
- * rather than starting a second one.
- */
-export function backupArchive(archiveId: string): Promise<BackupStatus> {
-  const inFlight = running.get(archiveId);
-  if (inFlight !== undefined) return inFlight;
-
-  const run = (async (): Promise<BackupStatus> => {
-    publish(archiveId, { kind: "running" });
-    let lastPublished = 0;
+export function backupArchive(id: string): Promise<BackupStatus> {
+  const existing = running.get(id);
+  if (existing) return existing;
+  let generation: number | undefined;
+  const run = withArchiveOperation(id, async (): Promise<BackupStatus> => {
     try {
-      const state = await readBackupState(archiveId);
-      const { storage: remote, folderId } = await driveStorageFor(
-        driveClient(),
-        archiveId,
-        await folderNameFor(archiveId),
-      );
-      remotes.set(archiveId, remote);
-      const result = await pushArchive(storageFor(archiveId), remote, state.ledger, {
+      if (!(await isDriveConnected())) throw new Error("Connect Google Drive to back up this chat.");
+      generation = sessionGeneration();
+      const email = accountEmail()!;
+      const state = await readBackupState(id);
+      if (state.accountEmail && state.accountEmail !== email) throw new Error("Reconnect the account that owns this chat.");
+      if (!state.accountEmail && state.backedUpAt) throw new Error("Refresh this account's Drive chats before backing up a legacy archive.");
+      if (state.cloudOnly) {
+        // Retry interrupted cleanup without re-uploading a header-only local stub.
+        await offloadArchiveContent(storageFor(id), await remoteFor(id), sha256Hex, async () => {}, () => assertDriveSession(generation!));
+        return { kind: "done", backedUpAt: state.backedUpAt ?? Date.now() };
+      }
+      publish(id, { kind: "running" });
+      const owned = { ...state, accountEmail: email };
+      assertDriveSession(generation);
+      writeBackupState(id, owned);
+      const { storage: remote, folderId } = await driveStorageFor(driveClient(), id, await folderNameFor(id));
+      assertDriveSession(generation);
+      remotes.set(id, remote);
+      let lastPublished = 0;
+      const result = await pushArchive(storageFor(id), remote, state.ledger, {
         sha256Hex,
-        // Saved as it goes, so a backup cut off by the app being closed resumes where it was.
-        onLedger: async (ledger) => writeBackupState(archiveId, { ...state, ledger }),
-        // Native uploads report progress many times a second; four updates a second is plenty
-        // for a progress bar and keeps every visible chat row from re-rendering constantly.
-        onProgress: (progress) => {
+        onLedger: async ledger => { assertDriveSession(generation!); writeBackupState(id, { ...owned, ledger, folderId }); },
+        onProgress: progress => {
+          if (generation !== sessionGeneration()) return;
           const now = Date.now();
-          const finished = progress.done === progress.total;
-          if (!finished && now - lastPublished < 250) return;
-          lastPublished = now;
-          publish(archiveId, { kind: "running", progress });
+          if (now - lastPublished < 250 && progress.done !== progress.total) return;
+          lastPublished = now; publish(id, { kind: "running", progress });
         },
       });
+      assertDriveSession(generation);
       if (result.kind === "diverged") return { kind: "diverged" };
-
       const backedUpAt = Date.now();
-      writeBackupState(archiveId, { ledger: result.ledger, backedUpAt, folderId });
-      // The point of the product: now that Drive holds the photos, the phone does not keep them.
-      // Only files Drive reports at the same size are removed; messages stay on the phone.
-      try {
-        await offloadMedia(storageFor(archiveId), remote);
-      } catch {
-        // The backup itself succeeded; freeing space is retried when the chat list next opens.
-      }
+      const complete = { ...owned, ledger: result.ledger, backedUpAt, folderId };
+      // Failed verification or cleanup keeps the staging data and can be retried safely.
+      await offloadArchiveContent(storageFor(id), remote, sha256Hex,
+        async () => { writeBackupState(id, { ...complete, cloudOnly: true }); },
+        () => assertDriveSession(generation!));
       return { kind: "done", backedUpAt };
-    } catch (error) {
-      return { kind: "failed", message: error instanceof Error ? error.message : String(error) };
-    }
-  })();
-
-  running.set(archiveId, run);
-  void run.then((status) => {
-    running.delete(archiveId);
-    publish(archiveId, status);
+    } catch (error) { return { kind: "failed", message: error instanceof Error ? error.message : String(error) }; }
+  });
+  running.set(id, run);
+  void run.then(status => {
+    running.delete(id);
+    if (generation === sessionGeneration()) publish(id, status);
   });
   return run;
 }
-
 let pendingRun: Promise<void> | undefined;
-
-/**
- * Back up, one at a time, every chat whose latest version is not in Drive yet. Called when the
- * chat list opens, so statuses move from "On this phone" to "Safe to delete" without the user
- * pressing anything. A second call while one is running joins it.
- */
-export function backupPending(
-  chats: readonly { readonly archiveId: string; readonly updatedAt: number }[],
-): Promise<void> {
+export function backupPending(chats: readonly { readonly archiveId: string; readonly updatedAt: number }[]): Promise<void> {
   pendingRun ??= (async () => {
-    try {
-      if (!(await isDriveConnected())) return;
-      for (const chat of chats) {
-        await ensurePreviews(chat.archiveId, chat.updatedAt);
-        const { backedUpAt, folderId } = await readBackupState(chat.archiveId);
-        const behind = backedUpAt === undefined || backedUpAt < chat.updatedAt;
-        // Also re-run for a chat that is current but was backed up before folders were named
-        // after chats (no folder recorded), or still has photos on the phone (an offload that
-        // failed or predates offloading). With nothing to upload, that costs one listing.
-        const unfinished =
-          folderId === undefined || (await storageFor(chat.archiveId).list("media/")).length > 0;
-        if (behind || unfinished) await backupArchive(chat.archiveId);
-      }
-    } finally {
-      pendingRun = undefined;
+    if (!(await isDriveConnected())) return;
+    const generation = sessionGeneration();
+    for (const chat of chats) {
+      if (generation !== sessionGeneration()) return;
+      const state = await readBackupState(chat.archiveId);
+      if (state.accountEmail !== accountEmail() && (state.accountEmail || state.backedUpAt)) continue;
+      // Remote-only entries have no local directory. Header stubs may need interrupted cleanup.
+      const content = (await storageFor(chat.archiveId).list("")).some(path => path !== "header.json");
+      if (!state.cloudOnly || content) await backupArchive(chat.archiveId);
     }
-  })();
+  })().finally(() => { pendingRun = undefined; });
   return pendingRun;
 }
-
-/**
- * Photo previews for a chat that lacks them — chats imported before previews existed, or whose
- * import was interrupted. Photos already moved to Drive are fetched from there, once, to be
- * previewed. Recorded when done so it runs once per change of the chat.
- */
-async function ensurePreviews(archiveId: string, updatedAt: number): Promise<void> {
-  try {
-    const { previewsAt } = await readBackupState(archiveId);
-    if (previewsAt !== undefined && previewsAt >= updatedAt) return;
-    const key = await keyForArchive(archiveId);
-    if (key === null) return; // protected and locked: nothing to preview with
-    await new ArchiveWriter({
-      crypto: getCryptoProvider(),
-      storage: readableStorageFor(archiveId),
-      archiveId,
-      ...(key !== undefined ? { key } : {}),
-    }).addMissingThumbnails(makeThumbnail);
-    await markPreviewsDone(archiveId);
-  } catch {
-    // Offline, or a chat that will not open: try again next time the list opens.
-  }
-}
-
-/** Back up every archive on this phone, one after another. */
 export async function backupAll(): Promise<{ ok: number; failed: number }> {
-  let ok = 0;
-  let failed = 0;
-  for (const archiveId of listArchiveIds()) {
-    const status = await backupArchive(archiveId);
-    if (status.kind === "done") ok += 1;
-    else failed += 1;
+  await visibleArchiveIds();
+  let ok = 0, failed = 0;
+  for (const id of await pendingArchiveIds()) {
+    const status = await backupArchive(id);
+    if (status.kind === "done") ok += 1; else failed += 1;
   }
   return { ok, failed };
 }
-
-/** Archive ids in the user's Drive that are not on this phone — what a new phone can restore. */
-export async function listRestorable(): Promise<string[]> {
-  const appFolder = await ensureAppFolder(driveClient());
-  const here = new Set(listArchiveIds());
-  const folders = (await listArchiveFolders(driveClient(), appFolder)).filter((f) => !here.has(f.archiveId));
-  // A folder with no header is a backup that never got as far as writing one — nothing in it to
-  // restore, and offering it only ends in "incomplete".
-  const started = await Promise.all(
-    folders.map((f) =>
-      new GoogleDriveStorageAdapter({ client: driveClient(), rootFolderId: f.folderId })
-        .has(HEADER_PATH)
-        .catch(() => true),
-    ),
-  );
-  return folders.filter((_, i) => started[i]).map((f) => f.archiveId);
+/** Temporary messages for an append; media stays in Drive and is read only if needed. */
+export async function stageArchiveForImport(id: string): Promise<void> {
+  const state = await readBackupState(id);
+  if ((state.accountEmail && state.accountEmail !== accountEmail()) || (!state.accountEmail && state.backedUpAt)) throw new Error("Finish backing up this chat in its original Google account before appending from another account.");
+  if (!state.cloudOnly) return;
+  const generation = sessionGeneration();
+  if (state.accountEmail !== accountEmail()) throw new Error("Reconnect the account that owns this chat.");
+  const remote = await remoteFor(id);
+  const directory = new Directory(Paths.cache, "drive-staging", newArchiveId());
+  try {
+    const ledger = await stageRemoteArchive(storageFor(id), remote, new ExpoFileSystemStorageAdapter(directory), sha256Hex, () => assertDriveSession(generation));
+    assertDriveSession(generation);
+    writeBackupState(id, { ...state, ledger, cloudOnly: false });
+  } finally {
+    // An isolated, generated cache directory; no archive or shared export lives here.
+    if (directory.exists) directory.delete();
+  }
 }
-
-/**
- * Copy one archive from Drive onto this phone. It appears in the library, locked, once its
- * header lands — which `pullArchive` writes last, so a cut-off restore never shows as a chat.
- */
-export async function restoreArchive(
-  archiveId: string,
-  onProgress?: (progress: SyncProgress) => void,
-): Promise<void> {
-  const folderId = await folderIdFor(archiveId);
-  const remote = new GoogleDriveStorageAdapter({ client: driveClient(), rootFolderId: folderId });
-  const local = new ExpoFileSystemStorageAdapter(new Directory(archivesRoot(), archiveId));
-  // Messages only: photos stay in Drive and are fetched when looked at, so moving to a new
-  // phone does not fill it up again.
-  const ledger = await pullArchive(remote, local, {
-    sha256Hex,
-    skipMedia: true,
-    ...(onProgress !== undefined ? { onProgress } : {}),
-  });
-  writeBackupState(archiveId, { ledger, backedUpAt: Date.now(), folderId });
+export async function driveLinkFor(id: string): Promise<string | undefined> {
+  if (!(await isDriveConnected())) return undefined;
+  return driveFolderUrl(await folderIdFor(id));
 }
-
-/** The chat's folder in Drive, as a link, once it has been backed up. */
-export async function driveLinkFor(archiveId: string): Promise<string | undefined> {
-  const { folderId } = await readBackupState(archiveId);
-  return folderId !== undefined ? driveFolderUrl(folderId) : undefined;
-}
-
-/**
- * What the chat's Drive folder is called: its title for a plain chat, so the user's Drive reads
- * like their chat list. A protected chat's title is sealed, so its folder gets a neutral name —
- * a folder name is visible to anyone the folder is ever shared with.
- */
-async function folderNameFor(archiveId: string): Promise<string> {
+async function folderNameFor(id: string): Promise<string> {
   const fallback = translate(readSettingsSync().language, "drive.protectedFolder");
   try {
-    const key = await keyForArchive(archiveId);
-    if (key !== undefined) return fallback;
-    const reader = await ArchiveReader.open({ crypto: getCryptoProvider(), storage: storageFor(archiveId), archiveId });
+    // Do not decrypt a title into a public folder name for protected chats.
+    const reader = await ArchiveReader.open({ crypto: getCryptoProvider(), storage: storageFor(id), archiveId: id });
     return reader.manifest.chatTitle.trim() || fallback;
-  } catch {
-    return fallback;
-  }
+  } catch { return fallback; }
 }

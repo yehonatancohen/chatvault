@@ -36,6 +36,9 @@ export interface GoogleConnection {
   readonly hasDrive: boolean;
 }
 
+import { accountEmail, sessionGeneration, setDriveAccount, assertDriveSession, subscribeDriveSession } from "./session";
+
+let explicitlySignedOut = false;
 let configured = false;
 
 function ensureConfigured(): void {
@@ -45,11 +48,19 @@ function ensureConfigured(): void {
 }
 
 /** The existing session, restored without showing anything. `null` when there is none. */
-export async function restoreGoogleConnection(): Promise<GoogleConnection | null> {
+let restoring: Promise<GoogleConnection | null> | undefined;
+export function restoreGoogleConnection(): Promise<GoogleConnection | null> {
   ensureConfigured();
-  if (!GoogleSignin.hasPreviousSignIn()) return null;
-  const result = await GoogleSignin.signInSilently();
-  return result.type === "success" ? toConnection(result.data) : null;
+  if (explicitlySignedOut) return Promise.resolve(null);
+  const generation = sessionGeneration();
+  restoring ??= (async () => {
+    const result = GoogleSignin.hasPreviousSignIn() ? await GoogleSignin.signInSilently() : null;
+    const connection = result?.type === "success" ? toConnection(result.data) : null;
+    // A late silent sign-in must never resurrect an explicitly disconnected account.
+    if (sessionGeneration() === generation) setDriveAccount(connection?.hasDrive ? connection.email : null);
+    return sessionGeneration() === generation || accountEmail() === connection?.email ? connection : null;
+  })().catch(error => { if (generation === sessionGeneration()) setDriveAccount(null); throw error; }).finally(() => { restoring = undefined; });
+  return restoring;
 }
 
 /**
@@ -64,12 +75,16 @@ export async function connectGoogleDrive(): Promise<GoogleConnection | null> {
   try {
     const result = await GoogleSignin.signIn();
     if (result.type !== "success") return null;
+    explicitlySignedOut = false;
     const connection = toConnection(result.data);
-    if (connection.hasDrive) return connection;
+    if (connection.hasDrive) { cachedToken = undefined; setDriveAccount(connection.email); return connection; }
 
     // Signed in, but Drive was unticked on the consent screen: ask for it on its own.
     const added = await GoogleSignin.addScopes({ scopes: [DRIVE_SCOPE] });
-    return added?.type === "success" ? toConnection(added.data) : connection;
+    const finalConnection = added?.type === "success" ? toConnection(added.data) : connection;
+    cachedToken = undefined;
+    setDriveAccount(finalConnection.hasDrive ? finalConnection.email : null);
+    return finalConnection;
   } catch (error) {
     if (isCancel(error)) return null;
     throw error;
@@ -83,12 +98,11 @@ export async function connectGoogleDrive(): Promise<GoogleConnection | null> {
  */
 export async function disconnectGoogleDrive(): Promise<void> {
   ensureConfigured();
+  explicitlySignedOut = true;
   cachedToken = undefined;
-  try {
-    await GoogleSignin.revokeAccess();
-  } finally {
-    await GoogleSignin.signOut();
-  }
+  setDriveAccount(null);
+  // Switching accounts should sign out, not revoke the app's grant to existing Drive files.
+  await GoogleSignin.signOut();
 }
 
 /**
@@ -99,6 +113,8 @@ export async function disconnectGoogleDrive(): Promise<void> {
  */
 export const googleAccessToken: AccessTokenProvider = async ({ forceRefresh }) => {
   ensureConfigured();
+  const generation = sessionGeneration();
+  assertDriveSession(generation);
   // Cached for a few minutes: a backup makes hundreds of requests, and asking the native SDK for
   // a token before each one was a measurable part of why uploads felt slow. A 401 still forces a
   // fresh one, so an expired cache costs one retried request.
@@ -110,12 +126,14 @@ export const googleAccessToken: AccessTokenProvider = async ({ forceRefresh }) =
     await GoogleSignin.clearCachedAccessToken(accessToken);
     accessToken = (await GoogleSignin.getTokens()).accessToken;
   }
+  assertDriveSession(generation);
   cachedToken = { token: accessToken, until: Date.now() + TOKEN_CACHE_MS };
   return accessToken;
 };
 
 const TOKEN_CACHE_MS = 5 * 60 * 1000;
 let cachedToken: { token: string; until: number } | undefined;
+subscribeDriveSession(() => { cachedToken = undefined; });
 
 function toConnection(data: {
   user: { email: string; name: string | null };

@@ -13,17 +13,20 @@
  * works.
  */
 
+import { readViewBackupState } from "./location";
 import { ArchiveReader, type Manifest } from "@chatvault/core";
 import { getCryptoProvider } from "../crypto/expo-crypto-provider";
 import { buildMediaIndex, findChatPhoto, type MediaItem } from "../ui/media-index";
 import { readPreferences } from "./preferences";
-import { keyForArchive, listArchiveIds } from "./vault";
+import { visibleArchiveIds } from "./catalog";
+import { keyForArchive } from "./vault";
 import { readableStorageFor } from "./readable-storage";
 import { translate } from "../i18n/translate";
 import type { Language } from "../settings/settings";
 
 export interface LibraryEntry {
   readonly archiveId: string;
+  readonly cloudOnly?: boolean;
   readonly status: "ready" | "locked" | "unreadable";
   readonly manifest?: Manifest;
   /** Set when `status` is `"unreadable"`: what went wrong, shown as-is. */
@@ -44,12 +47,14 @@ export async function readLibrary(
 ): Promise<readonly LibraryEntry[]> {
   const entries: LibraryEntry[] = [];
 
-  for (const archiveId of listArchiveIds()) {
+  for (const archiveId of await visibleArchiveIds()) {
+    const { cloudOnly } = await readViewBackupState(archiveId);
+    const location = cloudOnly !== undefined ? { cloudOnly } : {};
     try {
       // `undefined`: a plain chat, no key needed. `null`: protected, and the key is not here.
       const key = await keyForArchive(archiveId);
       if (key === null) {
-        entries.push({ archiveId, status: "locked" });
+        entries.push({ archiveId, ...location, status: "locked" });
         continue;
       }
 
@@ -61,21 +66,24 @@ export async function readLibrary(
         archiveId,
       });
 
-      // Reading every message to draw one row is more than a list should do, but the manifest
-      // carries neither a preview line nor any link from a blob to the message that used it —
-      // both are documented gaps in `packages/core`. The read is chunk-at-a-time and the
-      // library holds a handful of archives; if that stops being true, the fix is a small
-      // summary sealed into the archive at write time, not a cache out here.
-      const messages = await reader.readAll();
+      // Only fetch the latest chunk for a row's preview. Reading every message of every
+      // Drive chat makes merely opening the library download the entire history.
+      const lastIndex = reader.chunkIndices.at(-1);
+      const messages = lastIndex === undefined ? [] : await reader.readChunk(lastIndex);
       const { chatPhotoSha256 } = await readPreferences(archiveId);
-      const thumbnail = findChatPhoto(
+      let thumbnail = findChatPhoto(
         buildMediaIndex(messages, reader.manifest.media),
         chatPhotoSha256,
       );
+      if (!thumbnail && chatPhotoSha256) {
+        const ref = reader.manifest.media.find(ref => ref.sha256 === chatPhotoSha256);
+        if (ref) thumbnail = { ...ref, filename: ref.filenames[0] ?? "photo.jpg", kind: "image", sender: null, ts: 0 };
+      }
       const last = messages[messages.length - 1];
 
       entries.push({
         archiveId,
+        ...location,
         status: "ready",
         manifest: reader.manifest,
         reader,
@@ -96,6 +104,7 @@ export async function readLibrary(
       // whether to delete a chat on the strength of it.
       entries.push({
         archiveId,
+        ...location,
         status: "unreadable",
         problem: error instanceof Error ? error.message : String(error),
       });
