@@ -15,12 +15,12 @@ export default function SupportPage() {
       <main className="wrap-narrow legal-main">
         <h1>תמיכה</h1>
         <p className="lead">
-          משהו לא עובד, או שיש לכם שאלה? כתבו לנו ל
+          משהו לא עובד, או שיש לכם שאלה? כתבו לנו:{" "}
           <a className="dialog-link" href={`mailto:${SUPPORT_EMAIL}`}>
-            {" "}
-            {SUPPORT_EMAIL}
+            <bdi dir="ltr">{SUPPORT_EMAIL}</bdi>
           </a>
-          . אנחנו קוראים כל הודעה.
+          <br />
+          אנחנו קוראים כל הודעה.
         </p>
 
         <section>
@@ -33,7 +33,7 @@ export default function SupportPage() {
           <details>
             <summary>מי יכול לקרוא את הצ׳אטים?</summary>
             <p>
-              הם נשמרים ב-Drive שלכם, לא אצלנו. מי שמחובר לחשבון הגוגל שלכם רואה אותם, כמו כל
+              הם נשמרים ב־Drive שלכם, לא אצלנו. מי שמחובר לחשבון הגוגל שלכם רואה אותם, כמו כל
               קובץ אחר שם. רוצים יותר? אפשר להגן על צ׳אט בסיסמה.
             </p>
           </details>
@@ -58,7 +58,7 @@ export default function SupportPage() {
           <details>
             <summary>קיבלתי קישור לצ׳אט ששותף איתי — זה בטוח?</summary>
             <p>
-              כן. הדפדפן שלכם מוריד את הצ׳אט ישירות מה-Drive של מי ששיתף; דרכנו לא עובר כלום.
+              כן. הדפדפן שלכם מוריד את הצ׳אט ישירות מה־Drive של מי ששיתף; דרכנו לא עובר כלום.
               פרטים ב<a href="/privacy">מדיניות הפרטיות</a>.
             </p>
           </details>
@@ -68,11 +68,11 @@ export default function SupportPage() {
         <section>
           <h2>עדיין תקועים?</h2>
           <p>
-            כתבו לנו ל
+            כתבו לנו:{" "}
             <a className="dialog-link" href={`mailto:${SUPPORT_EMAIL}`}>
-              {" "}
-              {SUPPORT_EMAIL}
-            </a>{" "}
+              <bdi dir="ltr">{SUPPORT_EMAIL}</bdi>
+            </a>
+            <br />
             עם תיאור קצר של מה שקרה — ואם זה נוגע לצ׳אט מסוים, מתי ניסיתם ומה ראיתם על המסך.
           </p>
         </section>

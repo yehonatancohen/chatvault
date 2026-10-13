@@ -20,6 +20,7 @@ import { ChatAvatar } from "../../components/archive/ChatAvatar";
 import { RemoveArchiveSheet } from "../../components/archive/RemoveArchiveSheet";
 import { StatusPill } from "../../components/archive/StatusPill";
 import { useChatStatus } from "../../components/archive/useChatStatus";
+import { useTabBarSpace } from "../../components/app/GlassTabBar";
 import { Onboarding } from "../../components/app/Onboarding";
 import { createStyles, useApp } from "../../components/app/providers";
 import { EmptyState, LargeTitle, useLargeTitle } from "../../components/app/ui";
@@ -115,12 +116,14 @@ export default function LibraryScreen() {
   const visibleEntries = loadedSession.current === session ? entries : undefined;
   const totalMediaBytes = (visibleEntries ?? []).reduce((sum, entry) => sum + archiveMediaBytes(entry), 0);
   const onScroll = useLargeTitle(t("library.title"));
+  const tabBarSpace = useTabBarSpace();
 
   return (
     <>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[styles.container, { paddingBottom: tabBarSpace + space.lg }]}
+        scrollIndicatorInsets={{ bottom: tabBarSpace }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />}
         onScroll={onScroll}
         scrollEventThrottle={16}

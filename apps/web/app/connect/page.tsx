@@ -29,7 +29,7 @@ export default function ConnectPage() {
 
   useEffect(() => {
     if (GOOGLE_CLIENT_ID === "") {
-      setProblem("שמירה ל-Drive עדיין לא מוגדרת באתר הזה.");
+      setProblem("שמירה ל־Drive עדיין לא מוגדרת באתר הזה.");
       return;
     }
 
@@ -57,7 +57,7 @@ export default function ConnectPage() {
         ? { type: DRIVE_TOKEN_MESSAGE, token }
         : {
             type: DRIVE_TOKEN_MESSAGE,
-            ...(error === "access_denied" || !matched ? {} : { error: "החיבור ל-Google Drive נכשל." }),
+            ...(error === "access_denied" || !matched ? {} : { error: "החיבור ל־Google Drive נכשל." }),
           };
 
     if (window.opener === null) {
@@ -70,7 +70,7 @@ export default function ConnectPage() {
 
   return (
     <main className="shared-status" dir="auto">
-      <p>{problem ?? "מתחברים ל-Google Drive…"}</p>
+      <p>{problem ?? "מתחברים ל־Google Drive…"}</p>
     </main>
   );
 }

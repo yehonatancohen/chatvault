@@ -12,6 +12,10 @@
  *   public by design, and it is useless without this site's origin, which Google checks. Unset
  *   until the owner creates it, and then "keep this chat" simply isn't offered.
  *
+ * - `NEXT_PUBLIC_SITE_URL` — this site's public address, for the sitemap and for link previews.
+ *   Unset, it is Vercel's production address for the project, and failing that the address the
+ *   app's share links point at (`apps/mobile/app.json` → `extra.webUrl`).
+ *
  * In the Cloud console the client needs this site's origin under **Authorized JavaScript
  * origins**, and `<origin>/connect` under **Authorized redirect URIs** — that route is the whole
  * OAuth flow (`app/connect/page.tsx`), and it exists so no Google script is ever loaded on a
@@ -21,3 +25,10 @@
 export const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY ?? "";
 export const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL ?? "";
 export const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+
+export const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL !== undefined && process.env.VERCEL_PROJECT_PRODUCTION_URL !== ""
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "https://boidem-delta.vercel.app")
+).replace(/\/$/, "");

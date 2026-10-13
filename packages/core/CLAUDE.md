@@ -71,7 +71,9 @@ against the platform's is worth more than purity in a test.
 |---|---|
 | `parser/text.ts` | Invisible-character normalization. Runs before any regex sees the text. |
 | `parser/datetime.ts` | Tokenize, infer field order/clock per file, resolve, validate |
-| `parser/markers.ts` | Attachment / omitted / deleted / system classification |
+| `parser/markers.ts` | Attachment / omitted / deleted / system classification, by mark position first and wording second |
+| `parser/dialects.test.ts` | The shapes a corpus of real exports in twenty app languages showed us getting wrong |
+| `present.ts` | `describeMessage` / `formatText` — reads a stored message back into a poll, a place, a call, an edit, a document. Display only; the app and the site both draw from it |
 | `parser/regression.test.ts` | Guards the three defects fixtures alone could not catch |
 | `parser/parse.ts` | Two-pass parser, continuation folding, media ordinals |
 | `identity.ts` | `computeMessageId` — the primitive merge rests on |
@@ -114,9 +116,21 @@ So `classifyBody` matches markers as a tail and returns the preceding text as `c
 the attachment is lost, and identity falls back to the body hash — so the same photo lands
 twice in a merged archive. Never re-anchor these patterns.
 
-**iOS writes omitted markers in English even in a fully Hebrew chat** (`image omitted`,
-`video omitted`, `sticker omitted`), and a *with-media* export still contains them for media no
-longer on the device — 6 of 21 media messages in the real pair. `omitted-media` therefore does
+**WhatsApp marks its own text, and the mark is the signal — not the words.** It writes an LRM
+(an RLM when the app is in Hebrew or Arabic) before the `[` of every iOS media line and again
+before the marker, and at the start of any body it generated (a tombstone, a location, a
+notice). `parse.ts` reads those positions off the *raw* line before normalization deletes them
+and hands them to `classifyBody` as `MarkerHints`. That is what makes `image absente`,
+`Bild weggelassen` and `התמונה הושמטה` media without a table, and what lets a filename contain
+spaces (`<attached: 00000046-Some file.txt>`). The wording tables are the fallback for a file
+whose marks were stripped. Three guards keep the position rule honest, each from a real line:
+the tail must be short and not a sentence (the encryption notice), not a link (a location), and
+not `<…>` without a colon (the edit marker).
+
+**iOS writes markers in the app's language**, which is not always the chat's — the first real
+pair came from an English-language iPhone, hence `image omitted` in a Hebrew chat. A
+*with-media* export still contains them for media no longer on the device — 6 of 21 media
+messages in that pair. `omitted-media` therefore does
 not mean "exported without media", and the Verify screen must report omitted media honestly:
 it is precisely what the user loses if they delete the chat.
 
@@ -129,6 +143,27 @@ real message has a `Sender: ` prefix, so no colon means system; when a colon *is
 **Date order is a property of the file, not the line.** `03/04` is undecidable in isolation.
 `inferDateOrder` scans all timestamps for a field above 12 before anything is resolved. Never
 add a code path that resolves a date before that inference has run.
+
+**One export has one header format; anything else is pasted text.** The first header fixes the
+platform, whether the time comes first, and (iOS) whether seconds are printed. Messages copied
+out of WhatsApp Web look like `[7:34 PM, 11/25/2021] Dana: …` and used to be split into
+messages of their own, under names of people who never said them in this chat.
+
+**Reclassifying a stored message is an identity change — prefer reading it at display time.**
+`kind` feeds the id (`msg` vs `system` vs media), and merge prefers `text` over `system`, so a
+parser that newly calls the 1:1 encryption notice `system` gives every existing archive a second
+copy of it on the next append. That is why notices-under-a-name, calls, polls, locations, edits
+and Android's `null` stay `text` on disk and are recognised by `describeMessage` (`present.ts`)
+— which also means archives written before a shape was known are drawn correctly without a
+re-import. Only two reclassifications are made at parse time, because the stored form was
+*wrong*: media that had been hashed as text (so with/without-media pairs duplicated), and
+sentences that had been read as attachments (so their bracketed words were dropped).
+
+**Repeats and order inside one minute.** The same sender, minute and text twice used to be one
+id, so merge kept one. The second and later occurrences now carry an `occurrence` in their id;
+the first keeps the id it always had. And because Android prints no seconds, each later message
+of the same printed instant gets `ts + 1ms`, which is what keeps a busy minute in the order it
+was written when merge sorts by `(ts, id)`.
 
 **Identity is minute-precision and media is positional.** iOS prints seconds and Android does
 not, so identity truncates to the minute. A member who exported without media writes
@@ -227,8 +262,20 @@ Two consequences worth knowing before you add another:
 - **Sender aliases.** One member sees "Dana", another sees "+972 50-123-4567". No string
   normalization can reconcile these — `Manifest.participants[].aliases` is where the mapping
   belongs, and it must be populated by the UI, not guessed.
-- **Locale coverage.** Marker classification covers English and Hebrew exactly and everything
-  else by shape. Adding a locale means adding a fixture, not just a string.
+- **Locale coverage.** Media lines are read by position on iOS in any app language; Android's
+  `<…>` placeholder by shape; Android's `(file attached)` phrase and the deleted-message
+  tombstones from tables (seventeen languages, read off real exports). **The Hebrew strings are
+  the exception: no Hebrew-language phone's export has been seen**, so `קובץ מצורף`,
+  `<ההודעה נערכה>`, the Hebrew notice openings and call wording in `present.ts` are from
+  WhatsApp's translations, not from a file. Verify them with one real Hebrew pair.
+- **What the display layer knows only in English and Hebrew**: polls (`POLL:`/`OPTION:`), calls,
+  the edit suffix (plus eight more languages, unverified). In any other app language those are
+  shown as the text the export printed — whole, just not as a card.
+- **An omitted photo and an omitted video look the same.** The placeholder's wording is dropped
+  at parse time (it must be, for with/without-media pairs to share an id), so an `omitted-media`
+  message cannot say which it was unless the line also named a document.
+- **Pre-2017 export formats** (`13/06/15 10:59:59: Name: …`, `Mar 5, 8:11 PM - …`) are not read.
+  WhatsApp writes today's format for old chats too, so only a file exported years ago hits this.
 - **Media filenames are matched byte-exactly**, with no Unicode normalization. APFS can hand
   back NFD where the transcript carries NFC, which would put one file in *both* `missing` and
   `unreferenced` — that co-occurrence is the detection signal. Every filename in the export we

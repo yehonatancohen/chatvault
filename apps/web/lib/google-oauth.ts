@@ -24,7 +24,7 @@ export interface DriveTokenMessage {
 /** The visitor closed the window, or said no on Google's screen. Ordinary, not a failure. */
 export class DriveAccessCancelled extends Error {
   constructor() {
-    super("החיבור ל-Google Drive בוטל.");
+    super("החיבור ל־Google Drive בוטל.");
     this.name = "DriveAccessCancelled";
   }
 }
@@ -38,7 +38,7 @@ export function requestDriveAccess(): Promise<string> {
   // No `noopener`: the connect window hands the token back through `window.opener`.
   const popup = window.open("/connect", "boydem-drive", "width=480,height=680");
   if (popup === null) {
-    return Promise.reject(new Error("הדפדפן חסם את חלון החיבור ל-Google. אפשרו חלונות קופצים ונסו שוב."));
+    return Promise.reject(new Error("הדפדפן חסם את חלון החיבור ל־Google. אפשרו חלונות קופצים ונסו שוב."));
   }
 
   return new Promise<string>((resolve, reject) => {

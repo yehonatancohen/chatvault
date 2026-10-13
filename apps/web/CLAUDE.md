@@ -97,6 +97,7 @@ the fragment to the server, do not include it in `Referer`, and do not log it.
 |---|---|
 | `NEXT_PUBLIC_GOOGLE_API_KEY` | Google Cloud **API key** (not an OAuth client), same project as the app. Restrict it to the *Google Drive API* and, under website restrictions, to this site's domain. It reads only what was shared "anyone with the link". Without it, `/s/` pages say sharing is not set up. |
 | `NEXT_PUBLIC_APP_STORE_URL` | Where "Get the app" goes. Unset until the app is in the App Store — the button then says "coming soon". |
+| `NEXT_PUBLIC_SITE_URL` | This site's public address, for the sitemap, `robots.txt` and link previews. Unset, it is Vercel's production address for the project, then the address the app shares (`boidem-delta.vercel.app`). Set it when the site gets its own domain. |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google Cloud **Web** OAuth client, same project as the app's iOS client. Powers "keep this chat" only. In the console it needs this site's origin under *Authorized JavaScript origins* and `<origin>/connect` under *Authorized redirect URIs*. Unset → the button is not shown at all, and `/connect` says so. |
 
 ## Deploying (Vercel)
@@ -111,6 +112,15 @@ links it shares point nowhere.
 **The privacy check is manual and it matters most.** Open a protected shared chat's link, then in
 DevTools → Network confirm that no request — document, RSC payload, image, beacon — contains the
 key or the fragment. Do it after any change to routing, layout, metadata or dependencies.
+
+**The viewer can be driven without Google**, which is how its layout bugs were found: serve
+`packages/storage`'s `FakeDrive` over HTTP, start the site with `NEXT_PUBLIC_GOOGLE_API_KEY` set
+to the fake's key, and rewrite `https://www.googleapis.com` to it in the browser. Three things
+that only showed up that way, and are worth re-checking after touching `MessageList`: the list
+must end **at** the last message once everything has settled (the app strip mounting under it,
+older chunks arriving and being re-measured all used to leave it short), the "loading older"
+strip must be gone when the first message of the chat is on screen, and on a phone-width screen
+the header must still show the chat's name.
 
 Also by hand: a turned-off link shows "This chat isn't available", not a crash; a protected link
 without its key shows `MissingKeyError`'s message; a long chat scrolls smoothly (virtualized) and
@@ -132,6 +142,7 @@ link" (API-key reads work only while shared; writes are refused).
 | `app/page.tsx` | Home: hero, how it works, why, prices — Hebrew, RTL. |
 | `app/s/[folderId]/page.tsx` | A shared chat. Client-only (the key is in the fragment). |
 | `app/connect/page.tsx` | The Google OAuth popup, and nothing else. Never linked; opened by `requestDriveAccess`. |
+| `app/not-found.tsx`, `app/robots.ts`, `app/sitemap.ts`, `app/manifest.ts`, `app/apple-icon.tsx` | The Hebrew 404, and what crawlers and home screens ask for. `robots` disallows `/s/` and `/connect`; the sitemap lists the four public pages and never a chat. |
 | `app/_components/` | The viewer: `MessageList` (react-virtuoso; opens at the end, jump-to-bottom), `MessageBubble` (`unicodeBidi: "plaintext"` makes RTL right per message), `MediaAttachment` (previews first, full on demand), `Lightbox`, `ChatInfo`, `SaveChat`, `AppBanner`, `GetTheApp`. |
 | `lib/shared-chat.ts` | Folder id + fragment → `SharedChat` (reader + the Drive storage it came from), over Drive with the API key. |
 | `lib/chat.ts` | Day separators, grouping runs, Hebrew labels, colours, sizes — **a port of the app's `lib/ui/chat.ts`**, which is where these rules are tested. Change the two together. |

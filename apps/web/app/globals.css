@@ -113,7 +113,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 /* --- Home (app/page.tsx) ------------------------------------------------------------------ */
 
 .wrap { width: min(72rem, 100% - 2.5rem); margin-inline: auto; }
-.wrap-narrow { width: min(46rem, 100% - 2.5rem); }
+.wrap-narrow { width: min(46rem, 100% - 2.5rem); margin-inline: auto; }
 
 .home h2 {
   font-family: var(--font-display);
@@ -134,7 +134,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .brand { display: flex; align-items: center; gap: 0.7rem; text-decoration: none; font-family: var(--font-display); font-size: 1.6rem; line-height: 1; }
 .brand img { border-radius: 10px; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35); }
 .nav-links { display: flex; gap: 1.5rem; }
-.nav-links a { color: var(--on-sign-muted); text-decoration: none; font-weight: 700; }
+.nav-links a { color: var(--on-sign-muted); text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; min-height: 2.75rem; }
 .nav-links a:hover { color: var(--on-sign); text-decoration: underline; text-decoration-thickness: 2px; }
 
 .hero { overflow: hidden; }
@@ -320,7 +320,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .closing h2 { margin: 0 !important; }
 
 .footer { background: #111114; color: #a2a6b4; padding: 2rem 0 2.5rem; font-size: 0.95rem; }
-.footer-inner { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.footer-inner { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem 1rem; flex-wrap: wrap; }
 .footer-brand { font-family: var(--font-display); color: #ffffff; font-size: 1.2rem; }
 
 @media (max-width: 60rem) {
@@ -450,9 +450,11 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 
 .viewer-identity-text { display: grid; min-width: 0; }
 .viewer-title { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.viewer-subtitle { color: var(--muted); font-size: 0.85rem; }
+.viewer-subtitle { color: var(--muted); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .viewer-actions { display: flex; align-items: center; gap: 0.5rem; flex: none; }
+/* The chat's name keeps room for itself whatever the actions say. */
+.viewer-identity { min-width: 7rem; }
 
 .viewer-save {
   font: inherit;
@@ -520,6 +522,27 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .bubble-body { font-size: 1rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
 .bubble-time { font-size: 0.7rem; color: var(--muted); justify-self: end; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .bubble-deleted { font-size: 0.95rem; font-style: italic; color: var(--muted); }
+.bubble-body a, .bubble-card a { color: var(--accent, #2436c9); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.bubble-body code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.92em; background: rgba(127, 127, 127, 0.16); border-radius: 4px; padding: 0 0.25em; }
+.bubble-meta { display: flex; gap: 0.4rem; justify-content: flex-end; align-items: baseline; }
+.bubble-edited { font-size: 0.7rem; color: var(--muted); line-height: 1.2; }
+
+/* What WhatsApp draws as a card — a place, a poll, a call — instead of the line of text the
+   export flattened it into. */
+.bubble-card { display: grid; gap: 0.3rem; min-width: 12rem; font-size: 0.95rem; }
+.bubble-card-kind { font-size: 0.78rem; font-weight: 700; color: var(--muted); }
+.bubble-card-title { font-weight: 700; }
+.bubble-call { display: flex; align-items: center; gap: 0.45rem; font-size: 0.95rem; }
+.bubble-call-missed { color: #c0392b; }
+.poll-question { font-weight: 700; white-space: pre-wrap; }
+.poll-option { display: grid; gap: 0.15rem; }
+.poll-option-row { display: flex; justify-content: space-between; gap: 1rem; }
+.poll-option-votes { color: var(--muted); font-variant-numeric: tabular-nums; }
+.poll-bar { height: 0.3rem; border-radius: 999px; background: rgba(127, 127, 127, 0.2); overflow: hidden; }
+.poll-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--accent, #2436c9); }
+.media-file-detail { display: block; font-size: 0.78rem; color: var(--muted); }
+.media-sticker { max-width: 9rem; background: transparent; }
+.media-sticker img { object-fit: contain; }
 
 /* Media the archive does not hold: said in place, plainly, never as a warning. */
 .bubble-absent {
@@ -745,6 +768,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   color: var(--on-sign);
 }
 .app-banner-text { display: grid; gap: 0.1rem; flex: 1; min-width: 0; font-size: 0.9rem; }
+.app-banner-text strong { color: var(--on-sign); }
 .app-banner-text span { color: var(--on-sign-muted); }
 .app-banner-close {
   font: inherit;
@@ -759,6 +783,12 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 
 @media (max-width: 34rem) {
   .viewer-save { padding: 0.4rem 0.75rem; font-size: 0.86rem; }
+  /* A phone's header has room for the chat and one action. While the strip at the bottom of the
+     screen is showing, "Get the app" is already there, and two orange buttons up here left the
+     chat's own name four letters wide. Once the strip has been dismissed the button comes back:
+     the way to the app must never be gone from this page altogether. */
+  .open-shell:has(.app-banner) .viewer-actions .app-cta { display: none; }
+  .viewer-actions .app-cta { padding-inline: 0.7rem; font-size: 0.82rem; }
   .app-banner { flex-wrap: wrap; }
   .sheet { width: 100%; }
 }
@@ -795,7 +825,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .legal-main .faq { padding: 0.5rem 0 0; }
 
 .footer-links { display: flex; gap: 1.25rem; }
-.footer-links a { text-decoration: none; }
+.footer-links a { text-decoration: none; display: inline-flex; align-items: center; min-height: 2.75rem; }
 .footer-links a:hover { text-decoration: underline; }
 
 /* ── The strip above the oldest message that has arrived so far ─────────────────────────── */
@@ -825,3 +855,43 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 @media (prefers-reduced-motion: reduce) {
   .older-loading-dot { animation: none; opacity: 0.6; }
 }
+
+/* -- Waiting, and things that are not there ------------------------------------------------- */
+.spinner {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2.4s; }
+}
+.status-link { color: var(--accent); font-weight: 700; }
+
+/* A photo's place is held at its final size while it loads, so the conversation does not jump
+   as previews arrive. */
+.media-skeleton {
+  width: min(17rem, 70vw);
+  aspect-ratio: 4 / 3;
+  border-radius: 0.6rem;
+  background: var(--panel);
+  animation: older-pulse 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .media-skeleton { animation: none; }
+}
+.media-retry { cursor: pointer; }
+
+.lightbox-close { inset-inline-end: 1.25rem; right: auto; border-radius: 50%; background: rgba(255, 255, 255, 0.14); }
+.lightbox-close:hover { background: rgba(255, 255, 255, 0.24); }
+
+/* A name is one line set from its own first letter, but it stays beside its avatar: isolating it
+   keeps a Latin name or a phone number from flying to the far edge of a Hebrew row. */
+.bidi-name { unicode-bidi: isolate; }
+
+.not-found { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 1.25rem; padding: 2rem 1.25rem; text-align: center; }
+.not-found h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(2.2rem, 6vw, 3.4rem); margin: 0; }
+.not-found p { margin: 0; max-width: 28rem; }

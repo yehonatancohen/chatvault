@@ -1,6 +1,14 @@
 import { memo, useEffect, useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
-import type { ArchiveReader, MergedMessage } from "@chatvault/core";
+import { ActivityIndicator, Image, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  describeMessage,
+  displayFilename,
+  formatText,
+  type ArchiveReader,
+  type MediaType,
+  type MergedMessage,
+  type MessageView,
+} from "@chatvault/core";
 import { mediaKindOf } from "../../lib/ui/mime";
 import { messageTime } from "../../lib/ui/chat";
 import { colorForParticipant } from "../../lib/ui/participants";
@@ -12,9 +20,12 @@ import { fullUri, previewUri } from "../../lib/ui/media-uri";
 /**
  * One message, as a chat bubble.
  *
- * Three things make this read like a conversation rather than a table, and each is a rule
+ * Four things make this read like a conversation rather than a table, and each is a rule
  * rather than a decoration:
  *
+ * - **What a message *is* comes from `describeMessage` in core**, the same reading the website
+ *   uses. An export flattens a poll, a place, a call or an edit into lines of text; this draws
+ *   them as what they were. Nothing here inspects `message.body` on its own.
  * - **RTL comes from the text engine.** `writingDirection: "auto"` gives every message its own
  *   direction from its own first strong character. The chats this project is built against
  *   alternate Hebrew and English line by line, so a per-conversation language guess is wrong on
@@ -45,10 +56,12 @@ export const MessageBubble = memo(function MessageBubble({
   const { t } = useApp();
   const styles = useStyles();
 
-  if (message.kind === "system") {
+  const view = describeMessage(message);
+
+  if (view.type === "notice") {
     return (
       <View style={styles.systemRow}>
-        <Text style={styles.systemText}>{message.body}</Text>
+        <Text style={styles.systemText}>{view.text}</Text>
       </View>
     );
   }
@@ -77,40 +90,158 @@ export const MessageBubble = memo(function MessageBubble({
           <Text style={[styles.sender, { color: colorForParticipant(sender) }]}>{sender}</Text>
         )}
 
-        {message.kind === "attachment" && message.attachment?.sha256 !== undefined && (
-          <Attachment
-            reader={reader}
-            sha256={message.attachment.sha256}
-            filename={message.attachment.filename}
-            sender={message.sender}
-            ts={message.ts}
-            onOpen={onOpenMedia}
-          />
-        )}
+        {view.type === "text" && <Rich text={view.text} isSelf={isSelf} />}
 
-        {message.kind === "attachment" && message.attachment?.sha256 === undefined && (
-          <NotHere label={t("bubble.notInExport")} />
-        )}
+        {view.type === "media" &&
+          (view.filename !== undefined && message.attachment?.sha256 !== undefined ? (
+            <Attachment
+              reader={reader}
+              sha256={message.attachment.sha256}
+              filename={view.filename}
+              media={view.media}
+              title={view.title}
+              detail={view.detail}
+              sender={message.sender}
+              ts={message.ts}
+              onOpen={onOpenMedia}
+            />
+          ) : (
+            <NotHere
+              label={
+                (view.title !== undefined ? `${view.title} · ` : "") +
+                t(view.filename !== undefined ? "bubble.notInExport" : "bubble.omitted")
+              }
+            />
+          ))}
+        {view.type === "media" && view.caption.length > 0 && <Rich text={view.caption} isSelf={isSelf} />}
 
-        {message.kind === "omitted-media" && (
-          <NotHere label={t("bubble.omitted")} />
-        )}
-
-        {message.kind === "deleted" && (
+        {view.type === "deleted" && (
           <Text style={[styles.deleted, isSelf && styles.deletedSelf]}>{t("bubble.deleted")}</Text>
         )}
 
-        {message.body.length > 0 && (
-          <Text style={[styles.body, isSelf && styles.bodySelf]} selectable>
-            {message.body}
+        {view.type === "unavailable" && <NotHere label={t("bubble.unavailable")} />}
+
+        {view.type === "location" && (
+          <View style={styles.card}>
+            <Text style={[styles.cardKind, isSelf && styles.timeSelf]}>
+              {t(view.live ? "bubble.liveLocation" : "bubble.location")}
+            </Text>
+            {view.label !== undefined && (
+              <Text style={[styles.cardTitle, isSelf && styles.bodySelf]}>{view.label}</Text>
+            )}
+            {view.url !== undefined ? (
+              // A link the reader chooses to follow. No map is drawn here, so nothing about the
+              // chat reaches a map service by scrolling past it.
+              <Text
+                accessibilityRole="link"
+                onPress={() => openLink(view.url)}
+                style={isSelf ? styles.linkSelf : styles.link}
+              >
+                {t("bubble.openMaps")}
+              </Text>
+            ) : (
+              <Text style={[styles.cardKind, isSelf && styles.timeSelf]}>{t("bubble.liveLocationEnded")}</Text>
+            )}
+          </View>
+        )}
+
+        {view.type === "poll" && <Poll view={view} isSelf={isSelf} />}
+
+        {view.type === "call" && (
+          <Text style={[styles.body, isSelf && styles.bodySelf, view.missed && !isSelf && styles.missed]}>
+            {t(callKey(view))}
           </Text>
         )}
 
-        <Text style={[styles.time, isSelf && styles.timeSelf]}>{messageTime(message.ts)}</Text>
+        <View style={styles.meta}>
+          {view.edited && <Text style={[styles.time, isSelf && styles.timeSelf]}>{t("bubble.edited")}</Text>}
+          <Text style={[styles.time, isSelf && styles.timeSelf]}>{messageTime(message.ts)}</Text>
+        </View>
       </View>
     </View>
   );
 });
+
+type CallView = Extract<MessageView, { type: "call" }>;
+
+function callKey(view: CallView) {
+  if (view.missed) {
+    if (view.group) return view.video ? "bubble.call.missedGroupVideo" : "bubble.call.missedGroupVoice";
+    return view.video ? "bubble.call.missedVideo" : "bubble.call.missedVoice";
+  }
+  if (view.group) return view.video ? "bubble.call.groupVideo" : "bubble.call.groupVoice";
+  return view.video ? "bubble.call.video" : "bubble.call.voice";
+}
+
+function openLink(url: string | undefined): void {
+  if (url === undefined) return;
+  // `formatText` and `describeMessage` only ever hand back http(s) links.
+  void Linking.openURL(url).catch(() => undefined);
+}
+
+/** Text the way WhatsApp sets it: its emphasis marks applied, its links followable. */
+function Rich({ text, isSelf }: { text: string; isSelf: boolean }) {
+  const styles = useStyles();
+  return (
+    <Text style={[styles.body, isSelf && styles.bodySelf]} selectable>
+      {formatText(text).map((span, index) =>
+        span.href !== undefined ? (
+          <Text
+            key={index}
+            accessibilityRole="link"
+            onPress={() => openLink(span.href)}
+            style={isSelf ? styles.linkSelf : styles.link}
+          >
+            {span.text}
+          </Text>
+        ) : (
+          <Text
+            key={index}
+            style={[
+              span.bold && styles.bold,
+              span.italic && styles.italic,
+              span.strike && styles.strike,
+              span.code && styles.code,
+            ]}
+          >
+            {span.text}
+          </Text>
+        ),
+      )}
+    </Text>
+  );
+}
+
+function Poll({ view, isSelf }: { view: Extract<MessageView, { type: "poll" }>; isSelf: boolean }) {
+  const { t } = useApp();
+  const styles = useStyles();
+  const most = Math.max(1, ...view.options.map((option) => option.votes ?? 0));
+  return (
+    <View style={styles.card}>
+      <Text style={[styles.cardKind, isSelf && styles.timeSelf]}>{t("bubble.poll")}</Text>
+      <Text style={[styles.cardTitle, isSelf && styles.bodySelf]}>{view.question}</Text>
+      {view.options.map((option, index) => (
+        <View key={index} style={styles.pollOption}>
+          <View style={styles.pollRow}>
+            <Text style={[styles.pollText, isSelf && styles.bodySelf]}>{option.text}</Text>
+            {option.votes !== null && (
+              <Text style={[styles.cardKind, isSelf && styles.timeSelf]}>{option.votes}</Text>
+            )}
+          </View>
+          <View style={styles.pollTrack}>
+            <View
+              style={[
+                styles.pollFill,
+                isSelf && styles.pollFillSelf,
+                { width: `${((option.votes ?? 0) / most) * 100}%` },
+              ]}
+            />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 /**
  * Decrypts one blob and shows it, tappable.
@@ -128,6 +259,9 @@ function Attachment({
   reader,
   sha256,
   filename,
+  media,
+  title,
+  detail,
   sender,
   ts,
   onOpen,
@@ -135,6 +269,10 @@ function Attachment({
   reader: ArchiveReader;
   sha256: string;
   filename: string;
+  /** What WhatsApp called it: the only thing that tells a sticker from a photo. */
+  media: MediaType;
+  title: string | undefined;
+  detail: string | undefined;
   sender: string | null;
   ts: number;
   onOpen: (subject: LightboxSubject) => void;
@@ -174,16 +312,25 @@ function Attachment({
     return (
       <View style={styles.fileChip}>
         <Text style={styles.fileChipKind}>
-          {kind === "video"
-            ? t("bubble.kind.video")
-            : kind === "audio"
-              ? t("bubble.kind.audio")
-              : t("bubble.kind.file")}
+          {media === "contact"
+            ? t("bubble.kind.contact")
+            : media === "gif"
+              ? t("bubble.kind.gif")
+              : kind === "video"
+                ? t("bubble.kind.video")
+                : kind === "audio"
+                  ? t("bubble.kind.audio")
+                  : media === "document"
+                    ? t("bubble.kind.document")
+                    : t("bubble.kind.file")}
         </Text>
         <Text style={styles.fileChipName} numberOfLines={1}>
-          {filename}
+          {title ?? displayFilename(filename)}
         </Text>
-        <Text style={styles.fileChipNote}>{t("bubble.notPlayable")}</Text>
+        {detail !== undefined && <Text style={styles.fileChipNote}>{detail}</Text>}
+        {(kind === "video" || kind === "audio") && (
+          <Text style={styles.fileChipNote}>{t("bubble.notPlayable")}</Text>
+        )}
       </View>
     );
   }
@@ -220,7 +367,11 @@ function Attachment({
       accessibilityLabel={t("bubble.photoFrom", { sender: sender ?? t("common.unknown") })}
       style={({ pressed }) => [styles.imagePress, pressed && styles.pressed]}
     >
-      <Image source={{ uri }} style={styles.image} resizeMode="cover" />
+      <Image
+        source={{ uri }}
+        style={media === "sticker" ? styles.sticker : styles.image}
+        resizeMode={media === "sticker" ? "contain" : "cover"}
+      />
     </Pressable>
   );
 }
@@ -264,6 +415,24 @@ const useStyles = createStyles((t) => ({
   bodySelf: { color: t.onSelfBubble },
   time: { ...type.micro, fontSize: 11, lineHeight: 13, color: t.muted, alignSelf: "flex-end" },
   timeSelf: { color: t.onSelfBubbleMuted },
+  meta: { flexDirection: "row", justifyContent: "flex-end", alignItems: "baseline", gap: 6 },
+  bold: { fontWeight: "700" },
+  italic: { fontStyle: "italic" },
+  strike: { textDecorationLine: "line-through" },
+  code: { fontFamily: "Courier" },
+  link: { color: t.accent, textDecorationLine: "underline" },
+  linkSelf: { color: t.onSelfBubble, textDecorationLine: "underline" },
+  missed: { color: t.bad },
+  card: { gap: 4, minWidth: 190 },
+  cardKind: { ...type.micro, color: t.muted, writingDirection: "auto" },
+  cardTitle: { ...type.body, fontWeight: "600", color: t.ink, writingDirection: "auto" },
+  pollOption: { gap: 3 },
+  pollRow: { flexDirection: "row", justifyContent: "space-between", gap: space.md },
+  pollText: { ...type.body, color: t.ink, writingDirection: "auto", flexShrink: 1 },
+  pollTrack: { height: 5, borderRadius: 3, backgroundColor: t.hairline, overflow: "hidden" },
+  pollFill: { height: 5, borderRadius: 3, backgroundColor: t.accent },
+  pollFillSelf: { backgroundColor: t.onSelfBubble },
+  sticker: { width: 132, height: 132 },
   deleted: { ...type.body, fontStyle: "italic", color: t.muted, writingDirection: "auto" },
   deletedSelf: { color: t.onSelfBubbleMuted },
   systemRow: { paddingVertical: space.sm, paddingHorizontal: space.xxxl, alignItems: "center" },

@@ -3,13 +3,14 @@
 // to go. The other option, `expo-router/unstable-native-tabs`, is what its name says.
 import { Tabs } from "expo-router/js-tabs";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet } from "react-native";
+import { Pressable } from "react-native";
 import { useApp } from "../../components/app/providers";
+import { GlassTabBar } from "../../components/app/GlassTabBar";
 import { Icon } from "../../components/app/Icon";
 import { space, type } from "../../lib/ui/theme";
 
 /**
- * The bottom bar.
+ * The bottom bar — drawn by `GlassTabBar`, a floating capsule of Liquid Glass.
  *
  * Three destinations: the list you came for, who you are, and the settings. There is no `+`
  * tab — **this app has no way to reach into WhatsApp** (root CLAUDE.md, invariants 1 and 7), so
@@ -48,6 +49,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      tabBar={(props) => <GlassTabBar {...props} />}
       screenOptions={{
         headerShadowVisible: false,
         headerTintColor: theme.ink,
@@ -59,19 +61,6 @@ export default function TabsLayout() {
         headerTitleAlign: "center",
         headerTitleStyle: { color: theme.ink, ...type.heading },
         sceneStyle: { backgroundColor: theme.paper },
-        tabBarActiveTintColor: theme.accent,
-        tabBarInactiveTintColor: theme.faint,
-        tabBarStyle: {
-          backgroundColor: theme.panel,
-          borderTopColor: theme.hairline,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          // Padding, not `height`: the bar measures its own safe-area inset, and giving it a
-          // fixed height throws that away and tucks the labels under the home indicator.
-          paddingTop: space.xs,
-        },
-        // 10pt medium is the system tab bar's own label, and the one text in the app below the
-        // `micro` floor — it is chrome, sized by the platform rather than by this scale.
-        tabBarLabelStyle: { fontSize: 10, lineHeight: 12, fontWeight: "500" },
       }}
     >
       <Tabs.Screen

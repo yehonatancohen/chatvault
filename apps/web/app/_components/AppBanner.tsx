@@ -33,7 +33,7 @@ export function AppBanner() {
     <div className="app-banner" role="complementary">
       <div className="app-banner-text">
         <strong>לשמור ככה גם את הצ׳אטים שלכם?</strong>
-        <span>בוידעם שומר אותם ב-Google Drive שלכם, ומדריך אתכם למחוק בוואטסאפ.</span>
+        <span>בוידעם שומר אותם ב־Google Drive שלכם, ומדריך אתכם למחוק בוואטסאפ.</span>
       </div>
       <GetTheApp compact />
       <button

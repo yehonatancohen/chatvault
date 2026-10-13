@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 /** A popup in the middle of an OAuth flow: nothing here is a page anyone should land on. */
 export const metadata: Metadata = {
-  title: "חיבור ל-Google Drive — בוידעם",
+  title: "חיבור ל־Google Drive — בוידעם",
   robots: { index: false, follow: false },
 };
 

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import type { ArchiveReader } from "@chatvault/core";
@@ -10,6 +10,9 @@ import {
   forInvertedList,
   type ChatRow,
 } from "../../../lib/ui/chat";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Glass } from "../../../components/app/Glass";
+import { Icon } from "../../../components/app/Icon";
 import { createStyles, useApp } from "../../../components/app/providers";
 import { Actions, Body, Button, Field, Screen, Title } from "../../../components/app/ui";
 import { formatCount, formatRange } from "../../../lib/ui/format";
@@ -47,6 +50,9 @@ export default function ArchiveChatScreen() {
   const [passphrase, setPassphrase] = useState("");
   const [selfId, setSelfId] = useState<string | undefined>(undefined);
   const [lightbox, setLightbox] = useState<LightboxSubject | undefined>(undefined);
+  const list = useRef<FlatList<ChatRow>>(null);
+  const [away, setAway] = useState(false);
+  const insets = useSafeAreaInsets();
 
   // Re-read on focus so choosing "this is me" in the info screen is reflected on return.
   useFocusEffect(
@@ -173,8 +179,13 @@ export default function ArchiveChatScreen() {
       </Pressable>
 
       <FlatList
+        ref={list}
         data={rows}
         inverted
+        // Inverted, so offset 0 is the newest message; a screen and a half away from it is far
+        // enough that getting back by swiping has become work.
+        onScroll={(event) => setAway(event.nativeEvent.contentOffset.y > 900)}
+        scrollEventThrottle={64}
         keyExtractor={(row) => row.key}
         renderItem={({ item }) => (
           <Row row={item} reader={state.reader} selfId={selfId} onOpenMedia={setLightbox} />
@@ -196,6 +207,21 @@ export default function ArchiveChatScreen() {
         windowSize={11}
         removeClippedSubviews
       />
+
+      {/* An archive reaches back years; the way home from there is one tap, as in Messages. */}
+      {away && (
+        <Pressable
+          onPress={() => list.current?.scrollToOffset({ offset: 0, animated: true })}
+          accessibilityRole="button"
+          accessibilityLabel={t("reader.toLatest")}
+          hitSlop={8}
+          style={[styles.toLatest, { bottom: Math.max(insets.bottom, space.lg) + space.sm }]}
+        >
+          <Glass style={styles.toLatestShape} fallbackStyle={styles.toLatestFallback} interactive>
+            <Icon name="expand" color={styles.toLatestMark.color} size={18} weight="semibold" />
+          </Glass>
+        </Pressable>
+      )}
 
       <Lightbox subject={lightbox} onClose={() => setLightbox(undefined)} />
     </View>
@@ -261,6 +287,21 @@ const useStyles = createStyles((t) => ({
   subheaderStats: { ...type.micro, color: t.muted, writingDirection: "auto" },
   subheaderStrong: { color: t.ink, fontWeight: "600" },
   subheaderText: { ...type.micro, color: t.faint, writingDirection: "auto" },
+  toLatest: { position: "absolute", end: gutter },
+  toLatestShape: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  toLatestFallback: {
+    backgroundColor: t.raised,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: t.hairline,
+  },
+  toLatestMark: { color: t.accent },
   dayRow: { alignItems: "center", paddingVertical: space.md },
   // Plain centred text, the way Messages dates a transcript — no chip around it.
   dayLabel: { ...type.micro, fontWeight: "600", color: t.muted },

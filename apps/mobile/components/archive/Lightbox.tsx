@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Glass } from "../app/Glass";
 import { useApp } from "../app/providers";
 import { formatBytes, formatDateTime } from "../../lib/ui/format";
 
@@ -51,6 +53,11 @@ export function Lightbox({
   action?: LightboxAction | undefined;
 }) {
   const { t } = useApp();
+  // The controls used to sit at a fixed 60pt from the top and 34pt from the bottom — right for
+  // one iPhone, under the Dynamic Island on another, and floating mid-screen on a phone with a
+  // home button.
+  const insets = useSafeAreaInsets();
+  const top = Math.max(insets.top, 20) + 8;
   const [fullUri, setFullUri] = useState<string | undefined>(undefined);
 
   useEffect(() => {
@@ -102,9 +109,9 @@ export function Lightbox({
             </Pressable>
           </ScrollView>
 
-          {loadingFull && <ActivityIndicator color="#fff" style={styles.loadingFull} />}
+          {loadingFull && <ActivityIndicator color="#fff" style={[styles.loadingFull, { top: top + 8 }]} />}
 
-          <View style={styles.caption}>
+          <View style={[styles.caption, { paddingBottom: Math.max(insets.bottom, 14) + 6 }]}>
             <Text style={styles.captionPrimary} numberOfLines={1}>
               {subject.sender ?? t("common.unknown")} · {formatDateTime(subject.ts)}
             </Text>
@@ -114,13 +121,17 @@ export function Lightbox({
             </Text>
           </View>
 
+          {/* Floating controls over a photo: the case Liquid Glass was drawn for. */}
           <Pressable
             onPress={onClose}
             accessibilityRole="button"
             accessibilityLabel={t("common.done")}
-            style={({ pressed }) => [styles.close, pressed && styles.pressed]}
+            hitSlop={8}
+            style={[styles.control, styles.controlEnd, { top }]}
           >
-            <Text style={styles.closeLabel}>{t("common.done")}</Text>
+            <Glass style={styles.controlShape} fallbackStyle={styles.controlFallback} interactive>
+              <Text style={styles.closeLabel}>{t("common.done")}</Text>
+            </Glass>
           </Pressable>
 
           {action !== undefined && (
@@ -129,14 +140,12 @@ export function Lightbox({
               disabled={action.disabled}
               accessibilityRole="button"
               accessibilityState={{ disabled: action.disabled === true }}
-              style={({ pressed }) => [
-                styles.close,
-                styles.action,
-                pressed && styles.pressed,
-                action.disabled === true && styles.settled,
-              ]}
+              hitSlop={8}
+              style={[styles.control, styles.controlStart, { top }]}
             >
-              <Text style={styles.closeLabel}>{action.label}</Text>
+              <Glass style={styles.controlShape} fallbackStyle={styles.controlFallback} interactive>
+                <Text style={[styles.closeLabel, action.disabled === true && styles.settled]}>{action.label}</Text>
+              </Glass>
             </Pressable>
           )}
         </View>
@@ -158,25 +167,25 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingHorizontal: 20,
     paddingTop: 14,
-    paddingBottom: 34,
     gap: 2,
     backgroundColor: "#000000aa",
   },
   captionPrimary: { color: "#fff", fontSize: 15, fontWeight: "600" },
   captionSecondary: { color: "rgba(235, 235, 245, 0.6)", fontSize: 13 },
-  close: {
-    position: "absolute",
-    top: 60,
-    right: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 18,
-    backgroundColor: "#ffffff22",
+  control: { position: "absolute" },
+  controlEnd: { end: 16 },
+  controlStart: { start: 16 },
+  controlShape: {
+    minHeight: 44,
+    paddingHorizontal: 18,
+    borderRadius: 22,
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
   },
-  // Done's twin, on the opposite side.
-  action: { right: undefined, left: 20 },
+  controlFallback: { backgroundColor: "#ffffff2e" },
   settled: { opacity: 0.55 },
-  pressed: { opacity: 0.6 },
-  loadingFull: { position: "absolute", top: 64, alignSelf: "center" },
+  loadingFull: { position: "absolute", alignSelf: "center" },
   closeLabel: { color: "#fff", fontSize: 16, fontWeight: "600" },
 });

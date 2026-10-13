@@ -96,9 +96,25 @@ export default function SharedChatPage({ params }: { params: Promise<{ folderId:
 
   if (stage.kind !== "viewing") {
     return (
-      <main className="shared-status" dir="auto">
-        {stage.kind === "loading" ? <p>פותח את הצ׳אט…</p> : <p className="open-error">{stage.message}</p>}
-        <GetTheApp />
+      <main className="shared-status">
+        {stage.kind === "loading" ? (
+          <>
+            <div className="spinner" aria-hidden="true" />
+            <p role="status">פותחים את הצ׳אט…</p>
+          </>
+        ) : (
+          <>
+            <p className="open-error" role="alert">
+              {stage.message}
+            </p>
+            {/* The pitch belongs after the news, not beside a spinner: someone whose link did not
+                open should still learn what this is. */}
+            <GetTheApp />
+            <a className="status-link" href="/">
+              מה זה בוידעם?
+            </a>
+          </>
+        )}
       </main>
     );
   }
@@ -114,8 +130,8 @@ export default function SharedChatPage({ params }: { params: Promise<{ folderId:
             {[...title][0]?.toUpperCase() ?? "?"}
           </span>
           <span className="viewer-identity-text">
-            <span className="viewer-title" style={{ unicodeBidi: "plaintext" }}>
-              {title}
+            <span className="viewer-title">
+              <bdi>{title}</bdi>
             </span>
             <span className="viewer-subtitle">
               {countLabel(manifest.participants.length, "משתתף אחד", "משתתפים")} ·{" "}

@@ -22,7 +22,24 @@ export {
   normalizeExportText,
   normalizeInvisibles,
 } from "./parser/text.js";
-export { classifyBody, looksLikeSystemPhrase } from "./parser/markers.js";
+export {
+  classifyBody,
+  isDeletedBody,
+  looksLikeNotice,
+  looksLikeSystemPhrase,
+  type MarkerHints,
+} from "./parser/markers.js";
+export {
+  describeMessage,
+  displayFilename,
+  formatText,
+  mediaTypeOf,
+  type DescribableMessage,
+  type MediaType,
+  type MessageView,
+  type PollOption,
+  type TextSpan,
+} from "./present.js";
 export {
   inferClock,
   inferDateOrder,

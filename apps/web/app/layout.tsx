@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Assistant, Secular_One } from "next/font/google";
+import { SITE_URL } from "../lib/site";
 import "./globals.css";
 
 /**
@@ -25,6 +26,8 @@ const assistant = Assistant({
 });
 
 export const metadata: Metadata = {
+  // Link previews need absolute image addresses; without a base they are dropped.
+  metadataBase: new URL(SITE_URL),
   title: "בוידעם — הצ׳אטים של וואטסאפ, שמורים אצלכם",
   description: "שומרים צ׳אטים של וואטסאפ עם כל התמונות ב־Google Drive שלכם, ומפנים מקום בטלפון.",
   // Shared-chat pages carry a key in the URL fragment. Referrers never include the fragment, but

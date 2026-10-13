@@ -67,13 +67,13 @@ export function SaveChat({ chat, onClose }: SaveChatProps) {
 
   return (
     <div className="sheet-backdrop" onClick={() => stage.kind !== "working" && onClose()} role="presentation">
-      <aside className="dialog" onClick={(event) => event.stopPropagation()} aria-label="שמירת הצ׳אט">
+      <aside className="dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()} aria-label="שמירת הצ׳אט">
         {stage.kind === "saved" ? (
           <>
-            <h2>{stage.already ? "הצ׳אט כבר שמור אצלכם" : "הצ׳אט נשמר ב-Drive שלכם"}</h2>
+            <h2>{stage.already ? "הצ׳אט כבר שמור אצלכם" : "הצ׳אט נשמר ב־Drive שלכם"}</h2>
             <p>האפליקציה מוצאת אותו שם — ומשם אפשר לקרוא אותו גם בלי חיבור, ולהוסיף לו ייצוא משלכם.</p>
             <a className="dialog-link" href={stage.folderUrl} target="_blank" rel="noreferrer noopener">
-              פתיחה ב-Google Drive
+              פתיחה ב־Google Drive
             </a>
             <GetTheApp />
             <button type="button" className="dialog-quiet" onClick={onClose}>
@@ -82,7 +82,7 @@ export function SaveChat({ chat, onClose }: SaveChatProps) {
           </>
         ) : stage.kind === "working" ? (
           <>
-            <h2>מעתיקים את הצ׳אט ל-Drive שלכם</h2>
+            <h2>מעתיקים את הצ׳אט ל־Drive שלכם</h2>
             <p>
               {stage.progress === undefined
                 ? "מתחילים…"
@@ -104,7 +104,7 @@ export function SaveChat({ chat, onClose }: SaveChatProps) {
           <>
             <h2>לשמור את הצ׳אט אצלכם</h2>
             <p>
-              הצ׳אט יועתק ל-Google Drive שלכם, עם התמונות, בלי לעבור דרכנו. התחברו לחשבון Google
+              הצ׳אט יועתק ל־Google Drive שלכם, עם התמונות, בלי לעבור דרכנו. התחברו לחשבון Google
               שאתם משתמשים בו באפליקציה — והצ׳אט יחכה לכם שם.
             </p>
             <p className="dialog-fine">
@@ -112,12 +112,12 @@ export function SaveChat({ chat, onClose }: SaveChatProps) {
             </p>
             {chat.protected && (
               <p className="dialog-fine">
-                הצ׳אט הזה מוגן בסיסמת מעבר. העותק נשמר מוגן כמו שהוא, ונפתח רק עם הקישור המלא ששיתפו איתכם.
+                הצ׳אט הזה מוגן בסיסמה. העותק נשמר מוגן כמו שהוא, ונפתח רק עם הקישור המלא ששיתפו איתכם.
               </p>
             )}
             {stage.kind === "problem" && <p className="dialog-problem">{stage.message}</p>}
             <button type="button" className="dialog-cta" onClick={() => void save()}>
-              שמירה ל-Google Drive שלי
+              שמירה ל־Google Drive שלי
             </button>
             <button type="button" className="dialog-quiet" onClick={onClose}>
               לא עכשיו

@@ -31,8 +31,10 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { STEP_COUNT, SHOT_ASPECT, StepShot } from "./StepShot";
 import { createStyles, useApp } from "./providers";
+import { Button } from "./ui";
 import { StatusPill } from "../archive/StatusPill";
 import { gutter, radius, space, type } from "../../lib/ui/theme";
 import type { StringKey } from "../../lib/i18n/strings";
@@ -51,8 +53,9 @@ const PAGES: readonly Page[] = [
 
 /** Fixed insets: this app carries no safe-area library (see `RemoveArchiveSheet`), and a modal
  * covers the notch and the home indicator both. Generous enough for a Dynamic Island. */
-const TOP_INSET = 60;
-const BOTTOM_INSET = 40;
+/** Room above the pager for Skip, and below it for the dots and the button. */
+const HEADER = 44;
+const FOOTER = 120;
 
 export function Onboarding({ onClose }: { onClose: () => void }) {
   const { t } = useApp();
@@ -61,6 +64,11 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
   const scrollRef = useRef<ScrollView>(null);
   const [page, setPage] = useState(0);
   const reduceMotion = useReduceMotion();
+  // Measured, not assumed: a fixed 60/40 put Skip under the Dynamic Island on some phones and
+  // left a band of nothing on ones with a home button.
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, 20) + space.sm;
+  const bottomInset = Math.max(insets.bottom, space.lg) + space.sm;
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>): void => {
     const next = Math.round(event.nativeEvent.contentOffset.x / width);
@@ -78,7 +86,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
 
   // The picture's height is whatever the screen has left after the chrome and one line of text,
   // and its width follows from the picture's own shape — capped so it never runs into the gutters.
-  const chrome = TOP_INSET + 44 + 150 + BOTTOM_INSET + 120;
+  const chrome = topInset + HEADER + 150 + bottomInset + FOOTER;
   const shotWidth = Math.min(width - gutter * 2, Math.max(180, (height - chrome) * SHOT_ASPECT));
 
   return (
@@ -96,7 +104,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
           {PAGES.map((item, index) => (
             <View
               key={index}
-              style={[styles.page, { width }]}
+              style={[styles.page, { width, paddingTop: topInset + HEADER, paddingBottom: bottomInset + FOOTER }]}
             >
               {item.kind === "welcome" && <Welcome />}
               {item.kind === "step" && (
@@ -112,7 +120,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
           ))}
         </ScrollView>
 
-        <View style={styles.skipRow} pointerEvents="box-none">
+        <View style={[styles.skipRow, { top: topInset }]} pointerEvents="box-none">
           {!last && (
             <Pressable onPress={onClose} accessibilityRole="button" hitSlop={12}>
               <Text style={styles.skipLabel}>{t("onboarding.skip")}</Text>
@@ -120,7 +128,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
           )}
         </View>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: bottomInset }]}>
           <View style={styles.ticks} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
             {PAGES.map((_, index) => (
               <View
@@ -129,13 +137,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
               />
             ))}
           </View>
-          <Pressable
-            onPress={advance}
-            accessibilityRole="button"
-            style={({ pressed }) => [styles.next, pressed && styles.pressed]}
-          >
-            <Text style={styles.nextLabel}>{last ? t("common.done") : t("onboarding.next")}</Text>
-          </Pressable>
+          <Button label={last ? t("common.done") : t("onboarding.next")} onPress={advance} />
         </View>
       </View>
     </Modal>
@@ -259,19 +261,13 @@ function useReduceMotion(): boolean {
 const useStyles = createStyles((t) => ({
   fill: { flex: 1, backgroundColor: t.paper },
   pager: { flex: 1 },
-  page: {
-    flex: 1,
-    paddingTop: TOP_INSET + 44,
-    paddingBottom: BOTTOM_INSET + 120,
-    paddingHorizontal: space.xl,
-  },
+  page: { flex: 1, paddingHorizontal: space.xl },
 
   skipRow: {
     position: "absolute",
-    top: TOP_INSET,
     start: 0,
     end: 0,
-    height: 44,
+    height: HEADER,
     flexDirection: "row",
     justifyContent: "flex-end",
     alignItems: "center",
@@ -336,20 +332,10 @@ const useStyles = createStyles((t) => ({
     end: 0,
     bottom: 0,
     paddingHorizontal: space.xl,
-    paddingBottom: BOTTOM_INSET,
     gap: space.xl,
   },
   // The system's page control: dots, the current one in primary.
   ticks: { flexDirection: "row", justifyContent: "center", gap: space.sm },
   tick: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: t.highlight },
   tickActive: { backgroundColor: t.ink },
-  next: {
-    minHeight: 50,
-    borderRadius: radius.button,
-    backgroundColor: t.accent,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pressed: { opacity: 0.7 },
-  nextLabel: { ...type.label, fontWeight: "600", color: t.onAccent, writingDirection: "auto" },
 }));

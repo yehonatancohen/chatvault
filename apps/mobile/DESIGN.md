@@ -229,6 +229,8 @@ the system's own dark palette, not the light one inverted.
 - Large titles on the three tabs; inline Headline titles on pushed screens.
 - The chat reader looks like Messages: grey bubbles, the reader's own in the tint.
 - Every size, gap and corner comes from `lib/ui/theme.ts`; nothing tappable under 48pt.
+- Liquid Glass for what floats above content — the tab bar, buttons, controls over a photo —
+  and never for content itself (`components/app/Glass.tsx`).
 - No native code beyond what the installed builds already contain (see Constraints).
 
 ## Colors
@@ -396,9 +398,13 @@ the pager scrolls without animation, and the modal fades instead of sliding.
 
 - **No new native modules.** Installed builds take JavaScript over the air (`expo-updates`,
   `runtimeVersion: appVersion`); an update importing a module the binary lacks crashes at launch.
-  So there is no `expo-glass-effect`, no `expo-blur` and no `expo-router/unstable-native-tabs` —
-  the tab bar is opaque and the large titles are done by hand. A real Liquid Glass tab bar and
-  native large titles belong with the next store build.
+  Liquid Glass is available anyway, because `expo-glass-effect` was already linked through
+  `expo-router`: the tab bar is a floating glass capsule drawn by the app
+  (`components/app/GlassTabBar.tsx`), buttons and floating controls are glass, and everywhere the
+  material is missing they fall back to the opaque system surfaces. There is still no `expo-blur`
+  and no `expo-router/unstable-native-tabs`, and the large titles are done by hand.
+- **Glass is the control layer.** Content — list cells, bubbles, cards — is never glass, glass is
+  never stacked on glass, and only the primary action is tinted.
 - **The routes do not move.** Large titles are not obtained by nesting a stack inside each tab; a
   share cold-start depends on the current route layout (`apps/mobile/CLAUDE.md`).
 - **The raster assets predate this system.** The mark (`design/brand/mark.svg`) is ultramarine and

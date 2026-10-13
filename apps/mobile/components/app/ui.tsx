@@ -14,10 +14,11 @@
  * - **Nothing tappable is shorter than `TAP`.** Every pressable here sets `minHeight`, which is
  *   why rows can hold one line or three without the screen changing character.
  * - **Sizes come from `type`.** No component here names a font size of its own.
- * - **One primary action per screen.** `Button` defaults to `primary` — iOS's filled button, the
- *   tint with a white label; a screen with three filled buttons has no primary action, so the
- *   others take `tone="quiet"`, which is iOS's tinted button: a wash of the tint with the tint as
- *   its label.
+ * - **One primary action per screen.** `Button` defaults to `primary` — iOS 26's prominent glass
+ *   button, Liquid Glass tinted with the accent and a white label; a screen with three of those
+ *   has no primary action, so the others take `tone="quiet"`, which is clear glass with the tint
+ *   as its label. Where there is no Liquid Glass they are the filled and tinted buttons they
+ *   were before (`Glass.tsx`).
  * - **A group is an inset grouped list.** Rows highlight grey edge to edge when pressed, and the
  *   separators run from the text's leading edge to the group's trailing edge, as in Settings.
  *
@@ -42,6 +43,8 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 import { useNavigation } from "expo-router";
+import { Glass, hasLiquidGlass } from "./Glass";
+import { useTabBarSpace } from "./GlassTabBar";
 import { Icon } from "./Icon";
 import { createStyles, useTheme } from "./providers";
 import { gutter, radius, space, TAP, type } from "../../lib/ui/theme";
@@ -69,10 +72,19 @@ export function Screen({
 }) {
   const styles = useStyles();
   const onScroll = useLargeTitle(largeTitle);
+  // A screen with a large title is a tab, and a tab's content runs under the floating tab bar.
+  const tabBarSpace = useTabBarSpace();
+  const underBar = largeTitle !== undefined ? tabBarSpace : 0;
   return (
     <ScrollView
-      contentContainerStyle={[styles.screen, { gap }]}
+      contentContainerStyle={[styles.screen, { gap }, underBar > 0 && { paddingBottom: underBar + space.lg }]}
+      scrollIndicatorInsets={{ bottom: underBar }}
       keyboardShouldPersistTaps={keyboard === true ? "handled" : "never"}
+      // With a field on screen the keyboard used to cover the button that submits it, with no
+      // way to reach it but dismissing the keyboard first. The system moves the content clear of
+      // it, and a drag puts the keyboard away.
+      automaticallyAdjustKeyboardInsets={keyboard === true}
+      keyboardDismissMode={keyboard === true ? "interactive" : "none"}
       onScroll={onScroll}
       scrollEventThrottle={16}
     >
@@ -345,30 +357,46 @@ export function Button({
   disabled?: boolean;
 }) {
   const styles = useStyles();
+  const theme = useTheme();
+  const off = disabled === true;
+  // A disabled button is not glass: dimming a parent of the material stops it rendering, and a
+  // control that cannot be used should not catch the light like one that can.
+  const glass = hasLiquidGlass() && !off;
+  const labelStyle = [
+    styles.buttonLabel,
+    tone === "quiet" && styles.buttonLabelQuiet,
+    tone === "danger" && styles.buttonLabelDanger,
+  ];
+
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled === true}
+      disabled={off}
       accessibilityRole="button"
-      accessibilityState={{ disabled: disabled === true }}
-      style={({ pressed }) => [
-        styles.button,
-        tone === "quiet" && styles.buttonQuiet,
-        tone === "danger" && styles.buttonDanger,
-        pressed && styles.pressed,
-        disabled === true && styles.buttonDisabled,
-      ]}
+      accessibilityState={{ disabled: off }}
+      // On glass the material itself answers a touch (`interactive`); elsewhere the button dims.
+      style={({ pressed }) => [pressed && !glass && styles.pressed, off && styles.buttonDisabled]}
     >
-      <Text
-        style={[
-          styles.buttonLabel,
-          tone === "quiet" && styles.buttonLabelQuiet,
-          tone === "danger" && styles.buttonLabelDanger,
-        ]}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
+      {glass ? (
+        <Glass style={styles.buttonShape} interactive tint={tone === "primary" ? theme.accent : undefined}>
+          <Text style={labelStyle} numberOfLines={1}>
+            {label}
+          </Text>
+        </Glass>
+      ) : (
+        <View
+          style={[
+            styles.buttonShape,
+            styles.button,
+            tone === "quiet" && styles.buttonQuiet,
+            tone === "danger" && styles.buttonDanger,
+          ]}
+        >
+          <Text style={labelStyle} numberOfLines={1}>
+            {label}
+          </Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -626,6 +654,8 @@ export function Field({
         secureTextEntry={secure === true}
         autoCapitalize="none"
         autoCorrect={false}
+        spellCheck={false}
+        returnKeyType={onSubmit !== undefined ? "go" : "done"}
         style={[styles.input, error !== undefined && styles.inputBad]}
         placeholder={placeholder}
         placeholderTextColor={theme.faint}
@@ -725,15 +755,17 @@ const useStyles = createStyles((t) => ({
   },
   helpPillLabel: { ...type.label, fontWeight: "600", color: t.accent, writingDirection: "auto" },
 
-  button: {
+  // The shape, shared by the glass button and its fallback; `button` is the fallback's fill.
+  buttonShape: {
     minHeight: 50,
     paddingVertical: space.md,
     paddingHorizontal: space.xl,
     borderRadius: radius.button,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: t.accent,
+    overflow: "hidden",
   },
+  button: { backgroundColor: t.accent },
   buttonQuiet: { backgroundColor: t.accentWash },
   buttonDanger: { backgroundColor: t.badWash },
   buttonDisabled: { opacity: 0.4 },

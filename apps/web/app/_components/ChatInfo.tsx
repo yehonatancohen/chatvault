@@ -42,7 +42,7 @@ export function ChatInfo({ reader, messages, selfId, onPickSelf, onClose }: Chat
 
   return (
     <div className="sheet-backdrop" onClick={onClose} role="presentation">
-      <aside className="sheet" onClick={(event) => event.stopPropagation()} aria-label="מידע על הצ׳אט">
+      <aside className="sheet" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()} aria-label="מידע על הצ׳אט">
         <header className="sheet-head">
           <div className="sheet-title">מידע על הצ׳אט</div>
           <button type="button" className="sheet-close" onClick={onClose} aria-label="סגירה">
@@ -55,8 +55,8 @@ export function ChatInfo({ reader, messages, selfId, onPickSelf, onClose }: Chat
             <div className="info-avatar" style={{ backgroundColor: colorForParticipant(title) }}>
               {[...title][0]?.toUpperCase() ?? "?"}
             </div>
-            <div className="info-name" style={{ unicodeBidi: "plaintext" }}>
-              {title}
+            <div className="info-name">
+              <bdi>{title}</bdi>
             </div>
             <div className="info-sub">
               {countLabel(manifest.participants.length, "משתתף אחד", "משתתפים")} ·{" "}
@@ -72,7 +72,7 @@ export function ChatInfo({ reader, messages, selfId, onPickSelf, onClose }: Chat
             <div>
               <dt>מדיה</dt>
               <dd>
-                {countLabel(stats.uniqueBlobCount, "קובץ אחד", "קבצים")} · {formatBytes(stats.totalBytes)}
+                {countLabel(stats.uniqueBlobCount, "קובץ אחד", "קבצים")} · <bdi dir="ltr">{formatBytes(stats.totalBytes)}</bdi>
               </dd>
             </div>
             {stats.notArchivedCount > 0 && (
@@ -85,8 +85,8 @@ export function ChatInfo({ reader, messages, selfId, onPickSelf, onClose }: Chat
               </div>
             )}
             <div>
-              <dt>סיסמת מעבר</dt>
-              <dd>{reader.encrypted ? "מוגן" : "ללא"}</dd>
+              <dt>סיסמה</dt>
+              <dd>{reader.encrypted ? "מוגן בסיסמה" : "ללא"}</dd>
             </div>
           </dl>
 
@@ -106,8 +106,11 @@ export function ChatInfo({ reader, messages, selfId, onPickSelf, onClose }: Chat
                   <span className="person-avatar" style={{ backgroundColor: colorForParticipant(participant.displayName) }}>
                     {[...participant.displayName][0]?.toUpperCase() ?? "?"}
                   </span>
-                  <span className="person-name" style={{ unicodeBidi: "plaintext" }}>
-                    {participant.displayName}
+                  {/* `bdi`, not `unicode-bidi: plaintext` on the row: the name takes its direction
+                      from its own first letter, but stays beside its avatar. Plaintext on the
+                      flex item sent a Latin name or a phone number to the far edge of the row. */}
+                  <span className="person-name">
+                    <bdi>{participant.displayName}</bdi>
                   </span>
                   {isSelf && <span className="person-you">אתם</span>}
                 </button>

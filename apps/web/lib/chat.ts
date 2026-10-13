@@ -11,7 +11,7 @@
  * Hebrew only, because this site is (`app/layout.tsx` → `lang="he"`).
  */
 
-import type { MergedMessage } from "@chatvault/core";
+import { looksLikeNotice, type MergedMessage } from "@chatvault/core";
 
 /** Beyond this gap, the same sender starts a new group even on the same day. */
 export const GROUP_GAP_MS = 5 * 60 * 1000;
@@ -66,11 +66,16 @@ export function buildChatRows(messages: readonly MergedMessage[]): ChatRow[] {
   return rows;
 }
 
+const isNotice = (message: MergedMessage): boolean =>
+  message.kind === "system" || (message.kind === "text" && looksLikeNotice(message.body));
+
 /** Whether `later` continues a run started by `earlier`. */
 function continues(earlier: MergedMessage | undefined, later: MergedMessage | undefined): boolean {
   if (!earlier || !later) return false;
   // System notices stand alone: they belong to the conversation, not to a speaker's turn.
-  if (earlier.kind === "system" || later.kind === "system") return false;
+  // WhatsApp files some of them under a name (the encryption notice, in a 1:1 chat), and those
+  // are drawn centred too — a bubble on either side of one is not "the same turn".
+  if (isNotice(earlier) || isNotice(later)) return false;
   if (earlier.sender === null || later.sender === null) return false;
   if (earlier.sender !== later.sender) return false;
   if (!sameDay(earlier.ts, later.ts)) return false;

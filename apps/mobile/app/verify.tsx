@@ -99,7 +99,7 @@ export default function VerifyScreen() {
 
       <MediaNote explanation={media} missing={stats.notArchivedCount} />
       {outcome.issues.length > 0 && (
-        <Body muted>{t("verify.issues", { count: formatCount(outcome.issues.length) })}</Body>
+        <Body muted>{tp("verify.issues", outcome.issues.length)}</Body>
       )}
 
       <DriveBackup archiveId={session.archiveId} updatedAt={outcome.manifest.updatedAt} autoStart />

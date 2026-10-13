@@ -114,8 +114,11 @@ to build on rather than assumptions to revisit:
 
 1. **A caption is inline, before the marker, on the same line** — `Sender: caption ‎<marker>`,
    marker last, preceded by an LRM. It is *not* a continuation line.
-2. **iOS writes omitted markers in English even in a Hebrew chat**: `image omitted`,
-   `video omitted`, `sticker omitted`.
+2. **iOS writes markers in the *app's* language, not the chat's.** That pair came from an
+   English-language iPhone, so a Hebrew chat carried `image omitted`. A Hebrew-language iPhone
+   writes Hebrew markers, a French one `image absente`. The parser therefore goes by *where
+   WhatsApp's direction marks stand* (before the `[` of every iOS media line, and before the
+   marker), not by wording — see `packages/core/CLAUDE.md`.
 3. **A with-media export still contains omitted markers** for media no longer on the device —
    6 of 21 media messages in the pair. "Omitted" is not a synonym for "exported without media".
 4. **Two exports of the same chat disagree about the seconds**, on 8 of 127 timestamps. This is
@@ -123,7 +126,21 @@ to build on rather than assumptions to revisit:
 5. **In a 1:1 chat the encryption notice carries a sender name**, so system messages are not
    identifiable by the absence of a sender.
 6. Media files sit flat beside `_chat.txt`, named like
-   `00000043-PHOTO-2025-03-14-20-10-34.jpg`.
+   `00000043-PHOTO-2025-03-14-20-10-34.jpg`. Documents and contact cards keep their own
+   names, **spaces included** (`00000046-Some file.txt`, Android `Dana Levi.vcf`).
+
+Items 7–9 come from a second source: a public corpus of real exports in twenty app languages
+(2026-10-13). It is not the owner's own data, and no Hebrew-language phone is in it.
+
+7. **The header is locale-shaped well beyond day/month order**: Arabic-Indic digits and an
+   Arabic comma, dots in the time (Indonesian), the time before the date (Vietnamese), Buddhist
+   and Japanese-era years. Each of these used to parse to zero messages.
+8. **Everything that is not text is flattened into text**: a poll is `POLL:` and `OPTION:` lines,
+   a location is a link with a localized word in front, a call is a sentence, an edit is a
+   `<This message was edited>` suffix, a view-once photo is Android's literal `null`. The archive
+   stores those lines as they came; `describeMessage` in core reads them back for display.
+9. **Android prints no seconds**, so a busy minute is many messages with one timestamp, and the
+   same short reply twice in a minute is two identical lines.
 
 Verified end to end: both exports parse to 127 messages with zero issues, all 15 attachments
 resolve to files present in the folder, and merging the pair yields **127 messages with zero

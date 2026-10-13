@@ -330,11 +330,39 @@ all three are tested. Keep it that way. Logic that migrates into a screen become
 - **The chat reader is Messages**: plain system background, grey bubbles, the tint with white
   type for the reader's own.
 
-**The redesign added no native code**, deliberately: installed builds take JS over the air
+**Liquid Glass (owner, 2026-10-12), for the layer above content and nothing else.** The tab bar
+is a floating glass capsule (`components/app/GlassTabBar.tsx`), `Button` is a glass button —
+tinted for the one primary action, clear for the rest — and the controls that float over a photo
+or a conversation (the lightbox's Done, the reader's jump to the latest message) are glass.
+`components/app/Glass.tsx` is the one place that touches the material, and its header holds
+Apple's rules as this app follows them: **content is never glass** (no glass cells, bubbles or
+cards), **no glass on glass**, **tint only on the primary action**. Three things to keep:
+
+- **`Glass` always takes a `fallbackStyle`.** Before iOS 26, on Android, and in a binary without
+  the module, it is an opaque view; a caller that passes none draws nothing there.
+- **Never dim a parent of glass.** `opacity` on an ancestor stops the material rendering, which
+  is why a pressed glass button relies on `interactive` and a disabled one is not glass at all.
+- **A tab screen's content runs under the bar**, so it ends with `useTabBarSpace()` of padding.
+  `Screen` does that for any screen with a `largeTitle`; a tab that owns its scroll view
+  (`(tabs)/index.tsx`) does it itself.
+
+**This still added no native code**, deliberately: installed builds take JS over the air
 (`expo-updates`, `runtimeVersion: appVersion`), and an update that imports a module the binary
-does not contain dies at launch. That rules out `expo-glass-effect`, `expo-blur` and
-`expo-router/unstable-native-tabs` until the next store build — which is when a real Liquid Glass
-tab bar and native large titles become possible.
+does not contain dies at launch. `expo-glass-effect` and `react-native-safe-area-context` were
+*already in the binary* — both are dependencies of `expo-router`, and
+`pnpm exec expo-modules-autolinking resolve -p ios` lists them — so naming them in
+`package.json`, pinned to the versions the lockfile had already resolved, changed what Metro can
+import and nothing that is compiled. (An earlier version of this note said glass had to wait for
+a store build; it was written without checking what was linked.) What it does still rule out:
+`expo-blur`, and `expo-router/unstable-native-tabs` — the latter not for want of native code but
+because it remounts the tab routes a share cold-start depends on. Native large titles are in the
+same position. **`expo install --check` reports both pins as "outdated"; leave them** until a new
+store build, because the pin is what keeps the JS matching the binary.
+
+**None of the glass has been seen on a device.** It was written on a machine that cannot run
+iOS; it typechecks and bundles (`expo export --platform ios`), and that is all that is known. Look
+at the tab bar, a primary and a quiet button, the lightbox and the reader on an iPhone running
+iOS 26 — in both appearances, in Hebrew, and with Reduce Transparency on — before trusting it.
 
 The app icon and `assets/images/mark.png` are rendered from `design/brand/mark.svg`; the tutorial
 pictures from `design/tutorial/screens.html` (see `components/app/StepShot.tsx`). **Both still

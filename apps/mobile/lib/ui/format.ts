@@ -22,8 +22,26 @@ export function setFormatLanguage(language: Language): void {
   current = language;
 }
 
-/** Bytes, at a precision that never rounds a real file down to nothing. */
-export function formatBytes(bytes: number): string {
+// Written as code points, never as literals: an invisible character in source is invisible in
+// every editor and diff (`packages/core/CLAUDE.md`, "Never write an invisible character").
+const LEFT_TO_RIGHT_ISOLATE = String.fromCharCode(0x2066);
+const POP_ISOLATE = String.fromCharCode(0x2069);
+
+/**
+ * Bytes, at a precision that never rounds a real file down to nothing.
+ *
+ * **In Hebrew the size is wrapped in a left-to-right isolate.** A size is nearly always set
+ * inside a sentence ("3 chats · 1.5 MB"), and in a right-to-left line the bidi algorithm treats
+ * the number and its unit as two separate runs and puts them in the wrong order: "MB 1.5". The
+ * isolate keeps them one left-to-right piece wherever the string lands. English needs nothing,
+ * so it gets nothing — the string is exactly what it was.
+ */
+export function formatBytes(bytes: number, language: Language = current): string {
+  const size = plainBytes(bytes);
+  return language === "he" && size !== "-" ? `${LEFT_TO_RIGHT_ISOLATE}${size}${POP_ISOLATE}` : size;
+}
+
+function plainBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return "-";
   if (bytes < 1024) return `${Math.round(bytes)} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

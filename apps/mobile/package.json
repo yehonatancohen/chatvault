@@ -29,6 +29,7 @@
     "expo-dev-client": "~57.0.19",
     "expo-file-system": "^57.0.7",
     "expo-font": "~57.0.4",
+    "expo-glass-effect": "57.0.3",
     "expo-image-manipulator": "~57.0.19",
     "expo-linking": "~57.0.10",
     "expo-router": "^57.0.22",
@@ -41,6 +42,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "^0.86.3",
+    "react-native-safe-area-context": "5.9.0",
     "react-native-worklets": "0.10.1"
   },
   "comment": [
@@ -63,7 +65,18 @@
     "  @react-native/community-cli-plugin declares a peer on exactly 0.86.3 — pnpm's dedup picked",
     "  the newer sibling package instead of the one react-native itself needs.",
     "",
-    "Re-check all three on any Expo SDK bump, and prefer `expo install --check` over bare versions."
+    "Re-check all three on any Expo SDK bump, and prefer `expo install --check` over bare versions.",
+    "",
+    "expo-glass-effect and react-native-safe-area-context are pinned for the opposite reason: both",
+    "ARE imported (components/app/Glass.tsx, the tab bar, the tutorial), and both were already in",
+    "the native binary through expo-router before this app named them. They are pinned to exactly",
+    "the versions the lockfile had resolved for expo-router (57.0.3 and 5.9.0), so that naming",
+    "them changes what Metro can resolve and nothing about what is compiled into the app: builds",
+    "that take JS over the air (expo-updates, runtimeVersion = app version) already contain this",
+    "native code — as long as they were built from this lockfile, which last changed on",
+    "2026-09-19, before 0.1.1. Glass.tsx falls back to an opaque view if the module is missing",
+    "all the same. `expo install --check` calls both pins outdated; do not bump either without a",
+    "new store build."
   ],
   "devDependencies": {
     "@expo/plist": "^0.8.1",

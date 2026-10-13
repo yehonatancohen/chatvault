@@ -81,3 +81,58 @@ export function toLines(normalized: string): string[] {
   if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
   return lines;
 }
+
+/**
+ * The two marks WhatsApp writes in front of text **it generated**, as opposed to text someone
+ * typed: LRM in a left-to-right app language, RLM in a right-to-left one (Hebrew, Arabic).
+ *
+ * They are noise to every regex, which is why normalization deletes them — but *where* they
+ * stood is the one signal in an export that does not depend on the app's language:
+ *
+ * - iOS puts one before the `[` of every media line, and one before the marker that ends it
+ *   (`<attached: …>`, `image omitted`, `תמונה הושמטה`, `لم يتم إدراج الصورة` …).
+ * - Both platforms put one at the start of a generated body: a deleted-message tombstone, a
+ *   location, the encryption notice.
+ *
+ * So the parser reads these positions off the raw line *before* normalizing it. Established
+ * against real exports in twenty app languages; see `packages/core/CLAUDE.md`.
+ */
+const DIRECTION_MARK = "[" + range(0x200e, 0x200f) + "]";
+const LEADING_MARK = new RegExp("^" + esc(0xfeff) + "?" + DIRECTION_MARK);
+const SPLIT_ON_MARK = new RegExp(DIRECTION_MARK);
+
+/** Does this raw (un-normalized) text begin with a direction mark? */
+export function startsWithDirectionMark(raw: string): boolean {
+  return LEADING_MARK.test(raw);
+}
+
+/**
+ * The normalized text after the last direction mark in a raw line, or `undefined` if the line
+ * has none. On an iOS media line this is the marker itself, whatever language it is in.
+ */
+export function afterLastDirectionMark(raw: string): string | undefined {
+  const parts = raw.split(SPLIT_ON_MARK);
+  if (parts.length < 2) return undefined;
+  return normalizeInvisibles(parts[parts.length - 1] ?? "").trim();
+}
+
+/**
+ * Decimal digits of other scripts → ASCII. Applied to a header's date and time only, never to
+ * a body: an Arabic-language phone writes `[١٨/٣/٢٠٢٢، ٢:٥٦:٠٠ م]`.
+ */
+const DIGIT_ZEROS = [
+  0x0660, 0x06f0, 0x07c0, 0x0966, 0x09e6, 0x0a66, 0x0ae6, 0x0b66, 0x0be6, 0x0c66, 0x0ce6,
+  0x0d66, 0x0e50, 0x0ed0, 0x0f20, 0x1040, 0x17e0, 0xff10,
+];
+const FOREIGN_DIGIT = new RegExp(
+  "[" + DIGIT_ZEROS.map((zero) => range(zero, zero + 9)).join("") + "]",
+  "g",
+);
+
+export function asciiDigits(input: string): string {
+  return input.replace(FOREIGN_DIGIT, (ch) => {
+    const cp = ch.charCodeAt(0);
+    const zero = DIGIT_ZEROS.find((z) => cp >= z && cp <= z + 9) ?? cp;
+    return String(cp - zero);
+  });
+}

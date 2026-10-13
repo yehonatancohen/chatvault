@@ -36,7 +36,7 @@ export interface SaveProgress {
 /** The visitor's Drive already holds this chat — nothing was copied, and nothing is wrong. */
 export class AlreadySavedError extends Error {
   constructor(readonly folderUrl: string) {
-    super("הצ׳אט הזה כבר שמור ב-Google Drive שלכם.");
+    super("הצ׳אט הזה כבר שמור ב־Google Drive שלכם.");
     this.name = "AlreadySavedError";
   }
 }

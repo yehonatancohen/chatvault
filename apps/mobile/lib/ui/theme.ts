@@ -85,6 +85,13 @@ export interface Theme {
   readonly field: string;
   /** The dimming behind a sheet or a lightbox. */
   readonly scrim: string;
+  /**
+   * A translucent fill for a shape that sits *on glass* — the selected tab's pill
+   * (`systemFill`). Translucent on purpose: whatever the glass is refracting shows through it.
+   */
+  readonly fill: string;
+  /** The same, fainter: that shape while it is pressed (`quaternarySystemFill`). */
+  readonly fillFaint: string;
 }
 
 export const lightTheme: Theme = {
@@ -117,6 +124,8 @@ export const lightTheme: Theme = {
   onSelfBubbleMuted: "rgba(255, 255, 255, 0.75)",
   field: "#ffffff",
   scrim: "rgba(0, 0, 0, 0.4)",
+  fill: "rgba(120, 120, 128, 0.2)",
+  fillFaint: "rgba(116, 116, 128, 0.08)",
 };
 
 /**
@@ -153,6 +162,8 @@ export const darkTheme: Theme = {
   onSelfBubbleMuted: "rgba(255, 255, 255, 0.75)",
   field: "#1c1c1e",
   scrim: "rgba(0, 0, 0, 0.6)",
+  fill: "rgba(120, 120, 128, 0.36)",
+  fillFaint: "rgba(118, 118, 128, 0.18)",
 };
 
 /**
@@ -185,8 +196,11 @@ export const type = {
 /**
  * The corner radii, all continuous. `card` is an inset grouped list's corner, `button` a capsule
  * (a full-width button's label is one line, so the pill radius is safe), `sheet` a sheet's top.
+ *
+ * These are iOS 26's: its grouped lists, fields and sheets are rounder than the ones before
+ * them, so that a corner sits concentric with the glass controls and the screen's own corners.
  */
-export const radius = { chip: 8, field: 12, button: 999, card: 20, sheet: 28, pill: 999 } as const;
+export const radius = { chip: 10, field: 16, button: 999, card: 26, sheet: 34, pill: 999 } as const;
 
 /**
  * One spacing scale, so padding stops being invented per screen.

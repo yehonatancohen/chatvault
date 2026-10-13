@@ -15,7 +15,7 @@ import { createStyles, useApp } from "../app/providers";
  * "Don't remind me" hides the note everywhere, and Settings → Help keeps the explanation.
  */
 export function MediaNote({ explanation, missing }: { explanation: MediaExplanation; missing: number }) {
-  const { t, settings } = useApp();
+  const { t, tp, settings } = useApp();
   const styles = useStyles();
   const [open, setOpen] = useState(false);
 
@@ -23,7 +23,7 @@ export function MediaNote({ explanation, missing }: { explanation: MediaExplanat
 
   return (
     <View style={styles.box}>
-      <Text style={styles.line}>{t("media.note", { count: String(missing) })}</Text>
+      <Text style={styles.line}>{tp("media.note", missing)}</Text>
       <View style={styles.actions}>
         <Pressable onPress={() => setOpen((value) => !value)} accessibilityRole="button" hitSlop={8}>
           <Text style={styles.link}>{open ? t("common.showLess") : t("common.learnMore")}</Text>

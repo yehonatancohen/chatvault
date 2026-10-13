@@ -1,4 +1,5 @@
 import type { DateOrder } from "../types.js";
+import { asciiDigits } from "./text.js";
 
 /**
  * Date/time parsing for export headers.
@@ -16,6 +17,8 @@ export interface DateTimeTokens {
   readonly minute: number;
   readonly second: number | null;
   readonly meridiem: "am" | "pm" | null;
+  /** The time was printed before the date (`[14:56:01, 3/18/22]`) — a Vietnamese-language phone. */
+  readonly timeFirst: boolean;
 }
 
 export interface ResolvedDateTime {
@@ -30,28 +33,83 @@ export interface ResolvedDateTime {
 }
 
 /**
- * Meridiem markers across the locales WhatsApp ships. Hebrew and most European locales use a
- * 24-hour clock and appear here only for completeness.
+ * Meridiem markers, as each locale's WhatsApp prints them. Most of the world uses a 24-hour
+ * clock and never reaches this table.
  */
 const MERIDIEM: ReadonlyMap<string, "am" | "pm"> = new Map([
   ["am", "am"],
   ["a.m.", "am"],
   ["a. m.", "am"],
+  ["a.m", "am"],
   ["pm", "pm"],
   ["p.m.", "pm"],
   ["p. m.", "pm"],
+  ["p.m", "pm"],
   ["ص", "am"], // Arabic
   ["م", "pm"],
   ["পূ", "am"], // Bengali
   ["ਪੂ", "pm"],
+  ["לפנה״צ", "am"], // Hebrew, with a gershayim or the ASCII quote keyboards produce
+  ["אחה״צ", "pm"],
+  ['לפנה"צ', "am"],
+  ['אחה"צ', "pm"],
+  ["上午", "am"], // Chinese
+  ["下午", "pm"],
+  ["午前", "am"], // Japanese
+  ["午後", "pm"],
+  ["오전", "am"], // Korean
+  ["오후", "pm"],
+  ["öö", "am"], // Turkish
+  ["ös", "pm"],
+  ["π.μ.", "am"], // Greek
+  ["μ.μ.", "pm"],
+  // English (UK and India) Android spells the part of the day out.
+  ["in the morning", "am"],
+  ["in the afternoon", "pm"],
+  ["in the evening", "pm"],
+  ["noon", "pm"],
+  ["midnight", "am"],
 ]);
 
-const DATETIME_RE = new RegExp(
-  "^\\s*(\\d{1,4})[./-](\\d{1,2})[./-](\\d{2,4})" + // date fields
-    "[,\\s]+" +
-    "(\\d{1,2}):(\\d{2})(?::(\\d{2}))?" + // time
-    "\\s*(\\S{1,4}\\.?\\s?\\S{0,2}\\.?)?\\s*$", // optional meridiem
+/** Words some locales put between the date and the time. They carry no information. */
+const FILLER: ReadonlySet<string> = new Set(["klo", "kl", "kl.", "at", "um", "à", "a las", "às"]);
+
+const DATE = "(\\d{1,4})[./-](\\d{1,2})[./-](\\d{2,4}|[A-Za-z]\\d{1,2})(\\s?BE)?";
+const TIME = "(\\d{1,2})[:.](\\d{2})(?:[:.](\\d{2}))?";
+
+/** `date, [word] time [word]` — every locale but one. */
+const DATE_FIRST = new RegExp(
+  "^\\s*" + DATE + "[,\\s]+(?:([^\\d\\s,][^\\d,]{0,8}?)\\s*)?" + TIME + "\\s*(\\D.{0,20}?)?\\s*$",
 );
+/** `time, date` — Vietnamese. */
+const TIME_FIRST = new RegExp("^\\s*" + TIME + "\\s*([^\\d,][^,]{0,20}?)?\\s*,\\s*" + DATE + "\\s*$");
+
+/** Japanese era letters as iOS prints them (`R4` is 2022), with the year before each era's first. */
+const ERA_BASE: Readonly<Record<string, number>> = { R: 2018, H: 1988, S: 1925 };
+
+/**
+ * A year field as a Gregorian number. A phone set to the Buddhist calendar prints `2565 BE`
+ * (or just `2565`), one set to the Japanese calendar prints `R4`; both are the year 2022.
+ */
+function yearField(raw: string, buddhist: boolean): number | null {
+  const era = /^([A-Za-z])(\d{1,2})$/.exec(raw);
+  if (era) {
+    const base = ERA_BASE[(era[1] ?? "").toUpperCase()];
+    return base === undefined ? null : base + Number(era[2]);
+  }
+  const n = Number(raw);
+  return buddhist || n >= 2400 ? n - 543 : n;
+}
+
+/** Which half of the day a word names, `null` for a filler word, `undefined` if unknown. */
+function meridiemOf(word: string | undefined, hour: number): "am" | "pm" | null | undefined {
+  if (word === undefined || word.trim() === "") return null;
+  const key = word.trim().toLowerCase().replace(/\s+/g, " ");
+  if (FILLER.has(key)) return null;
+  // "11:30 at night" is 23:30 and "2:10 at night" is 02:10.
+  if (key === "at night") return hour >= 6 && hour < 12 ? "pm" : "am";
+  return MERIDIEM.get(key);
+}
 
 /**
  * Pull the numeric shape out of a header's datetime portion. Returns `null` if the string
@@ -59,28 +117,41 @@ const DATETIME_RE = new RegExp(
  * previous message rather than a new one.
  */
 export function tokenizeDateTime(input: string): DateTimeTokens | null {
-  const m = DATETIME_RE.exec(input);
-  if (!m) return null;
+  // Digits of other scripts and the Arabic comma, in the header only.
+  const text = asciiDigits(input).replace(/\u060c/g, ",");
 
-  const [, f1, f2, f3, h, min, sec, mer] = m;
+  let f1: string | undefined, f2: string | undefined, f3: string | undefined;
+  let be: string | undefined, h: string | undefined, min: string | undefined;
+  let sec: string | undefined, before: string | undefined, after: string | undefined;
+
+  const dateFirst = DATE_FIRST.exec(text);
+  if (dateFirst) {
+    [, f1, f2, f3, be, before, h, min, sec, after] = dateFirst;
+  } else {
+    const timeFirst = TIME_FIRST.exec(text);
+    if (!timeFirst) return null;
+    [, h, min, sec, after, f1, f2, f3, be] = timeFirst;
+  }
   if (!f1 || !f2 || !f3 || !h || !min) return null;
 
-  let meridiem: "am" | "pm" | null = null;
-  if (mer !== undefined && mer.trim() !== "") {
-    const key = mer.trim().toLowerCase().replace(/\s+/g, " ");
-    const found = MERIDIEM.get(key);
-    // An unrecognised trailing token means this isn't a datetime we understand. Bail rather
-    // than silently dropping it and producing a wrong time.
-    if (!found) return null;
-    meridiem = found;
-  }
+  const hour = Number(h);
+  const pre = meridiemOf(before, hour);
+  const post = meridiemOf(after, hour);
+  // An unrecognised word means this isn't a datetime we understand. Bail rather than silently
+  // dropping it and producing a wrong time.
+  if (pre === undefined || post === undefined) return null;
+
+  const first = yearField(f1, false);
+  const third = yearField(f3, be !== undefined);
+  if (first === null || third === null) return null;
 
   return {
-    fields: [Number(f1), Number(f2), Number(f3)],
-    hour: Number(h),
+    fields: [first, Number(f2), third],
+    hour,
     minute: Number(min),
     second: sec === undefined ? null : Number(sec),
-    meridiem,
+    meridiem: pre ?? post,
+    timeFirst: dateFirst === null,
   };
 }
 

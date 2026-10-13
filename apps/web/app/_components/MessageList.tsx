@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import type { ArchiveReader, MergedMessage } from "@chatvault/core";
 import { MessageBubble } from "./MessageBubble";
@@ -36,7 +36,16 @@ const PREPEND_BASE = 1_000_000;
 interface LightboxState {
   readonly url: string;
   readonly filename: string;
+  /** True when the URL was made for the lightbox alone, and is the lightbox's to release. */
+  readonly owned: boolean;
 }
+
+/**
+ * One `components` object for the life of the page. Handing Virtuoso a new object — or none —
+ * when the older chunks finish does not take its header away again: the strip stayed above the
+ * true beginning of the chat for good. Whether it shows is passed through `context` instead.
+ */
+const COMPONENTS = { Header: OlderLoading };
 
 /**
  * The conversation.
@@ -61,10 +70,72 @@ export function MessageList({ messages, reader, selfNames, loadingOlder = false 
   const [atBottom, setAtBottom] = useState(true);
   const virtuoso = useRef<VirtuosoHandle>(null);
 
+  const pane = useRef<HTMLDivElement>(null);
+  /** True until the reader themselves scrolls away from the end. */
+  const stick = useRef(true);
+  const lastInput = useRef(0);
+
   const rows = useMemo(() => buildChatRows(messages), [messages]);
 
+  const toEnd = useCallback((): void => {
+    const handle = virtuoso.current;
+    handle?.scrollToIndex({ index: "LAST", align: "end" });
+    // `scrollToIndex` aims from the heights it has, and the last rows are often measured only
+    // once they are on screen — it lands a few lines short and nothing fires again to correct
+    // it. The frame after, the real heights are in, and the end is simply as far as it scrolls.
+    requestAnimationFrame(() => handle?.scrollTo({ top: Number.MAX_SAFE_INTEGER }));
+  }, []);
+
+  // **Someone reading the end stays at the end.** The list opens at its last message, and then
+  // the ground moves under it: the app strip mounts below and shortens the pane, a phone's
+  // address bar slides away, older chunks are prepended and their estimated heights are
+  // corrected, previews load. Each of those left the newest message somewhere between a few
+  // lines and several screens out of view, with the jump button showing on a chat nobody had
+  // touched. So leaving the end only counts when a person did it — a wheel, a finger, a key —
+  // and anything else that pushes the list off its end is answered by going back there.
+  const onAtBottom = useCallback(
+    (value: boolean): void => {
+      if (value) stick.current = true;
+      else if (performance.now() - lastInput.current < 1000) stick.current = false;
+      else if (stick.current) {
+        requestAnimationFrame(toEnd);
+        return; // still at the end as far as the reader is concerned: no jump button
+      }
+      setAtBottom(value);
+    },
+    [toEnd],
+  );
+
+  useEffect(() => {
+    const element = pane.current;
+    if (element === null) return;
+    const touched = (): void => {
+      lastInput.current = performance.now();
+    };
+    const events = ["wheel", "touchstart", "touchmove", "pointerdown", "keydown"] as const;
+    for (const name of events) element.addEventListener(name, touched, { passive: true });
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? undefined
+        : new ResizeObserver(() => {
+            if (stick.current) toEnd();
+          });
+    observer?.observe(element);
+    return () => {
+      for (const name of events) element.removeEventListener(name, touched);
+      observer?.disconnect();
+    };
+  }, [toEnd]);
+
+  const closeLightbox = useCallback((): void => {
+    setLightbox((current) => {
+      if (current?.owned === true) URL.revokeObjectURL(current.url);
+      return null;
+    });
+  }, []);
+
   return (
-    <div className="chat-pane">
+    <div className="chat-pane" ref={pane}>
       <Virtuoso
         ref={virtuoso}
         style={{ height: "100%" }}
@@ -73,9 +144,13 @@ export function MessageList({ messages, reader, selfNames, loadingOlder = false 
         initialTopMostItemIndex={{ index: "LAST", align: "end" }}
         computeItemKey={(_index, row) => row.key}
         atBottomThreshold={140}
-        atBottomStateChange={setAtBottom}
+        atBottomStateChange={onAtBottom}
         increaseViewportBy={{ top: 600, bottom: 600 }}
-        {...(loadingOlder ? { components: { Header: OlderLoading } } : {})}
+        totalListHeightChanged={() => {
+          if (stick.current) requestAnimationFrame(toEnd);
+        }}
+        context={{ loadingOlder }}
+        components={COMPONENTS}
         itemContent={(_index, row) =>
           row.kind === "day" ? (
             <div className="day-row">
@@ -88,7 +163,7 @@ export function MessageList({ messages, reader, selfNames, loadingOlder = false 
               startsGroup={row.startsGroup}
               endsGroup={row.endsGroup}
               isSelf={row.message.sender !== null && selfNames?.has(row.message.sender) === true}
-              onOpenLightbox={(url, filename) => setLightbox({ url, filename })}
+              onOpenLightbox={(url, filename, owned) => setLightbox({ url, filename, owned })}
             />
           )
         }
@@ -99,7 +174,10 @@ export function MessageList({ messages, reader, selfNames, loadingOlder = false 
           type="button"
           className="jump-down"
           aria-label="לתחתית הצ׳אט"
-          onClick={() => virtuoso.current?.scrollToIndex({ index: "LAST", align: "end" })}
+          onClick={() => {
+            stick.current = true;
+            toEnd();
+          }}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M6 9l6 6 6-6" />
@@ -108,7 +186,7 @@ export function MessageList({ messages, reader, selfNames, loadingOlder = false 
       )}
 
       {lightbox && (
-        <Lightbox url={lightbox.url} filename={lightbox.filename} onClose={() => setLightbox(null)} />
+        <Lightbox url={lightbox.url} filename={lightbox.filename} onClose={closeLightbox} />
       )}
     </div>
   );
@@ -121,9 +199,10 @@ export function MessageList({ messages, reader, selfNames, loadingOlder = false 
  * and is still coming down. Once the last chunk lands the strip is gone, and the top of the
  * list is the true beginning of the chat.
  */
-function OlderLoading() {
+function OlderLoading({ context }: { context?: { loadingOlder: boolean } }) {
+  if (context?.loadingOlder !== true) return null;
   return (
-    <div className="older-loading" dir="auto">
+    <div className="older-loading" role="status">
       <span className="older-loading-dot" aria-hidden="true" />
       טוענים הודעות קודמות…
     </div>

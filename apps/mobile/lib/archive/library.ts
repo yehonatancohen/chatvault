@@ -14,7 +14,7 @@
  */
 
 import { readViewBackupState } from "./location";
-import { ArchiveReader, type Manifest } from "@chatvault/core";
+import { ArchiveReader, describeMessage, type DescribableMessage, type Manifest } from "@chatvault/core";
 import { getCryptoProvider } from "../crypto/expo-crypto-provider";
 import { buildMediaIndex, findChatPhoto, type MediaItem } from "../ui/media-index";
 import { readPreferences } from "./preferences";
@@ -132,10 +132,32 @@ export function archiveBytes(manifest: Manifest): number {
 }
 
 /** The one-line preview, naming what a media message is rather than showing an empty line. */
-function previewTextFor(message: { kind: string; body: string }, language: Language): string {
-  if (message.body.length > 0) return message.body;
-  if (message.kind === "attachment") return translate(language, "preview.photoOrFile");
-  if (message.kind === "omitted-media") return translate(language, "preview.mediaMissing");
-  if (message.kind === "deleted") return translate(language, "preview.deleted");
-  return "";
+export function previewTextFor(message: DescribableMessage, language: Language): string {
+  // The same reading the conversation itself uses, so the list never shows the raw line an
+  // export flattened something into ("POLL:", "null", "Location: https://…").
+  const view = describeMessage(message);
+  switch (view.type) {
+    case "text":
+    case "notice":
+      return view.text;
+    case "deleted":
+      return translate(language, "preview.deleted");
+    case "unavailable":
+      return translate(language, "bubble.unavailable");
+    case "location":
+      return view.label ?? translate(language, "preview.location");
+    case "poll":
+      return `${translate(language, "preview.poll")}: ${view.question}`;
+    case "call":
+      return translate(language, view.missed ? "preview.missedCall" : "preview.call");
+    case "media": {
+      if (view.caption.length > 0) return view.caption;
+      if (view.title !== undefined) return view.title;
+      if (view.media === "other") {
+        return translate(language, message.kind === "attachment" ? "preview.photoOrFile" : "preview.mediaMissing");
+      }
+      const key = view.media === "image" ? "photo" : view.media;
+      return translate(language, `preview.${key}`);
+    }
+  }
 }

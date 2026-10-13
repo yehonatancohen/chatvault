@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 import { formatBytes, formatCount, formatDate, formatRange, plural } from "./format";
 
 describe("formatBytes", () => {
+  it("keeps a size in one left-to-right piece inside a Hebrew line", () => {
+    // Without the isolate a right-to-left line shows "MB 1.5": the number and its unit are two
+    // bidi runs, and they are laid out in the line's order rather than their own.
+    const size = formatBytes(1.5 * 1024 * 1024, "he");
+    expect(size.charCodeAt(0)).toBe(0x2066);
+    expect(size.charCodeAt(size.length - 1)).toBe(0x2069);
+    expect(size.slice(1, -1)).toBe("1.5 MB");
+    expect(formatBytes(-1, "he")).toBe("-");
+    expect(formatBytes(1.5 * 1024 * 1024, "en")).toBe("1.5 MB");
+  });
+
   it("keeps small files visible instead of rounding them to zero", () => {
     expect(formatBytes(0)).toBe("0 B");
     expect(formatBytes(900)).toBe("900 B");

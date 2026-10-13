@@ -56,7 +56,12 @@ export default function ArchiveInfoScreen() {
   const styles = useStyles();
 
   const [cloudOnly, setCloudOnly] = useState(false);
-  useEffect(() => { void readViewBackupState(archiveId).then(state => setCloudOnly(state.cloudOnly === true)); }, [archiveId]);
+  useEffect(() => {
+    // Not knowing is treated as "not cloud-only": the row this hides is the one that removes a chat.
+    readViewBackupState(archiveId)
+      .then((state) => setCloudOnly(state.cloudOnly === true))
+      .catch(() => setCloudOnly(false));
+  }, [archiveId]);
   const [selfId, setSelfId] = useState<string | undefined>(undefined);
   const [showAllPeople, setShowAllPeople] = useState(false);
   const [lightbox, setLightbox] = useState<LightboxSubject | undefined>(undefined);
@@ -112,7 +117,10 @@ export default function ArchiveInfoScreen() {
   const [shared, setShared] = useState(false);
   const [shareProblem, setShareProblem] = useState<string | undefined>(undefined);
   useEffect(() => {
-    void isChatShared(archiveId).then(setShared);
+    // Offline, or signed out: the chat simply shows as not shared until Drive can be asked.
+    isChatShared(archiveId)
+      .then(setShared)
+      .catch(() => setShared(false));
   }, [archiveId]);
   const share = useCallback(async () => {
     setShareProblem(undefined);
